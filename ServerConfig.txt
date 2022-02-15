@@ -1,0 +1,18 @@
+Raspberry PI Web Server:  http://192.168.43.141
+
+Commands:
+
+# Start the WebServer:
+   sudo systemctl start uwsgi.service
+
+# Stop the WebServer:
+   sudo systemctl stop uwsgi.service
+
+# Checking the status of the WebSever:
+   sudo systemctl status uwsgi.service
+
+# Enable the reboot-run of the WebServer:
+   sudo systemctl enable uwsgi.service
+
+# Disable the reboot-run of the WebServer:
+   sudo systemctl disable uwsgi.service
