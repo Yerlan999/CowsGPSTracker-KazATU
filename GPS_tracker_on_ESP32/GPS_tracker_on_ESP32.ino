@@ -1,6 +1,5 @@
 #include <TinyGPS++.h>
 
-#define N_INTS 4
 #define RXD2 16
 #define TXD2 17
 
