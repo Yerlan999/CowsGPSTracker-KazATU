@@ -16,3 +16,6 @@ Commands:
 
 # Disable the reboot-run of the WebServer:
    sudo systemctl disable uwsgi.service
+
+Common file for sharing with snippets
+https://docs.google.com/document/d/1hwnLdjlYomPPoUx0PTTm73LGazx0L2SnKD8RYF0oWNo/edit?usp=sharing
