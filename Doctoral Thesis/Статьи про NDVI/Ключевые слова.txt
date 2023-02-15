@@ -1,0 +1,5 @@
+Pasture resource NDVI
+Ресурс пастбищ NDVI
+
+NDVI & Neural network & Grazing & Resource
+NDVI нейронная сеть выпас ресурсы

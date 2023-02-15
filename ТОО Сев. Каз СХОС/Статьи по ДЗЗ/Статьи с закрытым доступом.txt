@@ -1,0 +1,5 @@
+satellite spectral band combinations for [biomass/vegetation cover/vegetation type] assessment in [pasture/grazzing/paddock]
+
+biophysical field observations of land conditions
+
+
