@@ -2,3 +2,5 @@
 *.tiff
 *.tif
 *.kml
+*.geojson
+Sentinel-2-Shapefile-Index-master/
