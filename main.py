@@ -175,14 +175,15 @@ class MyApp(App):
 
         green_mass_yield = Label(text=f"Зеленая масса: {0} кг.")
         calculate_button = Button(text="Рассчитать")
+        calculate_button.background_color = (0,0.5,0,1)
         close_button = Button(text="Закрыть")
         calculate_button.bind(on_press=partial(self.calculate_yield, plants_dict, SubGrid.unique_plants_name(), green_mass_volume, green_mass_yield))
 
         popup_main_layout.add_widget(header_label)
         popup_main_layout.add_widget(plant_density_layout)
         popup_main_layout.add_widget(green_mass_yield)
-        buttons_layout.add_widget(calculate_button)
         buttons_layout.add_widget(close_button)
+        buttons_layout.add_widget(calculate_button)
         popup_main_layout.add_widget(buttons_layout)
 
         popup = Popup(title='Расчет зеленой массы', content=popup_main_layout, auto_dismiss=False)
@@ -197,7 +198,7 @@ class MyApp(App):
             SubGrid.grid[row][col].set_coverage(float(coverage.text))
             SubGrid.grid[row][col].set_plant_height(float(plant_height.text))
             SubGrid.grid[row][col].completed = True
-            SubGrid.grid[row][col].cell_button.background_color = (0,1,0,1)
+            SubGrid.grid[row][col].cell_button.background_color = (0,0.5,0,1)
             popup.dismiss()
 
     def clear_values(self, cell_index, popup, *args):
@@ -242,7 +243,9 @@ class MyApp(App):
 
         close_button = Button(text='Закрыть')
         clear_button = Button(text='Очистить')
+        clear_button.background_color = (0.5,0,0,1)
         submit_button = Button(text='Ввести')
+        submit_button.background_color = (0,0.5,0,1)
 
         popup_footer_layout.add_widget(close_button)
         popup_footer_layout.add_widget(clear_button)
@@ -278,9 +281,11 @@ class MyApp(App):
                 grid_layout.add_widget(cell)
 
         header_button1 = Button(text='Расчет Зеленой Массы на (1м х 1м)')
+        header_button1.background_color = (0.5,0,0,1)
         header_button1.bind(on_release=self.exit)
 
         footer_button1 = Button(text='Рассчитать')
+        footer_button1.background_color = (0, 0.5, 0, 1)
         footer_button1.bind(on_release=self.calculate)
 
         footer_layout.add_widget(footer_button1)
