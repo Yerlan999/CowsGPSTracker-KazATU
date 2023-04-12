@@ -145,8 +145,8 @@ class MyApp(App):
     def calculate_yield(self, plants_dict, unique_plants_name, green_mass_volume, green_mass_yield, *args):
         overall_green_mass_yield = 0
         for plant in unique_plants_name:
-            print(plant, plants_dict[plant].text, green_mass_volume[plant])
-            overall_green_mass_yield += float(plants_dict[plant].text) * float(green_mass_volume[plant])
+            if plants_dict[plant].text:
+                overall_green_mass_yield += float(plants_dict[plant].text) * float(green_mass_volume[plant])
         green_mass_yield.text = f"Зеленая масса: {overall_green_mass_yield/1000} кг."
 
     def exit(self, *args):
