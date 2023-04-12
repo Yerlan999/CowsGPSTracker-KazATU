@@ -101,7 +101,6 @@ class PrimeGrid():
 
 
 import kivy
-from kivymd.app import MDApp
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.textinput import TextInput
@@ -150,8 +149,8 @@ class MyApp(App):
             overall_green_mass_yield += float(plants_dict[plant].text) * float(green_mass_volume[plant])
         green_mass_yield.text = f"Зеленая масса: {overall_green_mass_yield/1000} кг."
 
-    def back_to_prime(self, *args):
-        screen_manager.switch_to(prime_grid_screen)
+    def exit(self, *args):
+        self.get_running_app().stop()
 
     def fill_plant_name(self, plant_name, plant_name_entry, *args):
         plant_name_entry.text = plant_name
@@ -216,7 +215,7 @@ class MyApp(App):
         popup_footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.2)
         popup_main_layout = BoxLayout(orientation='vertical', spacing=100)
         popup_input_layout = BoxLayout(orientation='vertical', size_hint_y=0.8)
-        entered_plants_layout = BoxLayout(orientation='horizontal', size_hint_y=0.01)
+        entered_plants_layout = GridLayout(cols=3, size_hint_y=0.1)
 
         row, col = SubGrid.cell_pointer["row"], SubGrid.cell_pointer["col"]
 
@@ -279,7 +278,7 @@ class MyApp(App):
                 grid_layout.add_widget(cell)
 
         header_button1 = Button(text='Расчет Зеленой Массы на (1м х 1м)')
-        header_button1.bind(on_release=self.back_to_prime)
+        header_button1.bind(on_release=self.exit)
 
         footer_button1 = Button(text='Рассчитать')
         footer_button1.bind(on_release=self.calculate)
