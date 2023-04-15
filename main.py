@@ -33,14 +33,14 @@ class Cell():
 
 class SubGrid():
     plant_names = []
-    grid = [[0 for _ in range(10)] for _ in range(10)]
+    grid = [[0 for _ in range(5)] for _ in range(5)]
     cell_pointer = {"row": 0, "col": 0}
 
     rows = None
     cols = None
     size = None
 
-    def __init__(self, rows=10, cols=10, size=(10, 10)):
+    def __init__(self, rows=5, cols=5, size=(20, 20)):
         SubGrid.rows = rows
         SubGrid.cols = cols
         SubGrid.size = size
@@ -69,11 +69,6 @@ class SubGrid():
         return cell_volumes
 
     @classmethod
-    def calculate_cell_yield(cls):
-        row, col = [cell_pointer["row"]], [cell_pointer["col"]]
-        grid[row][col].plant_volume = self.size[0] * self.size[1] * grid[ror][col].coverage/100 * grid[row][col].plant_height
-
-    @classmethod
     def plants_name_count(cls):
         count_plants = Counter(SubGrid.plant_names)
         return count_plants
@@ -87,17 +82,6 @@ class SubGrid():
     def update_cell_pointer(cls, row, col):
         SubGrid.cell_pointer["row"] = row
         SubGrid.cell_pointer["col"] = col
-
-
-class PrimeGrid():
-    cell_pointer = {"row": 0, "col": 0}
-    grid = [[0 for _ in range(10)] for _ in range(10)]
-
-    def __init__(self, rows=10, cols=10, size=(100, 100)):
-        self.rows = rows
-        self.cols = cols
-        self.size = size
-
 
 
 import kivy
