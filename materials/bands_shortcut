@@ -1,0 +1,17 @@
+BLUE = all_bands_data[image_date][:, :, bands_dict["B02"]]
+GREEN = all_bands_data[image_date][:, :, bands_dict["B03"]]
+RED = all_bands_data[image_date][:, :, bands_dict["B04"]]
+
+RED_EDGE1 = all_bands_data[image_date][:, :, bands_dict["B05"]]
+RED_EDGE2 = all_bands_data[image_date][:, :, bands_dict["B06"]]
+RED_EDGE3 = all_bands_data[image_date][:, :, bands_dict["B07"]]
+
+NIR = all_bands_data[image_date][:, :, bands_dict["B08"]]
+N_NIR = all_bands_data[image_date][:, :, bands_dict["B8A"]]
+WV = all_bands_data[image_date][:, :, bands_dict["B09"]]
+if "B10" in bands_dict:
+    SWIR_C = all_bands_data[image_date][:, :, bands_dict["B10"]]
+SWIR2 = all_bands_data[image_date][:, :, bands_dict["B11"]]
+SWIR3 = all_bands_data[image_date][:, :, bands_dict["B12"]]
+
+
