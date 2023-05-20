@@ -1,3 +1,18 @@
+from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.textinput import TextInput
+from kivy.uix.boxlayout import BoxLayout
+from kivy.core.window import Window
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.uix.popup import Popup
+from kivy.config import Config
+from functools import partial
+from kivy.app import App
+import kivy
+import re
+
+
 class Cell():
 
     def __init__(self, index):
@@ -33,7 +48,7 @@ class Cell():
 
 class SubGrid():
     plant_names = []
-    grid = [[0 for _ in range(5)] for _ in range(5)]
+    # grid = [[0 for _ in range(10)] for _ in range(10)]
     cell_pointer = {"row": 0, "col": 0}
 
     rows = None
@@ -44,6 +59,7 @@ class SubGrid():
         SubGrid.rows = rows
         SubGrid.cols = cols
         SubGrid.size = size
+        SubGrid.grid = [[0 for _ in range(SubGrid.cols)] for _ in range(SubGrid.rows)]
         SubGrid.create_gird(rows, cols)
 
     @classmethod
@@ -84,19 +100,6 @@ class SubGrid():
         SubGrid.cell_pointer["col"] = col
 
 
-import kivy
-from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.boxlayout import BoxLayout
-from kivy.core.window import Window
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.popup import Popup
-from kivy.config import Config
-from functools import partial
-from kivy.app import App
-import re
 
 Config.set('graphics', 'resizable', True)
 
@@ -115,16 +118,12 @@ class FloatInput(TextInput):
             )
         return super().insert_text(s, from_undo=from_undo)
 
-screen_manager= ScreenManager()
 
-prime_grid_screen = Screen(name='PrimeScreen')
-sub_grid_screen = Screen(name='SubScreen')
-screen_manager.add_widget(prime_grid_screen)
-screen_manager.add_widget(sub_grid_screen)
 
-screen_manager.current = 'SubScreen'
+class GridWindow(Screen):
 
-class MyApp(App):
+    def __init__(self, **kwargs):
+        super(GridWindow, self).__init__(**kwargs)
 
     def calculate_yield(self, plants_dict, unique_plants_name, green_mass_volume, green_mass_yield, *args):
         overall_green_mass_yield = 0
@@ -146,7 +145,7 @@ class MyApp(App):
         buttons_layout = BoxLayout(orientation='horizontal')
         plant_density_layout = BoxLayout(orientation='vertical')
 
-        header_label = Label(text="Ввод удельной плотности растении (г/см3)")
+        header_label = Label(text="Ввод плотности растении (г/см3)")
         plants_dict = dict()
         for plant in SubGrid.unique_plants_name():
             sub_plant_density_layout = BoxLayout(orientation='horizontal')
@@ -249,20 +248,23 @@ class MyApp(App):
         popup.open()
 
 
-    def build(self):
-        sub_grid = SubGrid()
+    def on_enter(self, *args, **kwargs):
+        rows = ConfigWindow.size; cols = ConfigWindow.size
+        length = ConfigWindow.length
 
-        header_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
-        main_layout = BoxLayout(orientation='vertical', spacing=10)
-        footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
+        sub_grid = SubGrid(rows=rows, cols=cols, size=(length/cols, length/rows))
 
-        grid_layout = GridLayout(rows=SubGrid.rows, cols=SubGrid.cols)
+        self.header_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
+        self.main_layout = BoxLayout(orientation='vertical', spacing=10)
+        self.footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
+
+        self.grid_layout = GridLayout(rows=SubGrid.rows, cols=SubGrid.cols)
         for row in range(SubGrid.rows):
             for col in range(SubGrid.cols):
                 cell = Button(text=f'{row+1}:{col+1}', background_color = (1, 1, 1, 1))
                 cell.bind(on_release=partial(self.zoom_into, (row, col)))
                 SubGrid.grid[row][col].cell_button = cell
-                grid_layout.add_widget(cell)
+                self.grid_layout.add_widget(cell)
 
         header_button1 = Button(text='Расчет Зеленой Массы на (1м х 1м)')
         header_button1.background_color = (0.5,0,0,1)
@@ -272,14 +274,85 @@ class MyApp(App):
         footer_button1.background_color = (0, 0.5, 0, 1)
         footer_button1.bind(on_release=self.calculate)
 
-        footer_layout.add_widget(footer_button1)
+        footer_button2 = Button(text='Назад')
+        footer_button2.background_color = (1, 1, 1, 1)
+        footer_button2.bind(on_release=self.screen_transition)
 
-        header_layout.add_widget(header_button1)
+        self.footer_layout.add_widget(footer_button2)
+        self.footer_layout.add_widget(footer_button1)
 
-        main_layout.add_widget(header_layout)
-        main_layout.add_widget(grid_layout)
-        main_layout.add_widget(footer_layout)
+        self.header_layout.add_widget(header_button1)
 
-        return main_layout
+        self.main_layout.add_widget(self.header_layout)
+        self.main_layout.add_widget(self.grid_layout)
+        self.main_layout.add_widget(self.footer_layout)
 
-MyApp().run()
+        self.add_widget(self.main_layout)
+
+    def on_leave(self, *args, **kwargs):
+        self.main_layout.remove_widget(self.header_layout)
+        self.main_layout.remove_widget(self.grid_layout)
+        self.main_layout.remove_widget(self.footer_layout)
+
+    def screen_transition(self, to_where, *args):
+        self.manager.current = 'config page'
+
+
+class ConfigWindow(Screen):
+    size = None
+    length = None
+
+    def __init__(self, **kwargs):
+        super(ConfigWindow, self).__init__(**kwargs)
+        self.input_layout1 = BoxLayout(orientation='horizontal', size_hint_y=0.2)
+        self.input_layout2 = BoxLayout(orientation='horizontal', size_hint_y=0.2)
+        self.main_layout = BoxLayout(orientation='vertical')
+
+        self.title = Label(text="Конфигурация размера сетки (n х n)", size_hint_y=0.1)
+
+        self.calculate_window_button = Button(text='Создать сетку', size_hint_y=0.1)
+        self.calculate_window_button.background_color = (0, 0.5, 0, 1)
+        self.calculate_window_button.bind(on_release=self.screen_transition)
+
+        self.add_widget(self.main_layout)
+
+    def on_enter(self, *args, **kwargs):
+        self.grid_size_label = Label(text="Размер сетки (ячейки)", halign="center"); self.grid_size_entry = FloatInput()
+        self.grid_length_label = Label(text="Длина стороны (см)", halign="center"); self.grid_length_entry = FloatInput()
+        self.input_layout1.add_widget(self.grid_size_label); self.input_layout1.add_widget(self.grid_size_entry);
+        self.input_layout2.add_widget(self.grid_length_label); self.input_layout2.add_widget(self.grid_length_entry);
+        self.main_layout.add_widget(self.title)
+        self.main_layout.add_widget(self.input_layout1)
+        self.main_layout.add_widget(self.input_layout2)
+        self.main_layout.add_widget(self.calculate_window_button)
+
+    def on_leave(self, *args, **kwargs):
+        self.main_layout.remove_widget(self.title)
+        self.input_layout1.remove_widget(self.grid_size_label); self.input_layout1.remove_widget(self.grid_size_entry)
+        self.input_layout2.remove_widget(self.grid_length_label); self.input_layout2.remove_widget(self.grid_length_entry)
+        self.main_layout.remove_widget(self.input_layout1)
+        self.main_layout.remove_widget(self.input_layout2)
+        self.main_layout.remove_widget(self.calculate_window_button)
+
+    def screen_transition(self, to_where, *args):
+        ConfigWindow.size = int(self.grid_size_entry.text)
+        ConfigWindow.length = int(self.grid_length_entry.text)
+        if (ConfigWindow.size > 0 and ConfigWindow.size <= 10) and (ConfigWindow.length > 0 and ConfigWindow.length <=100):
+            self.manager.current = 'grid page'
+
+
+class Application(App):
+
+    def __init__(self, *args, **kwargs):
+        super(Application, self).__init__(*args, **kwargs)
+
+    def build(self):
+        sm = ScreenManager(transition=FadeTransition())
+        sm.add_widget(ConfigWindow(name='config page'))
+        sm.add_widget(GridWindow(name='grid page'))
+        return sm
+
+
+if __name__ == "__main__":
+    application = Application()
+    application.run()
