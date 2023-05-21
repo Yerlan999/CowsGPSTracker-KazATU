@@ -48,7 +48,6 @@ class Cell():
 
 class SubGrid():
     plant_names = []
-    # grid = [[0 for _ in range(10)] for _ in range(10)]
     cell_pointer = {"row": 0, "col": 0}
 
     rows = None
@@ -132,20 +131,17 @@ class GridWindow(Screen):
                 overall_green_mass_yield += float(plants_dict[plant].text) * float(green_mass_volume[plant])
         green_mass_yield.text = f"Зеленая масса: {overall_green_mass_yield/1000} кг."
 
-    def exit(self, *args):
-        self.get_running_app().stop()
-
     def fill_plant_name(self, plant_name, plant_name_entry, *args):
         plant_name_entry.text = plant_name
 
     def calculate(self, *args):
         green_mass_volume = SubGrid.calculate_all_cells_yield()
 
-        popup_main_layout = BoxLayout(orientation='vertical')
-        buttons_layout = BoxLayout(orientation='horizontal')
-        plant_density_layout = BoxLayout(orientation='vertical')
+        popup_main_layout = BoxLayout(orientation='vertical', spacing=5, padding=10)
+        buttons_layout = BoxLayout(orientation='horizontal', spacing=5, padding=10, size_hint_y=0.3)
+        plant_density_layout = BoxLayout(orientation='vertical', spacing=5, padding=10, size_hint_y=0.3)
 
-        header_label = Label(text="Ввод плотности растении (г/см3)")
+        header_label = Label(text="Ввод плотности растении (г/см3)", size_hint_y=0.1)
         plants_dict = dict()
         for plant in SubGrid.unique_plants_name():
             sub_plant_density_layout = BoxLayout(orientation='horizontal')
@@ -196,10 +192,10 @@ class GridWindow(Screen):
 
         SubGrid.update_cell_pointer(cell_index[0], cell_index[1])
 
-        popup_footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.2)
+        popup_footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.2, spacing=5, padding=10)
         popup_main_layout = BoxLayout(orientation='vertical', spacing=100)
-        popup_input_layout = BoxLayout(orientation='vertical', size_hint_y=0.8)
-        entered_plants_layout = GridLayout(cols=3, size_hint_y=0.1)
+        popup_input_layout = BoxLayout(orientation='vertical', size_hint_y=0.8, spacing=5, padding=10)
+        entered_plants_layout = GridLayout(cols=3, size_hint_y=0.1, spacing=5, padding=10)
 
         row, col = SubGrid.cell_pointer["row"], SubGrid.cell_pointer["col"]
 
@@ -254,11 +250,11 @@ class GridWindow(Screen):
 
         sub_grid = SubGrid(rows=rows, cols=cols, size=(length/cols, length/rows))
 
-        self.header_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
-        self.main_layout = BoxLayout(orientation='vertical', spacing=10)
-        self.footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.1)
+        self.header_layout = BoxLayout(orientation='horizontal', size_hint_y=0.2, spacing=5, padding=10)
+        self.main_layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        self.footer_layout = BoxLayout(orientation='horizontal', size_hint_y=0.2, spacing=5, padding=10)
 
-        self.grid_layout = GridLayout(rows=SubGrid.rows, cols=SubGrid.cols)
+        self.grid_layout = GridLayout(rows=SubGrid.rows, cols=SubGrid.cols, spacing=1, padding=10)
         for row in range(SubGrid.rows):
             for col in range(SubGrid.cols):
                 cell = Button(text=f'{row+1}:{col+1}', background_color = (1, 1, 1, 1))
@@ -266,9 +262,8 @@ class GridWindow(Screen):
                 SubGrid.grid[row][col].cell_button = cell
                 self.grid_layout.add_widget(cell)
 
-        header_button1 = Button(text='Расчет Зеленой Массы на (1м х 1м)')
+        header_button1 = Button(text=f'Расчет Зеленой Массы на ({ConfigWindow.length/100}м х {ConfigWindow.length/100}м)')
         header_button1.background_color = (0.5,0,0,1)
-        header_button1.bind(on_release=self.exit)
 
         footer_button1 = Button(text='Рассчитать')
         footer_button1.background_color = (0, 0.5, 0, 1)
@@ -304,27 +299,30 @@ class ConfigWindow(Screen):
 
     def __init__(self, **kwargs):
         super(ConfigWindow, self).__init__(**kwargs)
-        self.input_layout1 = BoxLayout(orientation='horizontal', size_hint_y=0.2)
-        self.input_layout2 = BoxLayout(orientation='horizontal', size_hint_y=0.2)
-        self.main_layout = BoxLayout(orientation='vertical')
 
-        self.title = Label(text="Конфигурация размера сетки (n х n)", size_hint_y=0.1)
+
+    def on_enter(self, *args, **kwargs):
+        self.input_layout1 = BoxLayout(orientation='horizontal', spacing=10, padding=20, size_hint_y=0.1)
+        self.input_layout2 = BoxLayout(orientation='horizontal', spacing=10, padding=20, size_hint_y=0.1)
+        self.main_layout = BoxLayout(orientation='vertical', spacing=10, padding=20)
+
+        self.title = Label(text="Конфигурация размера сетки\n(N х N) ячеек\nс длиной сторон в (L на L)", size_hint_y=0.1, halign="center")
 
         self.calculate_window_button = Button(text='Создать сетку', size_hint_y=0.1)
         self.calculate_window_button.background_color = (0, 0.5, 0, 1)
         self.calculate_window_button.bind(on_release=self.screen_transition)
 
-        self.add_widget(self.main_layout)
-
-    def on_enter(self, *args, **kwargs):
-        self.grid_size_label = Label(text="Размер сетки (ячейки)", halign="center"); self.grid_size_entry = FloatInput()
-        self.grid_length_label = Label(text="Длина стороны (см)", halign="center"); self.grid_length_entry = FloatInput()
+        self.grid_size_label = Label(text="N = Размер сетки(ячейки)", halign="center"); self.grid_size_entry = FloatInput()
+        self.grid_length_label = Label(text="L = Длина сторон(см)", halign="center"); self.grid_length_entry = FloatInput()
         self.input_layout1.add_widget(self.grid_size_label); self.input_layout1.add_widget(self.grid_size_entry);
         self.input_layout2.add_widget(self.grid_length_label); self.input_layout2.add_widget(self.grid_length_entry);
         self.main_layout.add_widget(self.title)
         self.main_layout.add_widget(self.input_layout1)
         self.main_layout.add_widget(self.input_layout2)
         self.main_layout.add_widget(self.calculate_window_button)
+
+        self.add_widget(self.main_layout)
+
 
     def on_leave(self, *args, **kwargs):
         self.main_layout.remove_widget(self.title)
@@ -335,10 +333,11 @@ class ConfigWindow(Screen):
         self.main_layout.remove_widget(self.calculate_window_button)
 
     def screen_transition(self, to_where, *args):
-        ConfigWindow.size = int(self.grid_size_entry.text)
-        ConfigWindow.length = int(self.grid_length_entry.text)
-        if (ConfigWindow.size > 0 and ConfigWindow.size <= 10) and (ConfigWindow.length > 0 and ConfigWindow.length <=100):
-            self.manager.current = 'grid page'
+        if self.grid_size_entry.text and self.grid_length_entry.text:
+            ConfigWindow.size = int(self.grid_size_entry.text); ConfigWindow.length = int(self.grid_length_entry.text)
+            if ConfigWindow.size > 0 and ConfigWindow.length > 0:
+                SubGrid.plant_names = []
+                self.manager.current = 'grid page'
 
 
 class Application(App):
