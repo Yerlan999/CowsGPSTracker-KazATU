@@ -4,11 +4,13 @@ from django.template import loader
 from .forms import InputForm
 from .models import InputModel
 from django.conf import settings
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import urllib, base64
 
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math
+import datetime, os, csv, math, io
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,6 +49,8 @@ colors = ['tomato', 'navy', 'MediumSpringGreen', 'lightblue', 'orange', 'blue',
           'maroon', 'purple', 'yellow', 'olive', 'brown', 'cyan']
 
 
+class HolderClass():
+    sentinel_request = None
 
 class EvalScripts():
 
@@ -126,6 +130,16 @@ class EvalScripts():
         settings = {"BANDS": template1, "SAMPLE": template2, "COUNT": str(len(self.aux_data_dict))}
         self.evalscript_aux_data = self.evalscript_aux_data.format(**settings)
 
+
+
+def normalize(band):
+    band_min, band_max = (band.min(), band.max())
+    return ((band - band_min)/((band_max - band_min)))
+
+def brighten(band):
+    alpha=0.13
+    beta=0
+    return np.clip(alpha*band+beta, 0, 255)
 
 
 
@@ -293,16 +307,70 @@ class SentinelRequest():
 
         self.combined_mask = reduce(np.logical_and, self.masks)
 
-
         white_noise_threshold = 255 # Значение [0-255]
         white_noise_count = self.aoi_width*self.aoi_height # Количество 157*78=[0-12246]
 
+        self.clear_date_dict = []
+        for i, timestamp in enumerate(self.unique_acquisitions):
+            self.clear_date_dict.append((str(timestamp.date().isoformat()), i))
+        self.clear_date_dict = dict(self.clear_date_dict)
 
-        for data in self.unique_acquisitions:
-            print(data)
 
+    def get_unique_acquisitions(self):
+        return self.clear_date_dict
 
+    def set_choosen_date(self, pk):
+        self.image_date = int(pk)
 
+    def prepare_all_bands(self):
+        self.ULTRA_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]]))
+
+        self.BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
+        self.GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
+        self.RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
+
+        self.RED_EDGE1 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]]))
+        self.RED_EDGE2 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]]))
+        self.RED_EDGE3 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]]))
+
+        self.NIR = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]]))
+        self.N_NIR = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]]))
+        self.WV = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]]))
+        if "B10" in self.bands_dict:
+            self.SWIR_C = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]]))
+        self.SWIR2 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]]))
+        self.SWIR3 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]]))
+
+        self.SAA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunAzimuthAngles"]]).mean()
+        self.SZA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunZenithAngles"]]).mean()
+        self.VAM = (self.aux_data[self.image_date][:, :, self.aux_data_dict["viewAzimuthMean"]]).mean()
+        self.VZM = (self.aux_data[self.image_date][:, :, self.aux_data_dict["viewZenithMean"]]).mean()
+
+        self.precision = 4
+        self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level}"
+
+    def get_true_color_image(self):
+
+        fig, ax = plt.subplots(figsize=(12, 5))
+        for zagon in range(len(self.pasture_df)-1):
+
+            ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
+
+        ep.plot_rgb(np.stack([self.RED, self.GREEN, self.BLUE]), ax=ax,
+                    title=self.general_info,
+                    figsize=(12, 5),
+                    )
+        # plt.show()
+
+        fig = plt.gcf()
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        buf.seek(0)
+        string = base64.b64encode(buf.read())
+
+        uri = urllib.parse.quote(string)
+
+        return uri
 
 
 def pasture(request):
@@ -330,6 +398,8 @@ def about(request):
 
 
 def available_dates(request):
+    global sentinel_request
+
     last_object = InputModel.objects.latest('id')
 
     level = last_object.level
@@ -338,5 +408,21 @@ def available_dates(request):
     recent_date = last_object.recent_date
     kml_file = last_object.kml_file.url
 
-    sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
-    return render(request, "my_pasture/available_dates.html")
+    HolderClass.sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
+    unique_acquisitions = HolderClass.sentinel_request.get_unique_acquisitions()
+    context = {
+        'unique_acquisitions': unique_acquisitions,
+        'counter_start': 0,  # Starting value for the loop counter
+    }
+    return render(request, "my_pasture/available_dates.html", context)
+
+
+def date_detail(request, *args, **kwargs):
+    pk = request.POST.get('pk')
+    print("IMAGE INDEX:", pk)
+
+    HolderClass.sentinel_request.set_choosen_date(pk)
+    HolderClass.sentinel_request.prepare_all_bands()
+    image_data = HolderClass.sentinel_request.get_true_color_image()
+
+    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data})

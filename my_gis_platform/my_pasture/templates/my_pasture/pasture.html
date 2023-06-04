@@ -6,6 +6,14 @@
 
 {% block content %}
 
+
+<style>
+    .container {
+      border: 0.5px solid #555;
+      border-radius: 25px;
+    }
+</style>
+
 <div class="container"><br>
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
@@ -25,7 +33,7 @@
     {% csrf_token %}
     {{ form|crispy }}
     <div class="form-group">
-        <input class="btn btn-primary" type="submit" value="Запрос">
+        <input class="btn btn-primary btn-lg btn-block" type="submit" value="Сделать запрос">
     </div>
 
     </form>

@@ -1,0 +1,22 @@
+{% extends "my_pasture/master.html" %}
+
+{% block title %}
+  ГИС платформа ТОО "Северо-Казахстанская СХОС"
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container"><br>
+
+    <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
+    <h5>Более подробная информация по выбранной дате</h5>
+    {% if pk %}
+        <img id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
+    {% endif %}
+
+</div>
+
+
+
+{% endblock %}

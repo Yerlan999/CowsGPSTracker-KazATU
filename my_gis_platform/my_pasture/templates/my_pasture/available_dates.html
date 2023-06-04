@@ -11,8 +11,17 @@
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
     <h5>Доступные даты на выбранный промежуток</h5>
-
+        {% if unique_acquisitions %}
+            {% for unique_date in unique_acquisitions %}
+                <form id="hidden_form" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
+                    <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-warning btn-lg btn-block loadMoreButton" type="submit">{{ unique_date }}</button>
+                </form>
+            {% endfor %}
+        {% endif %}
 </div>
+
 
 
 {% endblock %}
