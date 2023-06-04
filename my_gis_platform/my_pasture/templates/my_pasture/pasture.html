@@ -1,0 +1,37 @@
+{% extends "my_pasture/master.html" %}
+
+{% block title %}
+  ГИС платформа ТОО "Северо-Казахстанская СХОС"
+{% endblock %}
+
+{% block content %}
+
+<div class="container"><br>
+
+    <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
+
+    <h2>Форма основных параметров поиска</h1>
+
+      {% load crispy_forms_filters %}
+
+    <form action="" method="post" enctype="multipart/form-data">
+
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger mt-3">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    {% csrf_token %}
+    {{ form|crispy }}
+    <div class="form-group">
+        <input class="btn btn-primary" type="submit" value="Запрос">
+    </div>
+
+    </form>
+
+</div>
+
+
+
+{% endblock %}
