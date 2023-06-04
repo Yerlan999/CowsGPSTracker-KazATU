@@ -8,11 +8,8 @@ from django.conf import settings
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime
-import os
-import csv
+import datetime, os, csv, math
 from math import ceil
-import math
 import matplotlib.pyplot as plt
 import numpy as np
 from shapely.ops import unary_union
@@ -26,6 +23,8 @@ import numpy.ma as ma
 from scipy.stats.mstats import gmean, hmean
 import pandas as pd
 import seaborn as sns
+from functools import reduce
+
 
 from sentinelhub import (
     CRS,
@@ -292,7 +291,7 @@ class SentinelRequest():
             mask = ~poly_path.contains_points(coors)
             self.masks.append(mask)
 
-        self.combined_mask = self.masks[0]&self.masks[1]&self.masks[2]&self.masks[3]&self.masks[4]&self.masks[5]&self.masks[6]
+        self.combined_mask = reduce(np.logical_and, self.masks)
 
 
         white_noise_threshold = 255 # Значение [0-255]
