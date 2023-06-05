@@ -6,11 +6,13 @@ from .models import InputModel
 from django.conf import settings
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import urllib, base64
+from django.http import JsonResponse
+
 
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math, io
+import datetime, os, csv, math, io, matplotlib
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +29,7 @@ import pandas as pd
 import seaborn as sns
 from functools import reduce
 
+matplotlib.use('agg')
 
 from sentinelhub import (
     CRS,
@@ -360,7 +363,8 @@ class SentinelRequest():
                     title=self.general_info,
                     figsize=(12, 5),
                     )
-        # plt.show()
+
+        fig.tight_layout()
 
         fig = plt.gcf()
         buf = io.BytesIO()
@@ -373,7 +377,90 @@ class SentinelRequest():
         return uri
 
 
-def pasture(request):
+    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold):
+
+        relative_radio = bool_converter(relative_radio)
+        absolute_radio = bool_converter(absolute_radio)
+        threshold_check = bool_converter(threshold_check)
+
+        try:
+            test_index = eval(modify_formula(formula))
+
+            if threshold_check:
+                test_thresh = float(threshold)
+            else:
+                test_thresh = test_index.min()
+
+            test_filter = test_index >= test_thresh
+            test_mask = ~test_filter
+            test_meet = ma.masked_array(test_index, mask=test_mask)
+            test_meet_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
+
+            if relative_radio:
+                lower_bound = test_meet_pasture.min()
+                upper_bound = test_meet_pasture.max()
+            if absolute_radio:
+                lower_bound = float(lower_bound)
+                upper_bound = float(upper_bound)
+
+
+            fig, ax = plt.subplots(figsize=(12, 12))
+            for zagon in range(len(self.pasture_df)-1):
+
+                ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
+
+            header = formula
+            self.precision = 4
+            # print(f"Макс: {round(test_meet_pasture.max(),precision)} || Мин: {round(test_meet_pasture.min(),precision)} || Сред: {round(test_meet_pasture.mean(),precision)} || Сумм: {round(test_meet_pasture.sum(),precision)}")
+            ep.plot_bands(test_meet_pasture, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+
+            fig.tight_layout()
+
+            fig = plt.gcf()
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png')
+            buf.seek(0)
+            string = base64.b64encode(buf.read())
+
+            uri = urllib.parse.quote(string)
+
+            return uri
+
+        except Exception as error:
+            print(error)
+            return
+
+
+
+        # test_index_masked_array = []
+        # for i, mask in enumerate(masks):
+        #     mx = ma.masked_array(test_index, mask=mask.reshape(aoi_height, aoi_width))
+        #     test_index_masked_array.append(mx)
+
+        # summary_data = []
+        # for i, zagon in enumerate(test_index_masked_array):
+        #     ep.hist(zagon, colors = colors[i], title=f'{header} || Загон-{i+1} {general_info}', cols=4, alpha=0.5,
+        #     figsize = (10, 6))
+        #     print(f"Загон №{i+1} || Сумма: {round(zagon.sum()/zagon.count(),precision)} || Среднаяя: {round(zagon.mean(),precision)} || Медианная: {round(ma.median(zagon),precision)} || Макс: {round(zagon.max(),precision)} || Мин: {round(zagon.min(),precision)}")
+        #     summary_data.append([f"№{i+1}", round(zagon.sum()/zagon.count(),precision), round(zagon.mean(),precision), round(ma.median(zagon),precision), round(zagon.max(),precision), round(zagon.min(),precision)])
+        #     plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
+        #     plt.axvline(ma.median(test_index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
+        #     has_negative_or_zero = test_index_masked_array[i] <= 0
+        #     if not has_negative_or_zero.sum():
+        #         plt.axvline(hmean(test_index_masked_array[i].reshape(aoi_width * aoi_height)), color='g', linestyle='dashed', linewidth=2)
+        #         plt.axvline(gmean(test_index_masked_array[i].reshape(aoi_width * aoi_height)), color='y', linestyle='dashed', linewidth=2)
+        #         plt.legend([f"Средняя: {test_index_masked_array[i].mean()}",f"Медианная: {ma.median(test_index_masked_array[i])}",f"Гармоническая: {hmean(test_index_masked_array[i].reshape(aoi_width * aoi_height))}",f"Геометрическая: {gmean(test_index_masked_array[i].reshape(aoi_width * aoi_height))}"], title=f'Сумма: {round(zagon.sum(),precision)}')
+        #     else:
+        #         plt.legend([f"Средняя: {ma.mean(test_index_masked_array[i])}",f"Медианная: {ma.median(test_index_masked_array[i])}"], title=f'Сумма: {round(zagon.sum(),precision)}')
+        # plt.show()
+
+        # summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
+        # summary_df.to_excel(f"Summary_{date_chosen}_{data_collection.processing_level}.xlsx", index=None)
+
+
+
+
+def dates_request(request):
     if request.method == "POST":
 
         form = InputForm(request.POST, request.FILES)
@@ -419,10 +506,51 @@ def available_dates(request):
 
 def date_detail(request, *args, **kwargs):
     pk = request.POST.get('pk')
-    print("IMAGE INDEX:", pk)
 
     HolderClass.sentinel_request.set_choosen_date(pk)
     HolderClass.sentinel_request.prepare_all_bands()
     image_data = HolderClass.sentinel_request.get_true_color_image()
 
     return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data})
+
+
+def modify_formula(formula):
+    old_words = ["ULTRA_BLUE", "BLUE", "GREEN", "RED", "RED_EDGE1", "RED_EDGE2", "RED_EDGE3", "NIR", "N_NIR", "WV", "SWIR_C", "SWIR2", "SWIR3"]
+    new_words = ["self.ULTRA_BLUE", "self.BLUE", "self.GREEN", "self.RED", "self.RED_EDGE1", "self.RED_EDGE2", "self.RED_EDGE3", "self.NIR", "self.N_NIR", "self.WV", "self.SWIR_C", "self.SWIR2", "self.SWIR3"]
+
+    for old_word, new_word in zip(old_words, new_words):
+        formula = formula.replace(old_word, new_word)
+    return formula
+
+
+def bool_converter(js_bool):
+    if js_bool == "true":
+        return True
+    if js_bool == "false":
+        return False
+
+
+def pasture(index):
+    only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=combined_mask.reshape(aoi_height, aoi_width))
+    return only_pasture
+
+
+def ajax_view(request):
+    if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' and request.method == 'GET':
+
+        formula = request.GET.get('formula')
+        relative_radio = request.GET.get('relative_radio')
+        absolute_radio = request.GET.get('absolute_radio')
+        upper_bound = request.GET.get('upper_bound')
+        lower_bound = request.GET.get('lower_bound')
+        threshold_check = request.GET.get('threshold_check')
+        threshold = request.GET.get('threshold')
+
+        index_image = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold)
+
+        response_data = {'index_image': index_image}
+
+        return JsonResponse(response_data)
+    else:
+        return JsonResponse({'message': 'Invalid request'})
+

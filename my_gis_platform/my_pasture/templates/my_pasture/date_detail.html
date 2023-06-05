@@ -11,12 +11,111 @@
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
     <h5>Более подробная информация по выбранной дате</h5>
-    {% if pk %}
-        <img id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
-    {% endif %}
 
+    <img class="img-fluid" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
+    <img class="img-fluid" id="requested_date_image" src="" alt="Requested Image" hidden>
+
+    <div class="input-group mb-3 mt-5">
+      <span class="input-group-text" id="basic-addon1">f(к)=</span>
+      <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1">
+    </div>
+
+
+
+    <div class="row mt-3">
+      <div class="col">
+        <div class="form-check">
+        <input class="form-check-input" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">  Относительная шкала
+        </div>
+      </div>
+      <div class="col">
+        <div class="form-check">
+        <input class="form-check-input" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">  Абсолютная шкала
+        </div>
+      </div>
+      <div class="col">
+        <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()">  Пороговое значение
+      </div>
+      <div class="col">
+        <input type="number" id="threshold" class="form-control" disabled>
+      </div>
+    </div>
+
+
+    <div class="row mt-3">
+      <div class="col">
+        <input type="number" id="lower_bound" class="form-control"  placeholder="Нижняя грань" disabled>
+      </div>
+      <div class="col">
+        <input type="number" id="upper_bound" class="form-control"  placeholder="Вверхняя грань" disabled>
+      </div>
+    </div>
+
+
+    <button class="btn btn-primary btn-block mt-5 mb-5" id="ajax-button">Обновить</button>
 </div>
 
+<script>
+    $(document).ready(function() {
+        $("#ajax-button").click(function() {
+
+            var formula = document.getElementById("formula").value;
+
+            var relative_radio = document.getElementById("relative_radio").checked;
+            var absolute_radio = document.getElementById("absolute_radio").checked;
+
+            var upper_bound = document.getElementById("upper_bound").value;
+            var lower_bound = document.getElementById("lower_bound").value;
+
+            var threshold_check = document.getElementById("threshold_check").checked;
+            var threshold = document.getElementById("threshold").value;
+
+            $.ajax({
+                type: "GET",
+                url: "/ajax/",
+                data: {
+                    'formula': formula,
+                    'relative_radio': relative_radio,
+                    'absolute_radio': absolute_radio,
+                    'upper_bound': upper_bound,
+                    'lower_bound': lower_bound,
+                    'threshold_check': threshold_check,
+                    'threshold': threshold,
+                },
+                success: function(response) {
+                    var message = response.message;
+                    alert(response.message);
+                    console.log(response.message);
+                    var index_image = document.getElementById("requested_date_image");
+                    index_image.disabled = false;
+                    index_image.src = "data:image/png;base64," + message
+                }
+            });
+        });
+    });
+</script>
+
+
+<script>
+  function enableBoundInputs() {
+    var upper_bound = document.getElementById("upper_bound");
+    var lower_bound = document.getElementById("lower_bound");
+    upper_bound.disabled = false;
+    lower_bound.disabled = false;
+  }
+
+  function disableBoundInputs() {
+    var upper_bound = document.getElementById("upper_bound");
+    var lower_bound = document.getElementById("lower_bound");
+    upper_bound.disabled = true;
+    lower_bound.disabled = true;
+  }
+
+  function toggleThreshInput() {
+    var threshold = document.getElementById("threshold");
+    threshold.disabled = !threshold.disabled;
+  }
+</script>
 
 
 {% endblock %}
