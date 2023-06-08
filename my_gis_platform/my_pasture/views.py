@@ -366,15 +366,12 @@ class SentinelRequest():
 
         fig.tight_layout()
 
-        fig = plt.gcf()
-        buf = io.BytesIO()
-        fig.savefig(buf, format='png')
-        buf.seek(0)
-        string = base64.b64encode(buf.read())
+        image_stream = io.BytesIO()
+        fig.savefig(image_stream, format='png')
+        image_stream.seek(0)
+        encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
 
-        uri = urllib.parse.quote(string)
-
-        return uri
+        return encoded_image
 
 
     def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold):
@@ -404,27 +401,25 @@ class SentinelRequest():
                 upper_bound = float(upper_bound)
 
 
-            fig, ax = plt.subplots(figsize=(12, 12))
+            fig, ax = plt.subplots(figsize=(12, 5))
             for zagon in range(len(self.pasture_df)-1):
 
                 ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
             header = formula
             self.precision = 4
-            # print(f"Макс: {round(test_meet_pasture.max(),precision)} || Мин: {round(test_meet_pasture.min(),precision)} || Сред: {round(test_meet_pasture.mean(),precision)} || Сумм: {round(test_meet_pasture.sum(),precision)}")
+
             ep.plot_bands(test_meet_pasture, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
 
             fig.tight_layout()
 
-            fig = plt.gcf()
-            buf = io.BytesIO()
-            fig.savefig(buf, format='png')
-            buf.seek(0)
-            string = base64.b64encode(buf.read())
 
-            uri = urllib.parse.quote(string)
+            image_stream = io.BytesIO()
+            fig.savefig(image_stream, format='png')
+            image_stream.seek(0)
+            encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
 
-            return uri
+            return encoded_image
 
         except Exception as error:
             print(error)

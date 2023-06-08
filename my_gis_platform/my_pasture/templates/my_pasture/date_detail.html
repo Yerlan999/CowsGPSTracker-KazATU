@@ -82,14 +82,23 @@
                     'threshold_check': threshold_check,
                     'threshold': threshold,
                 },
-                success: function(response) {
-                    var message = response.message;
-                    alert(response.message);
-                    console.log(response.message);
-                    var index_image = document.getElementById("requested_date_image");
-                    index_image.disabled = false;
-                    index_image.src = "data:image/png;base64," + message
-                }
+                success: function(data) {
+                    // Append the image element to the image container in the HTML
+                    const requested_index = document.getElementById('requested_date_image');
+                    requested_index.src = `data:image/png;base64,${data.index_image}`;
+                    requested_index.removeAttribute('hidden');
+                  },
+                error: function(error) {
+                    console.error('Error:', error);
+                  }
+                // success: function(response) {
+                //     var message = response.message;
+                //     alert(response.message);
+                //     console.log(response.message);
+                //     var index_image = document.getElementById("requested_date_image");
+                //     index_image.disabled = false;
+                //     index_image.src = "data:image/png;base64," + message
+                // }
             });
         });
     });
