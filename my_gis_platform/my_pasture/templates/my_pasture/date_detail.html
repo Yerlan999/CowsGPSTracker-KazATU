@@ -7,6 +7,13 @@
 
 {% block content %}
 
+<style>
+    /* Custom CSS to change the color of carousel control icons */
+    .carousel-control-prev-icon, .carousel-control-next-icon {
+        background-color: #C7C7C7; /* Change to your desired color */
+    }
+</style>
+
 <div class="container"><br>
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
@@ -14,6 +21,23 @@
 
     <img class="img-fluid" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
     <img class="img-fluid" id="requested_date_image" src="" alt="Requested Image" hidden>
+
+    <div id="carousel-container"></div>
+
+    <table id="data-table" style="display: none;"> <!-- Initially hidden -->
+        <thead>
+            <tr>
+                <th>Загон №</th>
+                <th>Сумма</th>
+                <th>Средняя</th>
+                <th>Медианная</th>
+                <th>Макс.</th>
+                <th>Мин.</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
 
     <div class="input-group mb-3 mt-5">
       <span class="input-group-text" id="basic-addon1">f(к)=</span>
@@ -87,6 +111,96 @@
                     const requested_index = document.getElementById('requested_date_image');
                     requested_index.src = `data:image/png;base64,${data.index_image}`;
                     requested_index.removeAttribute('hidden');
+
+                    var parentElement = document.getElementById("carousel-container");
+                    if (parentElement) {
+                        while (parentElement.firstChild) {
+                            deleteChildElements(parentElement.firstChild.id);
+                            parentElement.removeChild(parentElement.firstChild);
+                        }
+                    }
+
+                    var carouselContainer = $('<div id="image-carousel" class="carousel slide" data-ride="carousel"></div>');
+                    var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
+
+                    var carouselInner = $('<div class="carousel-inner"></div>');
+
+
+                    var prev_parentElement = $('<a class="carousel-control-prev" href="#image-carousel" role="button" data-slide="prev"></a>');
+                    var prev_childElement1 = $('<span class="carousel-control-prev-icon" aria-hidden="true"></span>');
+                    var prev_childElement2 = $('<span class="sr-only">Previous</span>');
+
+                    // Append child elements to the parent element
+                    prev_parentElement.append(prev_childElement1);
+                    prev_parentElement.append(prev_childElement2);
+
+
+                    var next_parentElement = $('<a class="carousel-control-next" href="#image-carousel" role="button" data-slide="next"></a>');
+                    var next_childElement1 = $('<span class="carousel-control-next-icon" aria-hidden="true"></span>');
+                    var next_childElement2 = $('<span class="sr-only">Next</span>');
+
+                    // Append child elements to the parent element
+                    next_parentElement.append(next_childElement1);
+                    next_parentElement.append(next_childElement2);
+
+
+                    data.hist_images.forEach(function(histogram, index) {
+
+                        var carouselIndicator = $('<li style="background-color: #C7C7C7;" data-target="#image-carousel" data-slide-to="' + index + '"></li>');
+                        var carouselItem = $('<div class="carousel-item"></div>');
+
+                        if (index === 0) {
+                            carouselIndicator.addClass('active');
+                            carouselItem.addClass('active');
+                        }
+
+                        var imgElement = $('<img class="d-block w-100" src="data:image/png;base64,' + histogram + '">');
+                        carouselItem.append(imgElement);
+
+                        carouselIndicators.append(carouselIndicator);
+                        carouselInner.append(carouselItem);
+
+                    });
+
+                    carouselContainer.append(carouselIndicators);
+                    carouselContainer.append(carouselInner);
+
+                    carouselContainer.append(prev_parentElement);
+                    carouselContainer.append(next_parentElement);
+
+                    // Add the carousel to the page
+                    $('#carousel-container').append(carouselContainer);
+                    $('#image-carousel').carousel();
+
+
+                    var tbody = $('#data-table tbody');
+                    tbody.empty();
+
+                    // Decode column names from UTF-8 encoding
+                    var decodedData = JSON.parse(data.df, function(key, value) {
+                        if (typeof value === 'string') {
+                            return decodeURIComponent(escape(value));
+                        }
+                        return value;
+                    });
+
+                    // Iterate over the JSON data and populate the table
+                    $.each(decodedData, function(index, row) {
+                        var tr = $('<tr>');
+                        tr.append('<td>' + row.Загон + '</td>');
+                        tr.append('<td>' + row.Сумма + '</td>');
+                        tr.append('<td>' + row.Cреднаяя + '</td>');
+                        tr.append('<td>' + row.Медианная + '</td>');
+                        tr.append('<td>' + row.Макс + '</td>');
+                        tr.append('<td>' + row.Мин + '</td>');
+                        tbody.append(tr);
+                    });
+
+                    // Show the table
+                    $('#data-table').show();
+
+
+
                   },
                 error: function(error) {
                     console.error('Error:', error);
