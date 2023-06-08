@@ -468,11 +468,11 @@ def dates_request(request):
         form = InputForm(request.POST, request.FILES)
 
         if form.is_valid():
-            level = form.cleaned_data["level"]
-            start_date = form.cleaned_data["start_date"]
-            end_date = form.cleaned_data["end_date"]
             recent_date = form.cleaned_data["recent_date"]
-            kml_file = request.FILES["kml_file"]
+            if recent_date:
+                form.cleaned_data['start_date'] = datetime.date.today()
+                form.cleaned_data['end_date'] = datetime.date.today() - datetime.timedelta(days=5)
+
             form.save()
             return HttpResponseRedirect("/available_dates")
     else:
@@ -496,6 +496,8 @@ def available_dates(request):
     end_date = last_object.end_date
     recent_date = last_object.recent_date
     kml_file = last_object.kml_file.url
+
+    print("********", start_date, end_date)
 
     HolderClass.sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
     unique_acquisitions = HolderClass.sentinel_request.get_unique_acquisitions()

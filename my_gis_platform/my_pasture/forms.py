@@ -3,6 +3,7 @@
 from django import forms
 from .models import InputModel
 from django.core.exceptions import ValidationError
+from datetime import date, timedelta
 
 
 class DateInput(forms.DateInput):
@@ -37,5 +38,5 @@ class InputForm(forms.ModelForm):
         if not recent_date and start_date and end_date and start_date >= end_date:
             raise ValidationError('Начальная дата должна быть раньше конечной даты')
 
-        return cleaned_data
-
+        if not recent_date and not start_date and not end_date:
+            raise ValidationError('Необходимо указать дату')

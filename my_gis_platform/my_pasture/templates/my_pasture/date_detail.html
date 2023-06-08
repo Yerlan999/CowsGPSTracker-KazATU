@@ -112,14 +112,6 @@
                     requested_index.src = `data:image/png;base64,${data.index_image}`;
                     requested_index.removeAttribute('hidden');
 
-                    var parentElement = document.getElementById("carousel-container");
-                    if (parentElement) {
-                        while (parentElement.firstChild) {
-                            deleteChildElements(parentElement.firstChild.id);
-                            parentElement.removeChild(parentElement.firstChild);
-                        }
-                    }
-
                     var carouselContainer = $('<div id="image-carousel" class="carousel slide" data-ride="carousel"></div>');
                     var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
 
@@ -169,6 +161,7 @@
                     carouselContainer.append(next_parentElement);
 
                     // Add the carousel to the page
+                    $('#carousel-container').empty();
                     $('#carousel-container').append(carouselContainer);
                     $('#image-carousel').carousel();
 
