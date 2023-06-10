@@ -27,6 +27,7 @@ class InputForm(forms.ModelForm):
         widgets = {
             "start_date": DateInput,
             "end_date": DateInput,
+            'kml_file': forms.ClearableFileInput(attrs={'accept': '.kml, .shp'}),
         }
 
     def clean(self):
@@ -38,5 +39,8 @@ class InputForm(forms.ModelForm):
         if not recent_date and start_date and end_date and start_date >= end_date:
             raise ValidationError('Начальная дата должна быть раньше конечной даты')
 
-        if not recent_date and not start_date and not end_date:
-            raise ValidationError('Необходимо указать дату')
+        if not recent_date and start_date and end_date and (start_date - end_date < timedelta(days=4)):
+            raise ValidationError('Минимальный разрешенный интервал 5 дней')
+
+        if (not recent_date) and (not start_date or not end_date):
+            raise ValidationError('Необходимо указать диапазон дат')

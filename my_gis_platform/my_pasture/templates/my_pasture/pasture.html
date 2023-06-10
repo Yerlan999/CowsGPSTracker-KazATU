@@ -14,26 +14,50 @@
     }
 </style>
 
-<div class="container shadow p-3 mb-5 bg-white rounded"><br>
+<style>
+.loading-spinner {
+  display: none; /* Initially hide the spinner */
+  width: 40px; /* Adjust the width as needed */
+  height: 40px; /* Adjust the height as needed */
+  border: 3px solid #f3f3f3; /* Border color */
+  border-top: 3px solid #3498db; /* Top border color (spinner color) */
+  border-radius: 50%; /* Create a circular shape */
+  animation: spin 1s linear infinite; /* Animation properties */
+  position: absolute; /* Position the spinner */
+  top: 50%; /* Adjust the vertical position as needed */
+  left: 50%; /* Adjust the horizontal position as needed */
+  transform: translate(-50%, -50%); /* Center the spinner */
+}
+
+/* Define the animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+
+<div class="loading-spinner">
+</div>
+
+
+<div id="main-content" class="container shadow p-3 mb-5 bg-white rounded"><br>
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
 
     <h2>Форма основных параметров поиска</h1>
 
+    <!-- HTML structure for the Bootstrap alert -->
+    <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
+    </div>
+
       {% load crispy_forms_filters %}
 
     <form action="" method="post" enctype="multipart/form-data">
 
-    {% if form.non_field_errors %}
-      <div class="alert alert-danger mt-3">
-        {{ form.non_field_errors }}
-      </div>
-    {% endif %}
-
     {% csrf_token %}
     {{ form|crispy }}
     <div class="form-group">
-        <input class="btn btn-primary btn-lg btn-block" type="submit" value="Сделать запрос">
+        <input id="requst-button" class="btn btn-primary btn-lg btn-block" type="submit" value="Сделать запрос">
     </div>
 
     </form>
@@ -41,5 +65,49 @@
 </div>
 
 
+  <script>
+
+  // Function to set custom text in the alert
+  function setAlertText(text) {
+    var alertElement = document.getElementById('myAlert');
+    if (alertElement) {
+      // Set the custom text
+      alertElement.innerHTML = text;
+      // Show the alert
+      alertElement.style.display = 'block';
+      alertElement.hidden = false;
+    }
+  }
+
+    // Function to show the loading spinner
+    function showLoadingSpinner() {
+      // Show the loading spinner
+      document.querySelector('.loading-spinner').style.display = 'none';
+    }
+
+      $('#requst-button').click(function() {
+
+        var fieldValue = $('#id_level').val();
+        if (fieldValue === '') {
+            alert("ceee")
+          setAlertText("Выберете уровень спутника");
+          return;
+        }
+
+      var fileInput = document.getElementById('id_kml_file');
+      if !(fileInput.files.length > 0) {
+        alert("rfe")
+        setAlertText("Выберете kml файл");
+        return;
+      }
+
+
+        document.querySelector('.loading-spinner').style.display = 'block';
+        $('#main-content').hide();
+      });
+
+    // Call the showLoadingSpinner function on page load
+    window.addEventListener('load', showLoadingSpinner);
+  </script>
 
 {% endblock %}

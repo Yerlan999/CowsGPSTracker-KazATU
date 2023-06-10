@@ -212,7 +212,8 @@ class SentinelRequest():
         all_timestamps = self.search_iterator.get_timestamps()
         self.unique_acquisitions = filter_times(all_timestamps, time_difference)
 
-
+        if self.recent_date:
+            self.unique_acquisitions = [self.unique_acquisitions[-1]]
 
         self.true_color_process_requests = []
 
@@ -464,15 +465,12 @@ class SentinelRequest():
 
 def dates_request(request):
     if request.method == "POST":
-
         form = InputForm(request.POST, request.FILES)
-
         if form.is_valid():
-            recent_date = form.cleaned_data["recent_date"]
-            if recent_date:
-                form.cleaned_data['start_date'] = datetime.date.today()
-                form.cleaned_data['end_date'] = datetime.date.today() - datetime.timedelta(days=5)
-
+            instance = form.save(commit=False)
+            if instance.recent_date:
+                instance.start_date = datetime.date.today() - datetime.timedelta(days=5)
+                instance.end_date = datetime.date.today()
             form.save()
             return HttpResponseRedirect("/available_dates")
     else:
@@ -496,8 +494,6 @@ def available_dates(request):
     end_date = last_object.end_date
     recent_date = last_object.recent_date
     kml_file = last_object.kml_file.url
-
-    print("********", start_date, end_date)
 
     HolderClass.sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
     unique_acquisitions = HolderClass.sentinel_request.get_unique_acquisitions()
