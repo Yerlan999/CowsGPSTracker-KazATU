@@ -39,7 +39,7 @@ class InputForm(forms.ModelForm):
         if not recent_date and start_date and end_date and start_date >= end_date:
             raise ValidationError('Начальная дата должна быть раньше конечной даты')
 
-        if not recent_date and start_date and end_date and (start_date - end_date < timedelta(days=4)):
+        if not recent_date and start_date and end_date and (end_date - start_date < timedelta(days=4)):
             raise ValidationError('Минимальный разрешенный интервал 5 дней')
 
         if (not recent_date) and (not start_date or not end_date):

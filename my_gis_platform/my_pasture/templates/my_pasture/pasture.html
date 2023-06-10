@@ -46,7 +46,6 @@
 
     <h2>Форма основных параметров поиска</h1>
 
-    <!-- HTML structure for the Bootstrap alert -->
     <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
     </div>
 
@@ -89,18 +88,15 @@
 
         var fieldValue = $('#id_level').val();
         if (fieldValue === '') {
-            alert("ceee")
           setAlertText("Выберете уровень спутника");
           return;
         }
 
       var fileInput = document.getElementById('id_kml_file');
-      if !(fileInput.files.length > 0) {
-        alert("rfe")
+      if (!fileInput.files.length > 0) {
         setAlertText("Выберете kml файл");
         return;
       }
-
 
         document.querySelector('.loading-spinner').style.display = 'block';
         $('#main-content').hide();

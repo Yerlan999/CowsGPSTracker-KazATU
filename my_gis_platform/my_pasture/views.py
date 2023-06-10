@@ -375,91 +375,92 @@ class SentinelRequest():
         return encoded_image
 
 
-    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold):
+    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators):
 
         relative_radio = bool_converter(relative_radio)
         absolute_radio = bool_converter(absolute_radio)
         threshold_check = bool_converter(threshold_check)
 
-        # try:
-        test_index = eval(modify_formula(formula))
+        try:
+            test_index = eval(modify_formula(formula))
 
-        if threshold_check:
-            test_thresh = float(threshold)
-        else:
-            test_thresh = test_index.min()
-
-        test_filter = test_index >= test_thresh
-        test_mask = ~test_filter
-        test_meet = ma.masked_array(test_index, mask=test_mask)
-        test_meet_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
-
-        if relative_radio:
-            lower_bound = test_meet_pasture.min()
-            upper_bound = test_meet_pasture.max()
-        if absolute_radio:
-            lower_bound = float(lower_bound)
-            upper_bound = float(upper_bound)
-
-
-        fig, ax = plt.subplots(figsize=(12, 5))
-        for zagon in range(len(self.pasture_df)-1):
-
-            ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
-
-        header = formula
-        self.precision = 4
-
-        ep.plot_bands(test_meet_pasture, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
-
-        fig.tight_layout()
-
-
-        image_stream = io.BytesIO()
-        fig.savefig(image_stream, format='png')
-        image_stream.seek(0)
-        encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
-
-
-        test_index_masked_array = []
-        for i, mask in enumerate(self.masks):
-            mx = ma.masked_array(test_index, mask=mask.reshape(self.aoi_height, self.aoi_width))
-            test_index_masked_array.append(mx)
-
-        summary_data = []; decoded_hist_images = [];
-        for i, zagon in enumerate(test_index_masked_array):
-            ep.hist(zagon, colors = colors[i], title=f'{header} || Загон-{i+1} {self.general_info}', cols=4, alpha=0.5,
-            figsize = (12, 5))
-            summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
-            plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
-            plt.axvline(ma.median(test_index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
-            has_negative_or_zero = test_index_masked_array[i] <= 0
-            if not has_negative_or_zero.sum():
-                plt.axvline(hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='g', linestyle='dashed', linewidth=2)
-                plt.axvline(gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='y', linestyle='dashed', linewidth=2)
-                plt.legend([f"Средняя: {test_index_masked_array[i].mean()}",f"Медианная: {ma.median(test_index_masked_array[i])}",f"Гармоническая: {hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}",f"Геометрическая: {gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+            if threshold_check:
+                test_thresh = float(threshold)
+                test_filter = eval("test_index" + str(operators) + "test_thresh")
             else:
-                plt.legend([f"Средняя: {ma.mean(test_index_masked_array[i])}",f"Медианная: {ma.median(test_index_masked_array[i])}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+                test_thresh = test_index.min()
+                test_filter = test_index >= test_thresh
 
-            image_buffer = io.BytesIO()
-            plt.savefig(image_buffer, format='png')
-            plt.close()
-            # Convert the image buffer to a base64-encoded string
-            image_encoded = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
-            decoded_hist_images.append(image_encoded)
+            test_mask = ~test_filter
+            test_meet = ma.masked_array(test_index, mask=test_mask)
+            test_meet_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
 
-        summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
-        # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
-        # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
+            if relative_radio:
+                lower_bound = test_meet_pasture.min()
+                upper_bound = test_meet_pasture.max()
+            if absolute_radio:
+                lower_bound = float(lower_bound)
+                upper_bound = float(upper_bound)
 
-        summary_df = summary_df.to_dict(orient='records')
-        summary_df = json.dumps(summary_df, ensure_ascii=False)
 
-        return encoded_image, decoded_hist_images, summary_df
+            fig, ax = plt.subplots(figsize=(12, 5))
+            for zagon in range(len(self.pasture_df)-1):
 
-        # except Exception as error:
-        #     print(error)
-        #     return
+                ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
+
+            header = formula
+            self.precision = 4
+
+            ep.plot_bands(test_meet_pasture, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+
+            fig.tight_layout()
+
+
+            image_stream = io.BytesIO()
+            fig.savefig(image_stream, format='png')
+            image_stream.seek(0)
+            encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
+
+
+            test_index_masked_array = []
+            for i, mask in enumerate(self.masks):
+                mx = ma.masked_array(test_index, mask=mask.reshape(self.aoi_height, self.aoi_width))
+                test_index_masked_array.append(mx)
+
+            summary_data = []; decoded_hist_images = [];
+            for i, zagon in enumerate(test_index_masked_array):
+                ep.hist(zagon, colors = colors[i], title=f'{header} || Загон-{i+1} {self.general_info}', cols=4, alpha=0.5,
+                figsize = (12, 5))
+                summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
+                plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
+                plt.axvline(ma.median(test_index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
+                has_negative_or_zero = test_index_masked_array[i] <= 0
+                if not has_negative_or_zero.sum():
+                    plt.axvline(hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='g', linestyle='dashed', linewidth=2)
+                    plt.axvline(gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='y', linestyle='dashed', linewidth=2)
+                    plt.legend([f"Средняя: {test_index_masked_array[i].mean()}",f"Медианная: {ma.median(test_index_masked_array[i])}",f"Гармоническая: {hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}",f"Геометрическая: {gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+                else:
+                    plt.legend([f"Средняя: {ma.mean(test_index_masked_array[i])}",f"Медианная: {ma.median(test_index_masked_array[i])}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+
+                image_buffer = io.BytesIO()
+                plt.savefig(image_buffer, format='png')
+                plt.close()
+                # Convert the image buffer to a base64-encoded string
+                image_encoded = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+                decoded_hist_images.append(image_encoded)
+
+            summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
+            # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
+            # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
+
+            summary_df = summary_df.to_dict(orient='records')
+            summary_df = json.dumps(summary_df, ensure_ascii=False)
+
+            return encoded_image, decoded_hist_images, summary_df
+
+        except Exception as error:
+            print(error)
+            return None, None, None
 
 
 
@@ -545,8 +546,9 @@ def ajax_view(request):
         lower_bound = request.GET.get('lower_bound')
         threshold_check = request.GET.get('threshold_check')
         threshold = request.GET.get('threshold')
+        operators = request.GET.get('operators')
 
-        index_image, hist_images, df = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold)
+        index_image, hist_images, df = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators)
 
         response_data = {'index_image': index_image, "hist_images": hist_images, "df": df}
 

@@ -14,7 +14,7 @@
     }
 </style>
 
-<div class="container"><br>
+<div class="container shadow-lg"><br>
 
     <h1>ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
     <h5>Более подробная информация по выбранной дате</h5>
@@ -24,8 +24,8 @@
 
     <div id="carousel-container"></div>
 
-    <table id="data-table" style="display: none;"> <!-- Initially hidden -->
-        <thead>
+    <table id="data-table" class="table table-striped" style="display: none;"> <!-- Initially hidden -->
+        <thead class="thead-dark">
             <tr>
                 <th>Загон №</th>
                 <th>Сумма</th>
@@ -39,9 +39,13 @@
     </table>
 
 
-    <div class="input-group mb-3 mt-5">
+    <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
+    </div>
+
+    <h5 class="text-center mt-5">Форма контроля параметров запроса</h5>
+    <div class="input-group mb-3 mt-1">
       <span class="input-group-text" id="basic-addon1">f(к)=</span>
-      <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1">
+      <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="This is a<br>multiline tooltip" data-placement="top">
     </div>
 
 
@@ -59,6 +63,16 @@
       </div>
       <div class="col">
         <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()">  Пороговое значение
+      </div>
+      <div class="col">
+        <select id="operators" class="form-select" aria-label="Оператор" disabled>
+          <option selected>Оператор</option>
+          <option value="==">==</option>
+          <option value="<">&#60;</option>
+          <option value="<=">&#8804;</option>
+          <option value=">">&#62;</option>
+          <option value=">=">&#8805;</option>
+        </select>
       </div>
       <div class="col">
         <input type="number" id="threshold" class="form-control" disabled>
@@ -99,6 +113,8 @@
             var threshold_check = document.getElementById("threshold_check").checked;
             var threshold = document.getElementById("threshold").value;
 
+            var operators = document.getElementById("operators").value;
+
             $.ajax({
                 type: "GET",
                 url: "/ajax/",
@@ -110,8 +126,21 @@
                     'lower_bound': lower_bound,
                     'threshold_check': threshold_check,
                     'threshold': threshold,
+                    'operators': operators,
                 },
                 success: function(data) {
+
+                    console.log(data.df)
+                    console.log(typeof data.df)
+
+                    if (data.index_image === null && data.df === null && data.hist_images === null){
+                        $button.html(originalContent);
+                        $button.attr('disabled', false);
+                        setAlertText("Ошибка при выполнении формулы");
+                        return;
+                    };
+
+
                     // Append the image element to the image container in the HTML
                     const requested_index = document.getElementById('requested_date_image');
                     requested_index.src = `data:image/png;base64,${data.index_image}`;
@@ -171,31 +200,29 @@
                         interval: false
                       });
 
-                    // var tbody = $('#data-table tbody');
-                    // tbody.empty();
+                    var tbody = $('#data-table tbody');
+                    tbody.empty();
 
-                    // // Decode column names from UTF-8 encoding
-                    // var decodedData = JSON.parse(data.df, function(key, value) {
-                    //     if (typeof value === 'string') {
-                    //         return decodeURIComponent(escape(value));
-                    //     }
-                    //     return value;
-                    // });
+                    // Decode column names from UTF-8 encoding
+                    var decodedData = JSON.parse(data.df);
 
-                    // // Iterate over the JSON data and populate the table
-                    // $.each(decodedData, function(index, row) {
-                    //     var tr = $('<tr>');
-                    //     tr.append('<td>' + row.Загон + '</td>');
-                    //     tr.append('<td>' + row.Сумма + '</td>');
-                    //     tr.append('<td>' + row.Cреднаяя + '</td>');
-                    //     tr.append('<td>' + row.Медианная + '</td>');
-                    //     tr.append('<td>' + row.Макс + '</td>');
-                    //     tr.append('<td>' + row.Мин + '</td>');
-                    //     tbody.append(tr);
-                    // });
+                    console.log(decodedData)
+                    console.log(typeof decodedData)
 
-                    // // Show the table
-                    // $('#data-table').show();
+                    // Iterate over the JSON data and populate the table
+                    $.each(decodedData, function(index, row) {
+                        var tr = $('<tr>');
+                        tr.append('<td>' + row.Загон + '</td>');
+                        tr.append('<td>' + row.Сумма + '</td>');
+                        tr.append('<td>' + row.Cреднаяя + '</td>');
+                        tr.append('<td>' + row.Медианная + '</td>');
+                        tr.append('<td>' + row.Макс + '</td>');
+                        tr.append('<td>' + row.Мин + '</td>');
+                        tbody.append(tr);
+                    });
+
+                    // Show the table
+                    $('#data-table').show();
 
                 $button.html(originalContent);
                 $button.attr('disabled', false);
@@ -229,6 +256,21 @@
   function toggleThreshInput() {
     var threshold = document.getElementById("threshold");
     threshold.disabled = !threshold.disabled;
+    var operators = document.getElementById("operators");
+    operators.disabled = !operators.disabled;
+  }
+
+
+  // Function to set custom text in the alert
+  function setAlertText(text) {
+    var alertElement = document.getElementById('myAlert');
+    if (alertElement) {
+      // Set the custom text
+      alertElement.innerHTML = text;
+      // Show the alert
+      alertElement.style.display = 'block';
+      alertElement.hidden = false;
+    }
   }
 </script>
 
