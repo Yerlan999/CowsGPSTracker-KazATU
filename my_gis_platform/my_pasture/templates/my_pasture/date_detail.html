@@ -14,13 +14,89 @@
     }
 </style>
 
+
+<div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalLabel">Расчет реальных значении</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+            <table class="table" id="mySampleTable">
+            </table>
+            <div class="row mt-3">
+                <div class="col">
+                    <input type="number" id="pixelValue" class="form-control" placeholder="Значение пикселя">
+                </div>
+                <div class="col">
+                    <input type="number" id="realValue" class="form-control" placeholder="Рельное значение (кг)">
+                </div>
+            </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="multiplyValues()">Рассчитать</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<div class="modal fade bd-example-modal-lg" id="myModal">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body" style="max-height: 300px; overflow-y: auto;">
+        <h3>Справка по составленю формул</h3>
+        <hr>
+        <h5>Доступные каналы:</h5>
+        <hr>
+        <p><a href="#" role="button" class="btn btn-info popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">ULTRA_BLUE</a> - канал в диапазоне [433-453] nm </p>
+        <p><a href="#" role="button" class="btn btn-primary popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">BLUE</a> - канал в диапазоне [458-523] nm </p>
+        <p><a href="#" role="button" class="btn btn-success popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">GREEN</a> - канал в диапазоне [543-578] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #e80e0e; border-color: #e80e0e;">RED</a> - канал в диапазоне [650-680] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE1</a> - канал в диапазоне [698-713] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE2</a> - канал в диапазоне [733-748] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE3</a> - канал в диапазоне [773-793] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #570202; border-color: #570202;">NIR</a> - канал в диапазоне [785-900] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #ff6666; border-color: #ff6666;">N_NIR</a> - канал в диапазоне [855-875] nm </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top" style="background-color: #366ecf; border-color: #366ecf;">WV</a> - канал в диапазоне [935-955] nm </p>
+        <p><a href="#" role="button" class="btn btn-dark popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">SWIR_C</a> - канал в диапазоне [1360-1390] nm*. *Доступен только при выборе уровня L1C </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">SWIR_2</a> - канал в диапазоне [1565-1655] nm </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">SWIR_3</a> - канал в диапазоне [2100-2280] nm </p>
+        <hr>
+        <h5>Доступные функции:</h5>
+        <hr>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">mean(канал)</a> - функция позволяет рассчитать среднее значение канала</p>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">median(канал)</a> - функция позволяет рассчитать медианное значение канала</p>
+        <hr>
+        <h5>Примеры составления формул:</h5>
+        <hr>
+        <p>mean(NIR) - (NIR - RED)</p>
+        <p>NIR - median(NIR - RED)</p>
+        <p>(NIR - RED) / (NIR + RED)</p>
+        <hr>
+        <h5>Более подробно о каналах можно узнать <a href="https://en.wikipedia.org/wiki/Sentinel-2" target="_blank" class="tooltip-test" title="Tooltip">здесь</a> и <a href="https://www.researchgate.net/publication/325209585/figure/tbl3/AS:667767116144642@1536219495031/Spectral-bands-and-resolutions-of-Sentinel-2-MSI-sensor.png" target="_blank" class="tooltip-test" title="Tooltip">здесь</a></h5>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 <div class="container shadow-lg"><br>
 
     <h1 class="text-center">ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
     <h3 class="text-center">Более подробная информация по выбранной дате</h3>
 
-    <img class="img-fluid" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
-    <img class="img-fluid" id="requested_date_image" src="" alt="Requested Image" hidden>
+    <img class="img-fluid img-thumbnail" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
+    <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
     <div id="carousel-container"></div>
 
@@ -37,7 +113,7 @@
         </thead>
         <tbody></tbody>
     </table>
-
+    <button id="predict" type="button" class="btn btn-success btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden>Прогноз</button>
 
     <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
     </div>
@@ -45,7 +121,8 @@
     <h5 class="text-center mt-5">Форма контроля параметров запроса</h5>
     <div class="input-group mb-3 mt-1">
       <span class="input-group-text" id="basic-addon1">f(к)=</span>
-      <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="This is a<br>multiline tooltip" data-placement="top">
+      <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="Для справки нажмите на кнопку '?' справа -> " data-placement="top">
+      <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#myModal" style="width: 100px;">?</button>
     </div>
 
 
@@ -90,7 +167,8 @@
     </div>
 
 
-    <button class="btn btn-primary btn-block mt-5 mb-5" id="ajax-button">Запрос</button>
+    <button class="btn btn-primary btn-lg btn-block mt-5 mb-5" id="ajax-button">Запрос</button>
+
 </div>
 
 <script>
@@ -133,8 +211,13 @@
                     if (data.index_image === null && data.df === null && data.hist_images === null){
                         $button.html(originalContent);
                         $button.attr('disabled', false);
-                        setAlertText("Ошибка при выполнении формулы");
+                        setAlertText(false, "Ошибка при выполнении формулы");
                         return;
+                    }
+                    else{
+                        setAlertText(true, "");
+                        var preduct_button = document.getElementById("predict");
+                        preduct_button.removeAttribute('hidden');
                     };
 
 
@@ -175,7 +258,7 @@
                             carouselItem.addClass('active');
                         }
 
-                        var imgElement = $('<img class="d-block w-100" src="data:image/png;base64,' + histogram + '">');
+                        var imgElement = $('<img class="d-block w-100 img-thumbnail" src="data:image/png;base64,' + histogram + '">');
                         carouselItem.append(imgElement);
 
                         carouselIndicators.append(carouselIndicator);
@@ -233,6 +316,77 @@
 
 
 <script>
+
+var table = document.getElementById('data-table');
+var mySampleTable = document.getElementById('mySampleTable');
+var predictModal = document.getElementById('predict');
+
+// Add event listener to the modal to dynamically populate the column values
+predictModal.addEventListener('click', function() {
+  var columnNumber = 1; // Specify the column number you want to copy (starting from 0)
+
+  mySampleTable.innerHTML = "";
+
+  var sampleHeader = document.createElement('thead');
+  var sampleHeaderRow = document.createElement('tr');
+  var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
+  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Cумма";
+  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т)";
+
+  sampleHeaderRow.appendChild(sampleHeaderTitle1);
+  sampleHeaderRow.appendChild(sampleHeaderTitle2);
+  sampleHeaderRow.appendChild(sampleHeaderTitle3);
+
+  sampleHeader.appendChild(sampleHeaderRow)
+
+  var sampleBody = document.createElement('tbody');
+
+  var rows = table.getElementsByTagName('tr');
+  for (var i = 0; i < rows.length; i++) {
+
+    var sampleTableRow = document.createElement('tr');
+
+    var zagon = rows[i].getElementsByTagName('td')[0];
+    var sum = rows[i].getElementsByTagName('td')[1];
+    var new_sum = document.createElement('td'); new_sum.textContent = "";
+
+    if (sum){
+
+        sampleTableRow.appendChild(zagon.cloneNode(true));
+        sampleTableRow.appendChild(sum.cloneNode(true));
+        sampleTableRow.appendChild(new_sum);
+
+        sampleBody.appendChild(sampleTableRow);
+    }
+  }
+  mySampleTable.appendChild(sampleHeader);
+  mySampleTable.appendChild(sampleBody);
+});
+
+
+function multiplyValues() {
+  var table = document.getElementById('mySampleTable');
+  var realValue = document.getElementById('realValue').value;
+  var pixelValue = document.getElementById('pixelValue').value;
+  var rows = table.getElementsByTagName('tr');
+
+  for (var i = 0; i < rows.length; i++) {
+    var cells = rows[i].getElementsByTagName('td');
+    if (cells[1]){
+      var value = parseFloat(cells[1].textContent);
+      var multipliedValue = (value / pixelValue * realValue)/1000;
+      cells[2].textContent = multipliedValue.toFixed(3);
+
+    }
+  }
+}
+
+
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+  });
+
+
   function enableBoundInputs() {
     var upper_bound = document.getElementById("upper_bound");
     var lower_bound = document.getElementById("lower_bound");
@@ -256,14 +410,25 @@
 
 
   // Function to set custom text in the alert
-  function setAlertText(text) {
+  function setAlertText(success, text) {
     var alertElement = document.getElementById('myAlert');
-    if (alertElement) {
-      // Set the custom text
-      alertElement.innerHTML = text;
-      // Show the alert
-      alertElement.style.display = 'block';
-      alertElement.hidden = false;
+    if (success){
+        if (alertElement) {
+          // Set the custom text
+          alertElement.innerHTML = text;
+          // Show the alert
+          alertElement.style.display = 'none';
+          alertElement.hidden = true;
+        }
+    }
+    else {
+        if (alertElement) {
+          // Set the custom text
+          alertElement.innerHTML = text;
+          // Show the alert
+          alertElement.style.display = 'block';
+          alertElement.hidden = false;
+        }
     }
   }
 </script>

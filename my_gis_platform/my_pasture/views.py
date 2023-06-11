@@ -326,6 +326,16 @@ class SentinelRequest():
     def set_choosen_date(self, pk):
         self.image_date = int(pk)
 
+    def pasture(self, index):
+        only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
+        return only_pasture
+
+    def custom_mean(self, index):
+        return self.pasture(index).mean()
+
+    def custom_median(self, index):
+        return ma.median(self.pasture(index))
+
     def prepare_all_bands(self):
         self.ULTRA_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]]))
 
@@ -424,7 +434,7 @@ class SentinelRequest():
 
             test_index_masked_array = []
             for i, mask in enumerate(self.masks):
-                mx = ma.masked_array(test_index, mask=mask.reshape(self.aoi_height, self.aoi_width))
+                mx = ma.masked_array(test_meet_pasture, mask=mask.reshape(self.aoi_height, self.aoi_width))
                 test_index_masked_array.append(mx)
 
             summary_data = []; decoded_hist_images = [];
@@ -516,8 +526,8 @@ def date_detail(request, *args, **kwargs):
 
 
 def modify_formula(formula):
-    old_words = ["ULTRA_BLUE", "BLUE", "GREEN", "RED", "RED_EDGE1", "RED_EDGE2", "RED_EDGE3", "NIR", "N_NIR", "WV", "SWIR_C", "SWIR2", "SWIR3"]
-    new_words = ["self.ULTRA_BLUE", "self.BLUE", "self.GREEN", "self.RED", "self.RED_EDGE1", "self.RED_EDGE2", "self.RED_EDGE3", "self.NIR", "self.N_NIR", "self.WV", "self.SWIR_C", "self.SWIR2", "self.SWIR3"]
+    old_words = ["ULTRA_BLUE", "BLUE", "GREEN", "RED", "RED_EDGE1", "RED_EDGE2", "RED_EDGE3", "NIR", "N_NIR", "WV", "SWIR_C", "SWIR2", "SWIR3", "mean", "median"]
+    new_words = ["self.ULTRA_BLUE", "self.BLUE", "self.GREEN", "self.RED", "self.RED_EDGE1", "self.RED_EDGE2", "self.RED_EDGE3", "self.NIR", "self.N_NIR", "self.WV", "self.SWIR_C", "self.SWIR2", "self.SWIR3", "self.custom_mean", "self.custom_median"]
 
     for old_word, new_word in zip(old_words, new_words):
         formula = formula.replace(old_word, new_word)
@@ -529,11 +539,6 @@ def bool_converter(js_bool):
         return True
     if js_bool == "false":
         return False
-
-
-def pasture(index):
-    only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=combined_mask.reshape(aoi_height, aoi_width))
-    return only_pasture
 
 
 def ajax_view(request):

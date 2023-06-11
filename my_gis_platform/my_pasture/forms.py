@@ -4,13 +4,19 @@ from django import forms
 from .models import InputModel
 from django.core.exceptions import ValidationError
 from datetime import date, timedelta
+import re
 
+
+def is_english_letters_only(filename):
+    pattern = r'^[a-zA-Z.]+$'
+    return re.match(pattern, filename) is not None
 
 class DateInput(forms.DateInput):
     input_type = 'date'
 
-# creating a form
+
 class InputForm(forms.ModelForm):
+
     class Meta:
         model = InputModel
         fields = "__all__"
@@ -35,6 +41,10 @@ class InputForm(forms.ModelForm):
         start_date = cleaned_data.get('start_date')
         end_date = cleaned_data.get('end_date')
         recent_date = cleaned_data.get('recent_date')
+        kml_file = cleaned_data.get('kml_file')
+
+        if not is_english_letters_only(kml_file.name):
+            raise ValidationError("Название файла должно быть на английском")
 
         if not recent_date and start_date and end_date and start_date >= end_date:
             raise ValidationError('Начальная дата должна быть раньше конечной даты')
