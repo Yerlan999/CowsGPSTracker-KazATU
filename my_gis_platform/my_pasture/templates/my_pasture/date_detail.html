@@ -25,14 +25,14 @@
         </button>
       </div>
       <div class="modal-body">
-            <table class="table" id="mySampleTable">
+            <table class="table table-striped" id="mySampleTable">
             </table>
             <div class="row mt-3">
                 <div class="col">
                     <input type="number" id="pixelValue" class="form-control" placeholder="Значение пикселя">
                 </div>
                 <div class="col">
-                    <input type="number" id="realValue" class="form-control" placeholder="Рельное значение (кг)">
+                    <input type="number" id="realValue" class="form-control" placeholder="Реальный эквивалент (кг)">
                 </div>
             </div>
       </div>
@@ -46,7 +46,7 @@
 
 
 
-<div class="modal fade bd-example-modal-lg" id="myModal">
+<div class="modal fade bd-example-modal-lg" id="myHelperModal">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-body" style="max-height: 300px; overflow-y: auto;">
@@ -122,7 +122,7 @@
     <div class="input-group mb-3 mt-1">
       <span class="input-group-text" id="basic-addon1">f(к)=</span>
       <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="Для справки нажмите на кнопку '?' справа -> " data-placement="top">
-      <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#myModal" style="width: 100px;">?</button>
+      <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#myHelperModal" style="width: 100px;">?</button>
     </div>
 
 
@@ -328,6 +328,7 @@ predictModal.addEventListener('click', function() {
   mySampleTable.innerHTML = "";
 
   var sampleHeader = document.createElement('thead');
+  sampleHeader.classList.add("thead-dark");
   var sampleHeaderRow = document.createElement('tr');
   var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
   var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Cумма";
