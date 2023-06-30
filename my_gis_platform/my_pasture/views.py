@@ -12,7 +12,7 @@ from django.http import JsonResponse
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math, io, matplotlib, json
+import datetime, os, csv, math, io, matplotlib, json, re
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -331,29 +331,33 @@ class SentinelRequest():
         return only_pasture
 
     def custom_mean(self, index):
-        return self.pasture(index).mean()
+        return float(index.mean())
 
     def custom_median(self, index):
-        return ma.median(self.pasture(index))
+        return float(ma.median(index))
 
     def prepare_all_bands(self):
-        self.ULTRA_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]]))
+        self.ULTRA_BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
 
-        self.BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
-        self.GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
-        self.RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
+        self.BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
+        self.GREEN = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
+        self.RED = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
 
-        self.RED_EDGE1 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]]))
-        self.RED_EDGE2 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]]))
-        self.RED_EDGE3 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]]))
+        self.FULL_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
+        self.FULL_GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
+        self.FULL_RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
 
-        self.NIR = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]]))
-        self.N_NIR = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]]))
-        self.WV = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]]))
+        self.RED_EDGE1 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
+        self.RED_EDGE2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
+        self.RED_EDGE3 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
+
+        self.NIR = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
+        self.N_NIR = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
+        self.WV = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
         if "B10" in self.bands_dict:
-            self.SWIR_C = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]]))
-        self.SWIR2 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]]))
-        self.SWIR3 = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]]))
+            self.SWIR_C = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
+        self.SWIR2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
+        self.SWIR3 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
 
         self.SAA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunAzimuthAngles"]]).mean()
         self.SZA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunZenithAngles"]]).mean()
@@ -370,7 +374,7 @@ class SentinelRequest():
 
             ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
-        ep.plot_rgb(np.stack([self.RED, self.GREEN, self.BLUE]), ax=ax,
+        ep.plot_rgb(np.stack([self.FULL_RED, self.FULL_GREEN, self.FULL_BLUE]), ax=ax,
                     title=self.general_info,
                     figsize=(12, 5),
                     )
@@ -403,11 +407,10 @@ class SentinelRequest():
 
             test_mask = ~test_filter
             test_meet = ma.masked_array(test_index, mask=test_mask)
-            test_meet_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
 
             if relative_radio:
-                lower_bound = test_meet_pasture.min()
-                upper_bound = test_meet_pasture.max()
+                lower_bound = test_meet.min()
+                upper_bound = test_meet.max()
             if absolute_radio:
                 lower_bound = float(lower_bound)
                 upper_bound = float(upper_bound)
@@ -421,7 +424,7 @@ class SentinelRequest():
             header = formula
             self.precision = 4
 
-            ep.plot_bands(test_meet_pasture, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+            ep.plot_bands(test_meet, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
 
             fig.tight_layout()
 
@@ -434,7 +437,7 @@ class SentinelRequest():
 
             test_index_masked_array = []
             for i, mask in enumerate(self.masks):
-                mx = ma.masked_array(test_meet_pasture, mask=mask.reshape(self.aoi_height, self.aoi_width))
+                mx = ma.masked_array(test_meet, mask=mask.reshape(self.aoi_height, self.aoi_width))
                 test_index_masked_array.append(mx)
 
             summary_data = []; decoded_hist_images = [];
@@ -526,12 +529,8 @@ def date_detail(request, *args, **kwargs):
 
 
 def modify_formula(formula):
-    old_words = ["ULTRA_BLUE", "BLUE", "GREEN", "RED", "RED_EDGE1", "RED_EDGE2", "RED_EDGE3", "NIR", "N_NIR", "WV", "SWIR_C", "SWIR2", "SWIR3", "mean", "median"]
-    new_words = ["self.ULTRA_BLUE", "self.BLUE", "self.GREEN", "self.RED", "self.RED_EDGE1", "self.RED_EDGE2", "self.RED_EDGE3", "self.NIR", "self.N_NIR", "self.WV", "self.SWIR_C", "self.SWIR2", "self.SWIR3", "self.custom_mean", "self.custom_median"]
-
-    for old_word, new_word in zip(old_words, new_words):
-        formula = formula.replace(old_word, new_word)
-    return formula
+    updated_formula = re.sub(r'\b(ULTRA_BLUE|BLUE|GREEN|RED|RED_EDGE1|RED_EDGE2|RED_EDGE3|NIR|N_NIR|WV|SWIR_C|SWIR2|SWIR3|mean|median)\b', r'self.\1', formula)
+    return updated_formula
 
 
 def bool_converter(js_bool):
