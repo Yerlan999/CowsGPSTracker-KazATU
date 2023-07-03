@@ -330,10 +330,10 @@ class SentinelRequest():
         only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
         return only_pasture
 
-    def custom_mean(self, index):
+    def mean(self, index):
         return float(index.mean())
 
-    def custom_median(self, index):
+    def median(self, index):
         return float(ma.median(index))
 
     def prepare_all_bands(self):
