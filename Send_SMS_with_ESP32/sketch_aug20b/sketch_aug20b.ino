@@ -60,22 +60,19 @@ void setup()
 
 void loop()
 {
-    // Restart takes quite some time
-    // To skip it, call init() instead of restart()
-    SerialMon.println("Initializing modem...");
-    modem.restart();
+//    // Restart takes quite some time
+//    // To skip it, call init() instead of restart()
+//    SerialMon.println("Initializing modem...");
+//    modem.restart();
+//
+//    String imei = modem.getIMEI();
+//    DBG("IMEI:", imei);
+
+    if (Serial.available()) { // Check if there's data available
+      String receivedString = Serial.readStringUntil('\n'); // Read the incoming string until newline
+      bool  res = modem.sendSMS(SMS_TARGET, receivedString);
+      DBG("SMS:", res ? "OK" : "fail");    }
 
 
-    delay(10000);
 
-    String imei = modem.getIMEI();
-    DBG("IMEI:", imei);
-
-    bool  res = modem.sendSMS(SMS_TARGET, String("Hello from ") + imei);
-    DBG("SMS:", res ? "OK" : "fail");
-
-    // Do nothing forevermore
-    while (true) {
-        modem.maintain();
-    }
 }
