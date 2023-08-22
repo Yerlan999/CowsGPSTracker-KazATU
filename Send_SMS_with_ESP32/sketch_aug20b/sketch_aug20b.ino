@@ -1,19 +1,13 @@
-// SIM card PIN (leave empty, if not defined)
-const char simPIN[]   = "";
-String SMS_Message;
-// Your phone number to send SMS: + (plus sign) and country code,
-//next digit should be your cell number
-// SMS_TARGET Example for UK +44XXXXXXXXX
 #define SMS_TARGET  "+77089194616"
 
 // Configure TinyGSM library
-#define TINY_GSM_MODEM_SIM800      // Modem is SIM800
-#define TINY_GSM_RX_BUFFER   1024  // Set RX buffer to 1Kb
+#define TINY_GSM_MODEM_SIM800
+#define TINY_GSM_RX_BUFFER   1024  // RX буфер = 1Kb
 
 #include <Wire.h>
 #include <TinyGsmClient.h>
 
-// TTGO T-Call pins
+// TTGO T-Call распиновка
 #define MODEM_RST            5
 #define MODEM_PWKEY          4
 #define MODEM_POWER_ON       23
@@ -22,20 +16,20 @@ String SMS_Message;
 #define I2C_SDA              21
 #define I2C_SCL              22
 
-// Set serial for debug console (to Serial Monitor, default speed 115200)
+// Последовательный цифровой порт для вывода текста на экран
 #define SerialMon Serial
-// Set serial for AT commands (to SIM800 module)
+// Последовательный цифровой порт для общения с Модулем SIM800H
 #define SerialAT  Serial1
 
-// Define the serial console for debug prints, if needed
-//#define DUMP_AT_COMMANDS
+// Последовательный цифровой порт для дебаггинга?
+// #define DUMP_AT_COMMANDS
 
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
-StreamDebugger debugger(SerialAT, SerialMon);
+StreamDebugger debugger(SerialAT, SerialMon); // Оба порта
 TinyGsm modem(debugger);
 #else
-TinyGsm modem(SerialAT);
+TinyGsm modem(SerialAT); // Только один порт (канал устройство-модуль SIM)
 #endif
 
 #define IP5306_ADDR          0x75
@@ -51,54 +45,8 @@ bool setPowerBoostKeepOn(int en) {
   }
   return Wire.endTransmission() == 0;
 }
-
-
-class MySettings {
-public:
-  MySettings(); // Constructor
-
-  // Getter and setter methods for the boolean variable
-  bool getFlag();
-  void setFlag(bool newFlag);
-
-  // Getter and setter methods for the string variable
-  String getText();
-  void setText(const String &newText);
-
-private:
-  bool myFlag;
-  String myText;
-};
-
-MySettings::MySettings() {
-  myFlag = false; // Initialize boolean variable
-  myText = "";    // Initialize string variable
-}
-
-bool MySettings::getFlag() {
-  return myFlag;
-}
-
-void MySettings::setFlag(bool newFlag) {
-  myFlag = newFlag;
-}
-
-String MySettings::getText() {
-  return myText;
-}
-
-void MySettings::setText(const String &newText) {
-  myText = newText;
-}
-
-
-MySettings settings; // Create an instance of MySettings
-
-
 void updateSerial();
-void setup()
-{
-
+void setup() {
   Serial.begin(115200);
   // Keep power when running from battery
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -116,110 +64,40 @@ void setup()
   SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
 
-  // Restart SIM800 module, it takes quite some time
-  // To skip it, call init() instead of restart()
-  // SerialMon.println("Initializing modem...");
+  SerialMon.println("Initializing modem...");
   // modem.restart();
-  
-  // use modem.init() if you don't need the complete restart
   modem.init();
 
-  // Unlock your SIM card with a PIN if needed
-  if (strlen(simPIN) && modem.getSimStatus() != 3 ) {
-    modem.simUnlock(simPIN);
-  }
-  
-  // // To send an SMS, call modem.sendSMS(SMS_TARGET, smsMessage)
-  // String smsMessage = "Hello GSM";
-  // if (modem.sendSMS(SMS_TARGET, smsMessage)) {
-  //   SerialMon.println(smsMessage);
-  // }
-  // else {
-  //   SerialMon.println("SMS failed to send");
-  // }
 
-
-  SerialAT.println("AT"); //Once the handshake test is successful, it will back to OK
+  SerialAT.println("AT"); // Рукопожатие устройства ESP32 с модулем SIM800
   updateSerial();
   delay(200);
-  SerialAT.println("AT+CMGF=1"); // Configuring TEXT mode
+  SerialAT.println("AT+CMGF=1"); // Конфигурация режима обработки текста
   updateSerial();
   delay(200);
-  SerialAT.println("AT+CNMI=2,2,0,0,0"); // Decides how newly arrived SMS messages should be handled
+  SerialAT.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
   updateSerial();
+
 }
 
 
-char smsBuffer[250]; // Buffer to store SMS messages
-void loop()
-{
-  updateSerial();
-  static String currentLine = "";
-  while (SerialAT.available()) {
-    SerialMon.println("Received data: " + settings.getFlag());
-    char c = SerialAT.read();
+char smsBuffer[250]; // Размер буфера для хранения текста сообщении
 
-    if (c == '\n') {
-      currentLine.trim(); // Remove leading/trailing whitespace
 
-      if (currentLine.startsWith("+CMTI: \"SM\",")) {
-        // Extract SMS index from the line
-        int smsIndex = currentLine.substring(13).toInt();
+void loop() {
 
-        // Read the SMS with the extracted index using AT commands
-        SerialAT.print("AT+CMGR=");
-        SerialAT.println(smsIndex);
-        delay(100); // Allow time for response
+  updateSerial(); // Чтение входящих данных
 
-        // Process the SMS message
-        if (SerialAT.find("+CMGR:")) {
-          String receivedMessage = SerialAT.readStringUntil('\n');
-          receivedMessage.trim();
-          SerialMon.println("Received SMS: " + receivedMessage);
-
-          // Store the received message in the buffer
-          receivedMessage.toCharArray(smsBuffer, sizeof(smsBuffer));
-          SerialMon.println("Stored in buffer: " + String(smsBuffer));
-
-          // Delete the SMS after processing
-          SerialAT.print("AT+CMGD=");
-          SerialAT.println(smsIndex);
-          delay(100); // Allow time for response
-        }
-      }
-
-      currentLine = ""; // Clear the line
-    } else {
-      currentLine += c; // Append character to the line
-    }
+  // Отправка сообщения случайным образом
+  int random_number = random(100);
+  if (random_number == 1000) {
+    if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {SerialMon.println("Message from ESP32");}
+    else {SerialMon.println("SMS failed to send");}
   }
-  
-  // SerialMon.println(settings.getText());
-  // settings.setText(smsBuffer);
-  
-
-  int rdn = random(100); // random number trigger event based sms or conditinal sms trigger
-  SMS_Message = "HELLO FROM ESP32";
-  // if () { // Check if there's data available
-  //   if (modem.sendSMS(SMS_TARGET, )) {
-  //     SerialMon.println();
-  //   }
-  //   else {
-  //     SerialMon.println("SMS failed to send");
-  //   }
-  //  = false;
-  // }
   delay(1000);
 }
 
-void updateSerial()
-{
-  while (Serial.available())
-  {
-    SerialAT.write(Serial.read());//Forward what Serial received to Software Serial Port
-  }
-  while (SerialAT.available())
-  {
-    Serial.write(SerialAT.read());//Forward what Software Serial received to Serial Port
-  }
+void updateSerial() {
+  while (SerialMon.available()) {SerialAT.write(SerialMon.read());}
+  while (SerialAT.available()) {SerialMon.write(SerialAT.read());}
 }
