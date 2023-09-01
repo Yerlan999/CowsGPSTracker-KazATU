@@ -110,9 +110,22 @@ void updateSerial() {
   while (SerialAT.available()) {
     SMS_stream = SerialAT.readStringUntil('\n');
     if (SMS_stream.startsWith("+CMT")) {
-      SerialMon.println("Check sender: " + SMS_stream);
+      SerialMon.println("Stream: " + SMS_stream);
+      
+      String sender = SMS_stream.substring(7, 19);
+      int stream_len = SMS_stream.length();
+      String datetime = SMS_stream.substring(stream_len-22, stream_len-2);
+
+      SerialMon.println("Sender: " + sender);
+      SerialMon.println("DateTime: " + datetime);
+
       SMS_content = SerialAT.readStringUntil('\n');
-      SerialMon.println("Check content: " + SMS_content);
+      SMS_content.trim();
+      SerialMon.println("Content: " + SMS_content);
+      
+      if (SMS_content == "Turn on") {
+        SerialMon.println("The pump has been turned on");        
+      }
     }
     // SerialMon.write(SerialAT.read());
     }
