@@ -21,8 +21,11 @@
 // Последовательный цифровой порт для общения с Модулем SIM800H
 #define SerialAT  Serial1
 
+String SMS_stream;
+String SMS_content;
+
 // Последовательный цифровой порт для дебаггинга?
-// #define DUMP_AT_COMMANDS
+#define DUMP_AT_COMMANDS
 
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
@@ -45,7 +48,10 @@ bool setPowerBoostKeepOn(int en) {
   }
   return Wire.endTransmission() == 0;
 }
+
 void updateSerial();
+
+
 void setup() {
   Serial.begin(115200);
   // Keep power when running from battery
@@ -98,6 +104,16 @@ void loop() {
 }
 
 void updateSerial() {
-  while (SerialMon.available()) {SerialAT.write(SerialMon.read());}
-  while (SerialAT.available()) {SerialMon.write(SerialAT.read());}
+  // while (SerialMon.available()) {
+  //   SerialAT.write(SerialMon.read());
+  //   }
+  while (SerialAT.available()) {
+    SMS_stream = SerialAT.readStringUntil('\n');
+    if (SMS_stream.startsWith("+CMT")) {
+      SerialMon.println("Check sender: " + SMS_stream);
+      SMS_content = SerialAT.readStringUntil('\n');
+      SerialMon.println("Check content: " + SMS_content);
+    }
+    // SerialMon.write(SerialAT.read());
+    }
 }
