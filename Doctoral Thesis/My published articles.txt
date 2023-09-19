@@ -1,0 +1,6 @@
+1. «Разработка нейро-нечетких алгоритмов управления для робота культиватора.» «Научно-практический электронный журнал Аллея Науки» №5(56) 2021. Alley-science.ru
+
+2. Amir, Y. Analysis of scientific research on cattle grazing systems in order to save pasture resources / Y. Amir // «М.А. Гендельманның 110 жылдығына арналған«Сейфуллин оқулары–19» халықаралық ғылыми-практикалық конференциясының материалдары = Материалы международной научно-практической конференции «Сейфуллинские чтения – 19», посвященной 110- летию М.А. Гендельмана». - 2023.- Т.I, Ч. V.- P. 4-6.
+
+3. Mehdiyev А.D., Sarsikeev Y.Zh., Amir Y.K. Development of a model and control algorithm for a solar tracker // Mechanics and Technology / Scientific journal. – 2022. – No.1(75). – P.18-26. https://doi.org/10.55956/UYYJ4115
+
