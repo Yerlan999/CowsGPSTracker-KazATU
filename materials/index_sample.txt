@@ -1,0 +1,30 @@
+fig, ax = plt.subplots(figsize=(12, 12))
+for zagon in range(len(pasture_df)-1):
+
+    ax.plot(pasture_edges[zagon].exterior.xy[1], pasture_edges[zagon].exterior.xy[0])
+
+index = (NIR - RED) / (NIR + RED)
+
+ep.plot_bands(index, title=f"Index of {general_info}", ax=ax, cmap="RdYlGn", cols=1, vmin=index.min(), vmax=index.max(), figsize=(10, 14))
+plt.show()
+
+
+index_masked_array = []
+for i, mask in enumerate(masks):
+    mx = ma.masked_array(index, mask=mask.reshape(aoi_height, aoi_width))
+    index_masked_array.append(mx)
+
+
+for i, zagon in enumerate(index_masked_array):
+    ep.hist(zagon, colors = colors[i], title=f'Index || Загон-{i+1} {general_info}', cols=4, alpha=0.5,
+    figsize = (10, 6))
+    plt.axvline(ma.mean(index_masked_array[i]), color='b', linestyle='dashed', linewidth=2)
+    plt.axvline(ma.median(index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
+    has_negative_or_zero = index_masked_array[i] <= 0
+    if not has_negative_or_zero.sum():
+        plt.axvline(hmean(index_masked_array[i].reshape(aoi_width * aoi_height)), color='g', linestyle='dashed', linewidth=2)
+        plt.axvline(gmean(index_masked_array[i].reshape(aoi_width * aoi_height)), color='y', linestyle='dashed', linewidth=2)
+        plt.legend([f"Средняя: {index_masked_array[i].mean()}",f"Медианная: {ma.median(index_masked_array[i])}",f"Гармоническая: {hmean(index_masked_array[i].reshape(aoi_width * aoi_height))}",f"Геометрическая: {gmean(index_masked_array[i].reshape(aoi_width * aoi_height))}"])
+    else:
+        plt.legend([f"Средняя: {ma.mean(index_masked_array[i])}",f"Медианная: {ma.median(index_masked_array[i])}"])
+plt.show()
