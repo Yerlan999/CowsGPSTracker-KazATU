@@ -8,11 +8,15 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import urllib, base64
 from django.http import JsonResponse
 
+import urllib.request
+import urllib.error
+import requests
+from bs4 import BeautifulSoup
 
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math, io, matplotlib, json, re
+import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -50,6 +54,42 @@ from utils import plot_image
 
 colors = ['tomato', 'navy', 'MediumSpringGreen', 'lightblue', 'orange', 'blue',
           'maroon', 'purple', 'yellow', 'olive', 'brown', 'cyan']
+
+
+HISTORY_PARAMETERS = [
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "apparent_temperature_max",
+    "apparent_temperature_min",
+    "precipitation_sum",
+    "rain_sum",
+    "snowfall_sum",
+    "precipitation_hours",
+    "weathercode",
+    "sunrise",
+    "sunset",
+    "windspeed_10m_max",
+    "windgusts_10m_max",
+    "winddirection_10m_dominant",
+    "shortwave_radiation_sum",
+    "et0_fao_evapotranspiration",]
+
+LAST_MAIN_DISCRIPTION = ""
+
+RUSSIAN_PARAMETERS = [
+    "температура_макс",
+    "температура_мин",
+    "ощущается_макс",
+    "ощущается_мин",
+    "осадки_сумма",
+    "дождь_сумма",
+    "снег_сумма",
+    "осадки_часы",
+    "скорость_ветра_макс",
+    "порыв_ветра_макс",
+    "напр_ветра_преобл.",
+    "корт.вол_излучение_сумма",
+    "эвапотранспирация",]
 
 
 class HolderClass():
@@ -337,15 +377,16 @@ class SentinelRequest():
         return float(ma.median(index))
 
     def prepare_all_bands(self):
+
+        self.FULL_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
+        self.FULL_GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
+        self.FULL_RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
+
         self.ULTRA_BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
 
         self.BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
         self.GREEN = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
         self.RED = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
-
-        self.FULL_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
-        self.FULL_GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
-        self.FULL_RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
 
         self.RED_EDGE1 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
         self.RED_EDGE2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
@@ -358,6 +399,22 @@ class SentinelRequest():
             self.SWIR_C = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
         self.SWIR2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
         self.SWIR3 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
+
+        self.P_ULTRA_BLUE = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
+        self.P_BLUE = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
+        self.P_GREEN = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
+        self.P_RED = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
+        self.P_RED_EDGE1 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
+        self.P_RED_EDGE2 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
+        self.P_RED_EDGE3 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
+        self.P_NIR = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
+        self.P_N_NIR = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
+        self.P_WV = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
+        if "B10" in self.bands_dict:
+            self.P_SWIR_C = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
+        self.P_SWIR2 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
+        self.P_SWIR3 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
+
 
         self.SAA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunAzimuthAngles"]]).mean()
         self.SZA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunZenithAngles"]]).mean()
@@ -389,14 +446,15 @@ class SentinelRequest():
         return encoded_image
 
 
-    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators):
+    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture):
 
         relative_radio = bool_converter(relative_radio)
         absolute_radio = bool_converter(absolute_radio)
         threshold_check = bool_converter(threshold_check)
+        by_pasture = bool_converter(by_pasture)
 
         try:
-            test_index = eval(modify_formula(formula))
+            test_index = eval(modify_formula(formula, by_pasture))
 
             if threshold_check:
                 test_thresh = float(threshold)
@@ -475,6 +533,18 @@ class SentinelRequest():
             print(error)
             return None, None, None
 
+    def get_weather_data(self, date):
+        longitude = self.pasture_bbox.geometry.centroid.coords.xy[0][0]
+        latitude = self.pasture_bbox.geometry.centroid.coords.xy[1][0]
+        Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={date}&end_date={date}"
+        Hist_URL = apply_params_to_URL(Hist_URL, HISTORY_PARAMETERS)
+        history_json_obj = make_API_request(Hist_URL)
+        history_df = pd.DataFrame(history_json_obj["daily"])
+        history_df.drop(columns=["time", "sunrise", "sunset", "weathercode"], inplace=True)
+
+        history_df.rename(columns=dict(zip(history_df.columns, RUSSIAN_PARAMETERS)), inplace=True)
+        return history_df
+
 
 
 def dates_request(request):
@@ -525,11 +595,22 @@ def date_detail(request, *args, **kwargs):
     HolderClass.sentinel_request.prepare_all_bands()
     image_data = HolderClass.sentinel_request.get_true_color_image()
 
-    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data})
+    dict_of_dates = HolderClass.sentinel_request.clear_date_dict
+    date_string = next((key for key, value in dict_of_dates.items() if value == int(pk)), None)
+
+    weather_df = HolderClass.sentinel_request.get_weather_data(date_string)
+    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered table-hover', index=False)
+
+    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df})
 
 
-def modify_formula(formula):
-    updated_formula = re.sub(r'\b(ULTRA_BLUE|BLUE|GREEN|RED|RED_EDGE1|RED_EDGE2|RED_EDGE3|NIR|N_NIR|WV|SWIR_C|SWIR2|SWIR3|mean|median)\b', r'self.\1', formula)
+def modify_formula(formula, by_pasture):
+
+    if by_pasture:
+        updated_formula = re.sub(r'\b(ULTRA_BLUE|BLUE|GREEN|RED|RED_EDGE1|RED_EDGE2|RED_EDGE3|NIR|N_NIR|WV|SWIR_C|SWIR2|SWIR3|mean|median)\b', r'self.P_\1', formula)
+    else:
+        updated_formula = re.sub(r'\b(ULTRA_BLUE|BLUE|GREEN|RED|RED_EDGE1|RED_EDGE2|RED_EDGE3|NIR|N_NIR|WV|SWIR_C|SWIR2|SWIR3|mean|median)\b', r'self.\1', formula)
+
     return updated_formula
 
 
@@ -538,6 +619,59 @@ def bool_converter(js_bool):
         return True
     if js_bool == "false":
         return False
+
+
+
+def apply_params_to_URL(URL, parameters):
+    URL += "&daily="
+    for i, parameter in enumerate(parameters):
+        if i < len(parameters) - 1:
+            URL += parameter + ","
+        else:
+            URL += parameter
+    URL += "&timezone=auto"
+
+    return URL
+
+def make_API_request(URL):
+    try:
+        # Convert from bytes to text
+        resp_text = urllib.request.urlopen(URL).read().decode('UTF-8')
+        # Use loads to decode from text
+        json_obj = json.loads(resp_text)
+        return json_obj
+    except urllib.error.HTTPError  as e:
+        ErrorInfo= e.read().decode()
+        print('Error code: ', e.code, ErrorInfo)
+        sys.exit()
+    except  urllib.error.URLError as e:
+        ErrorInfo= e.read().decode()
+        print('Error code: ', e.code,ErrorInfo)
+        sys.exit()
+
+
+def get_weather_mapping():
+    global LAST_MAIN_DISCRIPTION
+
+    url = "https://www.nodc.noaa.gov/archive/arc0021/0002199/1.1/data/0-data/HTML/WMO-CODE/WMO4677.HTM"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    weather_mapping = {}
+
+    for i_table, table in enumerate(soup.select('table[BORDER]')):
+        for i_row, row in enumerate(table.find_all('tr')[1:]):
+            code_and_description = row.find_all('td')[:2]
+            code = int(code_and_description[0].text.strip())
+            description = code_and_description[1].text.strip()
+            if not description.startswith("-"):
+                LAST_MAIN_DISCRIPTION = description
+            else:
+                description = LAST_MAIN_DISCRIPTION
+            weather_mapping[code] = description
+
+
+    return weather_mapping
 
 
 def ajax_view(request):
@@ -551,8 +685,9 @@ def ajax_view(request):
         threshold_check = request.GET.get('threshold_check')
         threshold = request.GET.get('threshold')
         operators = request.GET.get('operators')
+        by_pasture = request.GET.get('by_pasture')
 
-        index_image, hist_images, df = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators)
+        index_image, hist_images, df = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
 
         response_data = {'index_image': index_image, "hist_images": hist_images, "df": df}
 

@@ -96,6 +96,12 @@
     <h3 class="text-center">Более подробная информация по выбранной дате</h3>
 
     <img class="img-fluid img-thumbnail" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
+    <div class="container mt-4">
+      <h5 class="text-center">Погодные данные</h5>
+      <div class="table-responsive">
+          {{ weather_data|safe }}
+      </div>
+    </div>
     <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
     <div id="carousel-container"></div>
@@ -129,17 +135,10 @@
 
     <div class="row mt-3">
       <div class="col">
-        <div class="form-check">
-        <input class="form-check-input" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">  Относительная шкала
-        </div>
+        <input type="checkbox" id="by_pasture">    Относительно пастбища
       </div>
       <div class="col">
-        <div class="form-check">
-        <input class="form-check-input" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">  Абсолютная шкала
-        </div>
-      </div>
-      <div class="col">
-        <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()">  Пороговое значение
+        <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()">    Пороговое значение
       </div>
       <div class="col">
         <select id="operators" class="form-select" aria-label="Оператор" disabled>
@@ -153,6 +152,20 @@
       </div>
       <div class="col">
         <input type="number" id="threshold" class="form-control" disabled>
+      </div>
+    </div>
+
+
+    <div class="row mt-3">
+      <div class="col">
+        <div class="form-check">
+        <input class="form-check-input" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">  Относительная шкала
+        </div>
+      </div>
+      <div class="col">
+        <div class="form-check">
+        <input class="form-check-input" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">  Абсолютная шкала
+        </div>
       </div>
     </div>
 
@@ -182,6 +195,8 @@
 
             var formula = document.getElementById("formula").value;
 
+            var by_pasture = document.getElementById("by_pasture").checked;
+
             var relative_radio = document.getElementById("relative_radio").checked;
             var absolute_radio = document.getElementById("absolute_radio").checked;
 
@@ -205,6 +220,7 @@
                     'threshold_check': threshold_check,
                     'threshold': threshold,
                     'operators': operators,
+                    'by_pasture': by_pasture,
                 },
                 success: function(data) {
 
