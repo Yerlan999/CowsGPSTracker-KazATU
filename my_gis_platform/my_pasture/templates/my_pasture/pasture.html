@@ -106,4 +106,17 @@
     window.addEventListener('load', showLoadingSpinner);
   </script>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var checkbox = document.getElementById('id_recent_date');
+        var startDateInput = document.getElementById('id_start_date');
+        var endDateInput = document.getElementById('id_end_date');
+
+        checkbox.addEventListener('change', function () {
+            startDateInput.disabled = checkbox.checked;
+            endDateInput.disabled = checkbox.checked;
+        });
+    });
+  </script>
+
 {% endblock %}

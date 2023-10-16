@@ -12,7 +12,12 @@
     .carousel-control-prev-icon, .carousel-control-next-icon {
         background-color: #C7C7C7; /* Change to your desired color */
     }
+    th {
+        text-align: center;
+        vertical-align: top;
+    }
 </style>
+
 
 
 <div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -89,7 +94,6 @@
 </div>
 
 
-
 <div class="container shadow-lg"><br>
 
     <h1 class="text-center">ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
@@ -97,7 +101,9 @@
 
     <img class="img-fluid img-thumbnail" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
     <div class="container mt-4">
-      <h5 class="text-center">Погодные данные</h5>
+      <div class="d-flex justify-content-center">
+        <h5 class="text-center">Погодные данные</h5>
+      </div>
       <div class="table-responsive">
           {{ weather_data|safe }}
       </div>
@@ -121,7 +127,7 @@
     </table>
     <button id="predict" type="button" class="btn btn-success btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden>Прогноз</button>
 
-    <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
+    <div id="myAlert" class="alert alert-danger alert-dismissible fade show mt-3 mb-3" role="alert" hidden="true">
     </div>
 
     <h5 class="text-center mt-5">Форма контроля параметров запроса</h5>
@@ -135,10 +141,12 @@
 
     <div class="row mt-3">
       <div class="col">
-        <input type="checkbox" id="by_pasture">    Относительно пастбища
+        <input type="checkbox" id="by_pasture" class="mr-2">
+        <label for="by_pasture">Относительно пастбища</label>
       </div>
       <div class="col">
-        <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()">    Пороговое значение
+        <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()" class="mr-2">
+        <label for="threshold_check">Пороговое значение</label>
       </div>
       <div class="col">
         <select id="operators" class="form-select" aria-label="Оператор" disabled>
@@ -159,12 +167,14 @@
     <div class="row mt-3">
       <div class="col">
         <div class="form-check">
-        <input class="form-check-input" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">  Относительная шкала
+        <input class="form-check-input mr-2" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">
+        <label for="relative_radio">Относительная шкала</label>
         </div>
       </div>
       <div class="col">
         <div class="form-check">
-        <input class="form-check-input" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">  Абсолютная шкала
+        <input class="form-check-input mr-2" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">
+        <label for="absolute_radio">Абсолютная шкала</label>
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import urllib, base64
 from django.http import JsonResponse
 
+from googletrans import Translator
+
 import urllib.request
 import urllib.error
 import requests
@@ -56,6 +58,57 @@ colors = ['tomato', 'navy', 'MediumSpringGreen', 'lightblue', 'orange', 'blue',
           'maroon', 'purple', 'yellow', 'olive', 'brown', 'cyan']
 
 
+parameters_to_ignore = ["time", "sunrise", "sunset", "weathercode"]
+
+FORECAST_PARAMETERS = [
+    "temperature_2m_max",
+    "temperature_2m_min",
+    "apparent_temperature_max",
+    "apparent_temperature_min",
+    "precipitation_sum",
+    "rain_sum",
+    "showers_sum",
+    "snowfall_sum",
+    "precipitation_hours",
+    "precipitation_probability_max",
+    "precipitation_probability_min",
+    "precipitation_probability_mean",
+    "weathercode",
+    "sunrise",
+    "sunset",
+    "windspeed_10m_max",
+    "windgusts_10m_max",
+    "winddirection_10m_dominant",
+    "shortwave_radiation_sum",
+    "et0_fao_evapotranspiration",
+    "uv_index_max",
+    "uv_index_clear_sky_max",]
+
+FORECAST_RUSSIAN_PARAMETERS = [
+
+    "температура_2м_макс",
+    "температура_2м_мин",
+    "температура_ощущ_макс",
+    "температура_ощущ_мин",
+    "осадки_сумма",
+    "дождь_сумма",
+    "ливни_сумма",
+    "снегопад_сумма",
+    "осадки_часы",
+    "вероятность_осадков_макс",
+    "вероятность_осадков_мин",
+    "вероятность_осадков_средняя",
+    "скорость_ветра_10м_макс",
+    "порывы_ветра_10м_макс",
+    "направление_ветра_10м",
+    "коротковолновое_излучение_сумма",
+    "эвапотранспирация",
+    "ультрафиолетовый_индекс_макс",
+    "ультрафиолетовый_индекс_чистого_неба_макс",
+
+
+
+]
 HISTORY_PARAMETERS = [
     "temperature_2m_max",
     "temperature_2m_min",
@@ -76,19 +129,19 @@ HISTORY_PARAMETERS = [
 
 LAST_MAIN_DISCRIPTION = ""
 
-RUSSIAN_PARAMETERS = [
-    "температура_макс",
-    "температура_мин",
-    "ощущается_макс",
-    "ощущается_мин",
+HISTORY_RUSSIAN_PARAMETERS = [
+    "температура_2м_макс",
+    "температура_2м_мин",
+    "температура_ощущ_макс",
+    "температура_ощущ_мин",
     "осадки_сумма",
     "дождь_сумма",
-    "снег_сумма",
+    "снегопад_сумма",
     "осадки_часы",
-    "скорость_ветра_макс",
-    "порыв_ветра_макс",
-    "напр_ветра_преобл.",
-    "корт.вол_излучение_сумма",
+    "скорость_ветра_10м_макс",
+    "порывы_ветра_10м_макс",
+    "направление_ветра_10м",
+    "коротковолновое_излучение_сумма",
     "эвапотранспирация",]
 
 
@@ -100,25 +153,6 @@ class EvalScripts():
     def __init__(self, bands_dict, aux_data_dict):
         self.bands_dict = bands_dict
         self.aux_data_dict = aux_data_dict
-
-        self.evalscript_true_color = """
-            //VERSION=3
-
-            function setup() {
-                return {
-                    input: [{
-                        bands: ["B02", "B03", "B04"]
-                    }],
-                    output: {
-                        bands: 3
-                    }
-                };
-            }
-
-            function evaluatePixel(sample) {
-                return [sample.B02, sample.B03, sample.B04];
-            }
-        """
 
         self.evalscript_all_bands = """
             //VERSION=3
@@ -255,25 +289,6 @@ class SentinelRequest():
         if self.recent_date:
             self.unique_acquisitions = [self.unique_acquisitions[-1]]
 
-        self.true_color_process_requests = []
-
-        for timestamp in self.unique_acquisitions:
-            request = SentinelHubRequest(
-                evalscript=self.scripts.evalscript_true_color,
-                input_data=[
-                    SentinelHubRequest.input_data(
-                        data_collection=self.data_collection,
-                        time_interval=(timestamp - time_difference, timestamp + time_difference),
-                    )
-                ],
-                responses=[SentinelHubRequest.output_response("default", MimeType.PNG)],
-                bbox=self.pasture_bbox,
-                size=self.pasture_size,
-                config=self.config,
-            )
-            self.true_color_process_requests.append(request)
-
-
 
         self.all_bands_process_requests = []
 
@@ -317,16 +332,13 @@ class SentinelRequest():
 
         self.client = SentinelHubDownloadClient(config=self.config)
 
-        true_color_download_requests = [request.download_list[0] for request in self.true_color_process_requests]
-        self.true_color_data = self.client.download(true_color_download_requests)
-
         all_bands_download_requests = [request.download_list[0] for request in self.all_bands_process_requests]
         self.all_bands_data = self.client.download(all_bands_download_requests)
 
         aux_data_download_requests = [request.download_list[0] for request in self.aux_data_process_requests]
         self.aux_data = self.client.download(aux_data_download_requests)
 
-        self.aoi_height, self.aoi_width, _ = self.true_color_data[-1].shape
+        self.aoi_height, self.aoi_width, _ = self.all_bands_data[-1].shape
 
         self.masks = []
         self.pasture_edges = []
@@ -365,6 +377,9 @@ class SentinelRequest():
 
     def set_choosen_date(self, pk):
         self.image_date = int(pk)
+
+    def set_date(self, date):
+        self.image_date = self.clear_date_dict[date]
 
     def pasture(self, index):
         only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
@@ -424,16 +439,16 @@ class SentinelRequest():
         self.precision = 4
         self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level}"
 
-    def get_true_color_image(self):
+    def get_true_color_image(self, size=(12, 5)):
 
-        fig, ax = plt.subplots(figsize=(12, 5))
+        fig, ax = plt.subplots(figsize=size)
         for zagon in range(len(self.pasture_df)-1):
 
             ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
         ep.plot_rgb(np.stack([self.FULL_RED, self.FULL_GREEN, self.FULL_BLUE]), ax=ax,
-                    title=self.general_info,
-                    figsize=(12, 5),
+                    title="RGB "+self.general_info,
+                    figsize=size,
                     )
 
         fig.tight_layout()
@@ -534,15 +549,35 @@ class SentinelRequest():
             return None, None, None
 
     def get_weather_data(self, date):
+        today = datetime.date.today()
+        selected_date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
         longitude = self.pasture_bbox.geometry.centroid.coords.xy[0][0]
         latitude = self.pasture_bbox.geometry.centroid.coords.xy[1][0]
-        Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={date}&end_date={date}"
-        Hist_URL = apply_params_to_URL(Hist_URL, HISTORY_PARAMETERS)
-        history_json_obj = make_API_request(Hist_URL)
-        history_df = pd.DataFrame(history_json_obj["daily"])
-        history_df.drop(columns=["time", "sunrise", "sunset", "weathercode"], inplace=True)
 
-        history_df.rename(columns=dict(zip(history_df.columns, RUSSIAN_PARAMETERS)), inplace=True)
+        if today - selected_date > datetime.timedelta(2):
+            Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={date}&end_date={date}"
+            Hist_URL = apply_params_to_URL(Hist_URL, HISTORY_PARAMETERS)
+            history_json_obj = make_API_request(Hist_URL)
+            unit_measurements = history_json_obj["daily_units"]
+            history_df = pd.DataFrame(history_json_obj["daily"])
+            if (history_df['time'] == date).any():
+                history_df = history_df[history_df["time"] == date]
+            history_df.drop(columns=parameters_to_ignore, inplace=True)
+            unit_measurements = {key: unit_measurements[key] for key in unit_measurements if key not in parameters_to_ignore}
+            new_columns = [f"{param}, {unit}" for unit, param in zip(unit_measurements.values(), HISTORY_RUSSIAN_PARAMETERS)]
+            history_df.rename(columns=dict(zip(history_df.columns, new_columns)), inplace=True)
+        else:
+            Forecast_URL = f'https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&past_days=2'
+            Forecast_URL = apply_params_to_URL(Forecast_URL, FORECAST_PARAMETERS)
+            forecast_json_obj = make_API_request(Forecast_URL)
+            unit_measurements = forecast_json_obj["daily_units"]
+            history_df = pd.DataFrame(forecast_json_obj["daily"])
+            if (history_df['time'] == date).any():
+                history_df = history_df[history_df["time"] == date]
+            history_df.drop(columns=parameters_to_ignore, inplace=True)
+            unit_measurements = {key: unit_measurements[key] for key in unit_measurements if key not in parameters_to_ignore}
+            new_columns = [f"{param}, {unit}" for unit, param in zip(unit_measurements.values(), FORECAST_RUSSIAN_PARAMETERS)]
+            history_df.rename(columns=dict(zip(history_df.columns, new_columns)), inplace=True)
         return history_df
 
 
@@ -581,7 +616,16 @@ def available_dates(request):
 
     HolderClass.sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
     unique_acquisitions = HolderClass.sentinel_request.get_unique_acquisitions()
+
+    # dict_of_images = dict()
+    # for date in unique_acquisitions:
+    #     HolderClass.sentinel_request.set_date(date)
+    #     HolderClass.sentinel_request.prepare_all_bands()
+    #     image_data = HolderClass.sentinel_request.get_true_color_image(size=(6, 3))
+    #     dict_of_images[date] = image_data
+
     context = {
+        # 'dict_of_images': dict_of_images,
         'unique_acquisitions': unique_acquisitions,
         'counter_start': 0,  # Starting value for the loop counter
     }
@@ -599,7 +643,8 @@ def date_detail(request, *args, **kwargs):
     date_string = next((key for key, value in dict_of_dates.items() if value == int(pk)), None)
 
     weather_df = HolderClass.sentinel_request.get_weather_data(date_string)
-    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered table-hover', index=False)
+
+    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False)
 
     return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df})
 
