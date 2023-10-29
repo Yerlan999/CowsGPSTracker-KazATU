@@ -147,3 +147,99 @@ dates_to_analyze = [
     '2023-08-23',
 ]
 
+
+
+
+
+
+
+### OLD CATTLE CLASS
+
+class Cattle():
+    cattle_count = 0
+    cattle_stack = []
+
+    def __init__(self, sex, weight, stage=None, production=None, age=None, forage_to_gain=0.25):
+#         self.breed = breed           # Порода
+        self.sex = sex               # Пол: Корова/Бык
+        self.production = production # Направление: Молочное/Мясное
+        self.age = age               # Возраст
+        self.stage = stage           # Стадия/период
+        self.weight = weight         # Начальный вес
+
+        self.current_paddock = None
+        self.day_entered = None
+
+        self.gps_coordinate = None
+
+        self.already_consumed_forage = 0
+        self.forage_needed = None
+        self.forage_to_gain = forage_to_gain # 1 кг сухой массы = 0.25 кг прирост в массе
+
+        self.forage_needed = dry_matter_intake(self.weight, "Angus")
+
+        Cattle.cattle_count += 1
+        Cattle.cattle_stack.append(self)
+        self.index = Cattle.cattle_count
+
+    def __str__(self):
+        return f'Cattle №{self.index}. Already consumed: {self.already_consumed_forage} kg. In the paddock №{self.current_paddock} right now.'
+    def __repr__(self):
+        return f'Cattle №{self.index}. Already consumed: {self.already_consumed_forage} kg. In the paddock №{self.current_paddock} right now.'
+
+    def enter_into_paddock(new_paddock_number):
+        self.current_paddock = new_paddock_number
+        self.day_entered = datetime.datetime.today()
+
+    def calculate_forage_needed(self):
+        # Быки
+        if self.sex == "male":
+            min_weight = 600
+            max_weight = 1400
+
+            min_forage_needed = 9
+            max_forage_needed = 15
+
+            forage_needed = (self.weight - min_weight) / (max_weight - min_weight) * (max_forage_needed - min_forage_needed) + min_forage_needed
+            return forage_needed
+
+        # Коровы
+        else:
+            if self.stage == "lactating": # Лактирующие
+                min_weight = 350
+                max_weight = 650
+
+                min_forage_needed = 9
+                max_forage_needed = 14
+
+                forage_needed = (self.weight - min_weight) / (max_weight - min_weight) * (max_forage_needed - min_forage_needed) + min_forage_needed
+                return forage_needed
+
+            else: # Сухостойная или остальные
+                min_weight = 400
+                max_weight = 650
+
+                min_forage_needed = 12
+                max_forage_needed = 14
+
+                forage_needed = (self.weight - min_weight) / (max_weight - min_weight) * (max_forage_needed - min_forage_needed) + min_forage_needed
+                return forage_needed
+
+    def get_gps_coordinate_request(self):
+        # Making a request to intermediate module of the system
+        # Obtaining GPS coordinates of an interested cattle
+        self.gps_coordinate = (0, 0)
+        return self.gps_coordinate
+
+    def get_cattle_current_gps_coordinates(self):
+        gps_coordinate = self.get_gps_coordinate_request()
+        curr_coord_y, curr_coord_x = gps_coordinate # (Latitude, Longitude) = (54.216885, 69.517046)
+        x = int(np.interp(curr_coord_x, [x_min, x_max], [0, aoi_width])) # 157
+        y = int(np.interp(curr_coord_y, [y_min, y_max], [aoi_height, 0])) # 78
+
+        print(f"Координаты: {curr_coord_y}, {curr_coord_x} || Пиксельный эквивалент: {y}, {x}")
+        for i, paddock in enumerate(masks, start=1):
+            if not paddock.reshape(aoi_height, aoi_width)[y, x]:
+                self.current_paddock = i
+            else:
+                self.current_paddock = None
