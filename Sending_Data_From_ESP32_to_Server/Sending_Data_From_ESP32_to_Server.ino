@@ -5,11 +5,11 @@
 #define RXD2 16
 #define TXD2 17
 
-const char* ssid = "Le petit dejeuner 2";
-const char* password = "DoesGodReallyExist404";
+const char* ssid = "LeChatGarcon";
+const char* password = "LeChatGarcon999";
 
 unsigned long lastTime = 0;  
-unsigned long timerDelay = 30000;    // КАЖДЫЕ 30 секунд
+unsigned long timerDelay = 10000;    // КАЖДЫЕ 30 секунд
 
 float latitude;
 float longitude;
@@ -45,15 +45,16 @@ void loop() {
         latitude = gps.location.lat();
         longitude = gps.location.lng();
 
-        coordinates = "Latitude: " + String(latitude, 6) + " Longitude: " + String(longitude, 6);
-        
-        Serial.print("Latitude   = ");
-        Serial.println(latitude, 6);
-        Serial.print("Longitude  = ");
-        Serial.println(longitude, 6);
+        // coordinates = "Latitude: " + String(latitude, 6) + " Longitude: " + String(longitude, 6);
+        coordinates = "Test string";
+
+        // Serial.print("Latitude = ");
+        // Serial.print(latitude, 6);
+        // Serial.print(" || Longitude = ");
+        // Serial.println(longitude, 6);
       }
       else{
-        Serial.println("Location Invalid");
+        // Serial.println("Location Invalid");
       }
     }
   }
@@ -64,10 +65,14 @@ void loop() {
    
      HTTPClient http;   
    
-     http.begin("http://192.168.43.141/post-gps");
-     http.addHeader("Content-Type", "text/plain");             
-   
-     int httpResponseCode = http.POST(coordinates);   //Send the actual POST request
+     http.begin("http://192.168.0.17:8000/ajax/");
+     http.addHeader("Content-Type", "application/x-www-form-urlencoded");             
+     String latitude = "54.214535";
+     String longitude = "69.514887";
+     String index = "123";
+     String postData = "latitude=" + latitude + "&longitude=" + longitude + "&index=" + index;
+
+     int httpResponseCode = http.POST(postData);   //Send the actual POST request
    
      if(httpResponseCode>0){
    

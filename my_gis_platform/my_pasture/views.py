@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template import loader
+from django.views.decorators.csrf import csrf_exempt
 from .forms import InputForm
 from .models import InputModel
 from django.conf import settings
@@ -1048,8 +1049,21 @@ class Pasture():
         return total_forage_daily_consumption
 
 
+test_cattle = dict()
 
+
+@csrf_exempt
 def ajax_view(request):
+    global test_cattle
+
+    if request.method == 'POST':
+
+        latitude = request.POST.get('latitude')
+        longitude = request.POST.get('longitude')
+        index = request.POST.get('index')
+        test_cattle = {"latitude": latitude,
+                        "longitude": longitude,
+                        "index": index}
 
     if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' and request.method == 'GET':
 
@@ -1069,8 +1083,10 @@ def ajax_view(request):
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid,}
 
             return JsonResponse(response_data)
+        elif "cow_number" in request.GET:
+            return JsonResponse(test_cattle)
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
-        return JsonResponse({'message': 'Invalid request'})
+        return JsonResponse({'message': 'Ooops response'})
 

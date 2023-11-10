@@ -448,6 +448,40 @@
                     googleSat.addTo(map);
 
 
+                    var marker = L.marker([0, 0])
+                    .addTo(map)
+                    .bindTooltip('Initial Tooltip', { permanent: false, opacity: 0.7 })
+
+                      // Function to update marker position based on new data
+                    function updateMarkerPosition(latitude, longitude, index) {
+                        marker.setLatLng([latitude, longitude]);
+                        marker.getTooltip().setContent('Номер КРС: ' + index);
+                    }
+
+
+                    // Function to send the Ajax request
+                    function sendAjaxRequest() {
+                      $.ajax({
+                          type: "GET",
+                          url: "/ajax/",
+                          data: {
+                              'cow_number': 123
+                          },
+                          success: function(data) {
+                          updateMarkerPosition(parseFloat(data.latitude), parseFloat(data.longitude), data.index);
+                        },
+                        error: function(xhr, status, error) {
+                          console.error('Ajax request failed', status, error);
+                        }
+                      });
+                    }
+
+                    // Set the interval to send the Ajax request every 5 seconds (adjust as needed)
+                    setInterval(sendAjaxRequest, 10000); // 5000 milliseconds = 5 seconds
+
+
+
+
                     var geoJSONData = JSON.parse(data.geodataframe);
                     var geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
@@ -860,6 +894,9 @@ function multiplyValues() {
     };
 
   }
+
+
+
 
 
 </script>

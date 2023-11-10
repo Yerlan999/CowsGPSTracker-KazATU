@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-9n#kdhkz+#5+0w18c(hi9w_@4(chp!z_fto^j12*l538e+au$!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['0.0.0.0:8000', '127.0.0.1', 'localhost', '192.168.0.17']
 
 
 # Application definition
@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'bootstrap4',
     'crispy_forms',
     "crispy_bootstrap4",
+    'corsheaders',
 ]
 
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap4"
@@ -54,7 +55,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
+
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = "my_gis_platform.urls"
 
