@@ -26,7 +26,8 @@ from shapely.ops import unary_union
 from fiona.drvsupport import supported_drivers
 import geopandas as gpd
 from matplotlib.path import Path
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, MultiPolygon, Point, mapping
+
 import earthpy.spatial as es
 import earthpy.plot as ep
 import numpy.ma as ma
@@ -513,9 +514,15 @@ class SentinelRequest():
                 mx = ma.masked_array(test_meet, mask=mask.reshape(self.aoi_height, self.aoi_width))
                 test_index_masked_array.append(mx)
 
+            mx_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
+            test_index_masked_array.append(mx_pasture)
+
             summary_data = []; decoded_hist_images = [];
             for i, zagon in enumerate(test_index_masked_array):
-                ep.hist(zagon, colors = colors[i], title=f'{header} || Загон-{i+1} {self.general_info}', cols=4, alpha=0.5,
+                if (i+1 == len(test_index_masked_array)): title = f'{header} || Пастбище {self.general_info}';
+                else: title = f'{header} || Загон-{i+1} {self.general_info}';
+
+                ep.hist(zagon, colors = colors[i], title=title, cols=4, alpha=0.5,
                 figsize = (12, 5))
                 summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
                 plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
@@ -536,13 +543,24 @@ class SentinelRequest():
                 decoded_hist_images.append(image_encoded)
 
             summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
+            sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [summary_df['Сумма'].sum()], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
+            summary_df = pd.concat([summary_df, sum_row])
+
             # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
             # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
+
+            geodataframe = pd.concat([self.pasture_df, summary_df], axis=1)
+            geodataframe = geodataframe.to_json(default=mapping)
+
+            # geodataframe = geodataframe.to_dict(orient='records')
+            # geodataframe = json.dumps(geodataframe, ensure_ascii=False)
 
             summary_df = summary_df.to_dict(orient='records')
             summary_df = json.dumps(summary_df, ensure_ascii=False)
 
-            return encoded_image, decoded_hist_images, summary_df
+            centroid = self.merged_zagons.centroid.x, self.merged_zagons.centroid.y
+
+            return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid
 
         except Exception as error:
             print(error)
@@ -719,24 +737,340 @@ def get_weather_mapping():
     return weather_mapping
 
 
+breed_factors = {
+    "Angus": 0.025,
+    "Hereford": 0.026,
+    "Limousin": 0.028,
+    "Charolais": 0.029,
+}
+
+def estimated_daily_weight_gain(initial_weight, age_in_months, breed_type):
+    A = 0.025
+    B = int(np.interp(age_in_months, [12, 24], [20, 80]))
+    C = breed_factors.get(breed_type, 0.027)
+    DWG = A * (initial_weight - B) * C
+    return round(DWG, 4)
+
+def dry_matter_intake(initial_weight, breed_type):
+    D = breed_factors.get(breed_type, 0.027)
+    DMI = D * initial_weight
+    return round(DMI, 4)
+
+
+class TimeLine:
+    watcher = dict()
+
+class Cattle():
+    cattle_count = 0
+    cattle_stack = []
+
+    def __init__(self, sex, weight, stage=None, breed="Angus", production="beef", age=12, forage_to_gain=0.25):
+        self.breed = breed           # Порода
+        self.sex = sex               # Пол: Корова/Бык
+        self.production = production # Направление: Молочное/Мясное
+        self.age = age               # Возраст
+        self.stage = stage           # Стадия/период
+        self.weight = weight         # Начальный вес
+
+        self.current_paddock = None
+        self.day_entered = None
+
+        self.gps_coordinate = None
+
+        self.already_consumed_forage = 0
+        self.forage_needed = None
+        self.forage_to_gain = forage_to_gain # 1 кг сухой массы = 0.25 кг прирост в массе
+
+        self.forage_needed = dry_matter_intake(self.weight, self.breed)
+
+        Cattle.cattle_count += 1
+        Cattle.cattle_stack.append(self)
+        self.index = Cattle.cattle_count
+
+        self.weight_history = []
+        self.forage_needed_history = []
+
+    def update_age(self, grazing_day):
+        if grazing_day % 30 == 0:
+            self.age += 1
+
+    def update_weight(self):
+        weight_gain = estimated_daily_weight_gain(self.weight, self.age, self.breed)
+        self.weight += weight_gain
+
+    def update_forage_consumption(self):
+        self.forage_needed = dry_matter_intake(self.weight, self.breed)
+
+
+
+    def __str__(self):
+        return f'Cattle №{self.index}. Already consumed: {self.already_consumed_forage} kg. In the paddock №{self.current_paddock} right now.'
+    def __repr__(self):
+        return f'Cattle №{self.index}. Already consumed: {self.already_consumed_forage} kg. In the paddock №{self.current_paddock} right now.'
+
+    def enter_into_paddock(new_paddock_number):
+        self.current_paddock = new_paddock_number
+        self.day_entered = datetime.datetime.today()
+
+
+    def get_gps_coordinate_request(self):
+        # Making a request to intermediate module of the system
+        # Obtaining GPS coordinates of an interested cattle
+        self.gps_coordinate = (0, 0)
+        return self.gps_coordinate
+
+    def get_cattle_current_gps_coordinates(self):
+        gps_coordinate = self.get_gps_coordinate_request()
+        curr_coord_y, curr_coord_x = gps_coordinate # (Latitude, Longitude) = (54.216885, 69.517046)
+        x = int(np.interp(curr_coord_x, [x_min, x_max], [0, aoi_width])) # 157
+        y = int(np.interp(curr_coord_y, [y_min, y_max], [aoi_height, 0])) # 78
+
+        print(f"Координаты: {curr_coord_y}, {curr_coord_x} || Пиксельный эквивалент: {y}, {x}")
+        for i, paddock in enumerate(masks, start=1):
+            if not paddock.reshape(aoi_height, aoi_width)[y, x]:
+                self.current_paddock = i
+            else:
+                self.current_paddock = None
+
+
+class Plant():
+
+    def __init__(self, name, growth_rate, death_rate,
+                 temperature_range, moisture_range, radiation_range,
+                 season_start_date = "2023-03-01",
+                 season_end_date = "2023-09-30",
+                 first_peak = "2023-04-01", max1_y = 0.9,
+                 second_peak = "2023-08-20", max2_y = 0.6,
+                 sigma = 50,
+                 plant_density = 150, # кг/м3
+                ):
+        self.name = name
+
+        self.growth_rate = growth_rate # мм/день
+        self.death_rate = death_rate   # мм/день
+
+        self.temperature_range = temperature_range
+        self.moisture_range = moisture_range
+        self.radiation_range = radiation_range
+        self.score_range = input_values = [0, 1, 0]
+
+        self.max1_y = max1_y
+        self.max2_y = max2_y
+        self.sigma = sigma
+        self.plant_density = plant_density
+
+        self.season_start_date = datetime.datetime.strptime(season_start_date, "%Y-%m-%d")
+        self.season_end_date = datetime.datetime.strptime(season_end_date, "%Y-%m-%d")
+        self.season_duration = self.season_end_date - self.season_start_date
+
+        self.first_peak = datetime.datetime.strptime(first_peak, "%Y-%m-%d")
+        self.second_peak = datetime.datetime.strptime(second_peak, "%Y-%m-%d")
+
+
+    def get_condition_score(self, grazing_day):
+#         grazing_day = datetime.datetime.strptime(grazing_day, "%Y-%m-%d")
+        start_date = grazing_day + datetime.timedelta(-15)
+        end_date = grazing_day + datetime.timedelta(+15)
+
+#         Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date.date()}&end_date={end_date.date()}"
+#         Hist_URL = apply_params_to_URL(Hist_URL, history_parameters)
+#         history_json_obj = make_API_request(Hist_URL)
+#         history_df = pd.DataFrame(history_json_obj["daily"])
+#         history_df.drop(columns=["weathercode", "sunrise", "sunset"], inplace=True)
+
+        filtered_df = Plant.history_df[(Plant.history_df['time'] >= str(start_date)) & (Plant.history_df['time'] <= str(end_date))]
+
+        temperature = np.array((filtered_df['temperature_2m_max'] + filtered_df['temperature_2m_min']) / 2)
+        precipitation = np.array(filtered_df['precipitation_sum'])
+        radiation = np.array(filtered_df['shortwave_radiation_sum'])
+
+        temperature_score = np.interp(temperature, self.temperature_range, self.score_range, left=self.score_range[0], right=self.score_range[-1]).mean()
+        precipitation_score = np.interp(precipitation, self.moisture_range, self.score_range, left=self.score_range[0], right=self.score_range[-1]).mean()
+        radiation_score = np.interp(radiation, self.radiation_range, self.score_range, left=self.score_range[0], right=self.score_range[-1]).mean()
+
+        return np.array([temperature_score, precipitation_score, radiation_score]).mean()
+
+
+    def get_seasonal_score(self, grazing_day):
+#         grazing_day = datetime.datetime.strptime(grazing_day, "%Y-%m-%d")
+        days_passed = (grazing_day - self.season_start_date).days
+
+        self.max1_x = (self.first_peak - self.season_start_date).days  # x value of the first maximum point
+        self.max2_x = (self.second_peak - self.season_start_date).days  # x value of the second maximum point
+
+        self.x = np.linspace(0, self.season_duration.days, self.season_duration.days)  # Adjust the range as needed
+
+        self.sigma = 50  # Increase this value to make the curve less steep
+
+        self.y = self.max1_y * np.exp(-((self.x - self.max1_x) / self.sigma) ** 2) + self.max2_y * np.exp(-((self.x - self.max2_x) / self.sigma) ** 2)
+
+        return self.y[days_passed]
+
+
+class Soil():
+
+    def __init__(self, soil_type, humus_content, acidity, potassium_content, phosphorus_content, nitrogen_content):
+        self.soil_type = soil_type
+        self.humus_content = humus_content
+        self.acidity = acidity
+        self.potassium_content = potassium_content
+        self.phosphorus_content = phosphorus_content
+        self.nitrogen_content = nitrogen_content
+
+
+
+class Grazing():
+
+    def __init__(self,  start_date, end_date, pasture, num_rounds=2):
+        self.pasture = pasture
+        self.num_rounds = num_rounds
+        self.start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        self.end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+        self.grazing_duration = self.end_date - self.start_date
+        self.grazing_cycle = itertools.cycle(range(1, len(self.pasture.paddock_masks)+1))
+        value = next(self.grazing_cycle)
+        setattr(self.pasture, "grazing_cycle", self.grazing_cycle)
+        setattr(self.pasture, "start_date", self.start_date)
+        setattr(self.pasture, "end_date", self.end_date)
+        setattr(self.pasture, "grazing_duration", self.grazing_duration)
+        self.preload_weather_df()
+
+    def preload_weather_df(self):
+        start_date = self.start_date + datetime.timedelta(-20)
+        end_date = self.end_date + datetime.timedelta(+20)
+
+        Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date.date()}&end_date={end_date.date()}"
+        Hist_URL = apply_params_to_URL(Hist_URL, history_parameters)
+        history_json_obj = make_API_request(Hist_URL)
+        history_df = pd.DataFrame(history_json_obj["daily"])
+        history_df.drop(columns=["weathercode", "sunrise", "sunset"], inplace=True)
+        Plant.history_df = history_df
+
+    def start_grazing(self):
+        print("Grazing started!")
+        for day in range(self.grazing_duration.days):
+            current_date = self.start_date + datetime.timedelta(days=day)
+#             print("Date: ", current_date.date())
+            self.pasture.update_paddock_resource(current_date)
+        print("Grazing finished!")
+
+
+class Pasture():
+
+    def __init__(self, size, paddock_masks):
+        self.size = size
+        self.paddock_masks = paddock_masks
+        self.currently_grazed_paddock = None
+
+        self.create_paddocks()
+
+    def botanical_composition(self, paddock, plants_dict):
+        if sum([percentage[1] for percentage in plants_dict.values()]) > 100:
+            raise TypeError(f"100 < {sum([percentage[1] for percentage in plants_dict.values()])}")
+            return
+        setattr(self, f"paddock_{paddock}_plants", plants_dict)
+
+    def set_paddock_resource(self, paddock, resource):
+        setattr(self, f"paddock_{paddock}_resource", resource)
+
+    def update_paddock_resource(self, grazing_day):
+        for paddock, mask in enumerate(self.paddock_masks, start=1):
+            plants_dict = getattr(self, f"paddock_{paddock}_plants")
+            daily_forage_consumption = self.get_paddocks_daily_forage_consumption(paddock, grazing_day)
+
+            daily_green_mass_delta = 0
+            for plant, [obj, percentage] in plants_dict.items():
+                number_of_squares = round(sum(~self.paddock_masks[paddock-1])*percentage/100)
+                GI = obj.get_condition_score(grazing_day)
+                SI = obj.get_seasonal_score(grazing_day)
+                coeff = (GI+SI)/2; inv_coeff = 1-(GI+SI)/2
+                green_mass_daily_increment = (random.uniform(10*coeff,10)*random.uniform(10*coeff,10))*(coeff*obj.growth_rate/1000)*obj.plant_density; # kg
+                green_mass_daily_decrement = (random.uniform(10*inv_coeff,10)*random.uniform(10*inv_coeff,10))*(inv_coeff*obj.death_rate/1000)*obj.plant_density; # kg
+                daily_green_mass_delta += (green_mass_daily_increment - green_mass_daily_decrement)
+
+            paddock_resource = getattr(self, f"paddock_{paddock}_resource")
+            TimeLine.watcher[f"paddock_{paddock}_resource_history"].append(paddock_resource)
+            paddock_resource = round(paddock_resource + (daily_green_mass_delta - daily_forage_consumption))
+
+            self.check_current_paddock_resource(self.currently_grazed_paddock)
+
+            self.set_paddock_resource(paddock, paddock_resource)
+
+    def check_current_paddock_resource(self, paddock_number):
+        paddock_current_resource = getattr(self, f"paddock_{paddock_number}_resource")
+        first_paddock_resource = TimeLine.watcher[f"paddock_{paddock_number}_resource_history"][0]
+        if first_paddock_resource * 0.3 > paddock_current_resource:
+#         if paddock_current_resource < 5000:
+            next_paddock_number = next(self.grazing_cycle)
+            for cattle in Cattle.cattle_stack:
+                self.add_cattle_into_paddock(cattle, next_paddock_number)
+
+
+    def create_paddocks(self):
+        for i, _ in enumerate(self.paddock_masks, start=1):
+            setattr(self, f"paddock_{i}", [])
+            TimeLine.watcher[f"paddock_{i}_resource_history"] = []
+
+    def add_cattle_into_paddock(self, cattle, paddock_number):
+
+        if cattle.current_paddock != paddock_number:
+            if cattle.current_paddock:
+                old_paddock = getattr(self, f"paddock_{cattle.current_paddock}")
+                updated_old_paddock = [ocattle for ocattle in old_paddock if ocattle["object"].index != cattle.index]
+                setattr(self, f"paddock_{cattle.current_paddock}", updated_old_paddock)
+
+            cattle.current_paddock = paddock_number
+            cattle_dict = dict();
+            cattle_dict["id"] = cattle.index
+            cattle_dict["object"] = cattle
+            cattle_dict["paddock_number"] = cattle.current_paddock
+            cattle_dict["forage_needed"] = cattle.forage_needed
+            cattle_dict["already_consumed_forage"] = cattle.already_consumed_forage
+
+            new_paddock = getattr(self, f"paddock_{paddock_number}")
+            new_paddock.append(cattle_dict)
+            self.currently_grazed_paddock = paddock_number
+        else:
+            print(f"{cattle} was sent to the same paddock!")
+
+    def get_paddocks_daily_forage_consumption(self, paddock_number, grazing_day):
+        total_forage_daily_consumption = 0
+        for cattle in getattr(self, f"paddock_{paddock_number}"):
+            total_forage_daily_consumption += cattle["object"].forage_needed
+
+            cattle["object"].update_age((grazing_day - self.start_date).days)
+            cattle["object"].update_weight()
+            cattle["object"].update_forage_consumption()
+
+            cattle["object"].weight_history.append(cattle["object"].weight)
+            cattle["object"].forage_needed_history.append(cattle["object"].forage_needed)
+
+        return total_forage_daily_consumption
+
+
+
 def ajax_view(request):
+
     if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' and request.method == 'GET':
 
-        formula = request.GET.get('formula')
-        relative_radio = request.GET.get('relative_radio')
-        absolute_radio = request.GET.get('absolute_radio')
-        upper_bound = request.GET.get('upper_bound')
-        lower_bound = request.GET.get('lower_bound')
-        threshold_check = request.GET.get('threshold_check')
-        threshold = request.GET.get('threshold')
-        operators = request.GET.get('operators')
-        by_pasture = request.GET.get('by_pasture')
+        if "formula" in request.GET:
+            formula = request.GET.get('formula')
+            relative_radio = request.GET.get('relative_radio')
+            absolute_radio = request.GET.get('absolute_radio')
+            upper_bound = request.GET.get('upper_bound')
+            lower_bound = request.GET.get('lower_bound')
+            threshold_check = request.GET.get('threshold_check')
+            threshold = request.GET.get('threshold')
+            operators = request.GET.get('operators')
+            by_pasture = request.GET.get('by_pasture')
 
-        index_image, hist_images, df = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
+            index_image, hist_images, df, geodataframe, centroid = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
 
-        response_data = {'index_image': index_image, "hist_images": hist_images, "df": df}
+            response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid,}
 
-        return JsonResponse(response_data)
+            return JsonResponse(response_data)
+        else:
+            return JsonResponse({'message': 'Undefined response'})
     else:
         return JsonResponse({'message': 'Invalid request'})
 

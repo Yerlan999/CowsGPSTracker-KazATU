@@ -19,9 +19,9 @@
 </style>
 
 
-
+<!-- Modal #1 -->
 <div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="myModalLabel">Расчет реальных значении</h5>
@@ -44,11 +44,83 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" onclick="multiplyValues()">Рассчитать</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        <button type="button" class="btn btn-success" id="switchToModalB" style="display:none">Симуляция</button>
       </div>
     </div>
   </div>
 </div>
 
+
+<!-- Modal #2 -->
+<div class="modal fade bd-example-modal-lg" id="myModalSim" tabindex="-1" role="dialog" aria-labelledby="myModalSimLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalSimLabel">Симуляция стравливании на пастбище</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+
+        <h6>Раздел назначения дат сезона и выпаса КРС</h6>
+        <hr>
+
+          <div class="row">
+            <div class="col">
+                <div class="form-group">
+                  <label for="seasonStart">Дата начала сезона</label>
+                  <input type="date" class="form-control" id="seasonStart">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                  <label for="grazingStart">Дата начала выпаса</label>
+                  <input type="date" class="form-control" id="grazingStart">
+                </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col">
+                <div class="form-group">
+                  <label for="seasonEnd">Дата окончания сезона</label>
+                  <input type="date" class="form-control" id="seasonEnd">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                  <label for="grazingEnd">Дата окончания выпаса</label>
+                  <input type="date" class="form-control" id="grazingEnd">
+                </div>
+            </div>
+          </div>
+
+
+        <h6>Раздел симуляции растении</h6>
+        <hr>
+
+          <div class="row">
+            <div class="col">
+              <p class="">Название растения: </p>
+            </div>
+            <div class="col">
+              <input type="text" class="form-control" id="plantName">
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-success" onClick="appendElements();">Добавить растение</button>
+            </div>
+          </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="switchToModalA">Назад</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        <button type="button" class="btn btn-success">Начать</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <div class="modal fade bd-example-modal-lg" id="myHelperModal">
@@ -108,24 +180,30 @@
           {{ weather_data|safe }}
       </div>
     </div>
+
+    <h5 id="requested_date_image_header" class="text-center mt-3" hidden>Запрошенный индекс (канал)</h5>
     <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
+    <h5 id="map_header" class="text-center mt-3" style="display: none">GPS треккинг КРС</h5>
+    <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
+
+    <h5 id="histograms_header" class="text-center mt-3" style="display: none">Гистограммы и таблица загонов </h5>
     <div id="carousel-container"></div>
 
     <table id="data-table" class="table table-striped" style="display: none;"> <!-- Initially hidden -->
         <thead class="thead-dark">
             <tr>
-                <th>Загон №</th>
-                <th>Сумма</th>
-                <th>Средняя</th>
-                <th>Медианная</th>
-                <th>Макс.</th>
-                <th>Мин.</th>
+                <th class="text-left">Загон №</th>
+                <th class="text-left">Сумма</th>
+                <th class="text-left">Средняя</th>
+                <th class="text-left">Медианная</th>
+                <th class="text-left">Макс.</th>
+                <th class="text-left">Мин.</th>
             </tr>
         </thead>
         <tbody></tbody>
     </table>
-    <button id="predict" type="button" class="btn btn-success btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden>Прогноз</button>
+    <button id="predict" type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden onclick="disableSimulation()">Прогноз</button>
 
     <div id="myAlert" class="alert alert-danger alert-dismissible fade show mt-3 mb-3" role="alert" hidden="true">
     </div>
@@ -195,6 +273,9 @@
 </div>
 
 <script>
+
+    var paddocks_count = 0;
+
     $(document).ready(function() {
         $("#ajax-button").click(function() {
 
@@ -217,6 +298,7 @@
             var threshold = document.getElementById("threshold").value;
 
             var operators = document.getElementById("operators").value;
+
 
             $.ajax({
                 type: "GET",
@@ -246,11 +328,12 @@
                         preduct_button.removeAttribute('hidden');
                     };
 
-
                     // Append the image element to the image container in the HTML
                     const requested_index = document.getElementById('requested_date_image');
+                    const requested_index_header = document.getElementById('requested_date_image_header');
                     requested_index.src = `data:image/png;base64,${data.index_image}`;
                     requested_index.removeAttribute('hidden');
+                    requested_index_header.removeAttribute('hidden');
 
                     var carouselContainer = $('<div id="image-carousel" class="carousel slide" data-ride="carousel"></div>');
                     var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
@@ -326,10 +409,59 @@
 
                     // Show the table
                     $('#data-table').show();
+                    $('#histograms_header').show();
+                    paddocks_count = document.getElementById('data-table').getElementsByTagName('tr').length - 3;
 
-                $button.html(originalContent);
-                $button.attr('disabled', false);
-                },
+                    $button.html(originalContent);
+                    $button.attr('disabled', false);
+
+
+
+                    $('#map').show();
+                    $("#map_header").show();
+
+                    var map = L.map('map').setView([data.centroid[1], data.centroid[0]], 15); // Set the initial map view
+
+                    var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+                            maxZoom: 20,
+                            subdomains:['mt0','mt1','mt2','mt3']
+                    });
+
+                    // Add the default tile layer to the map
+                    googleSat.addTo(map);
+
+
+                    var geoJSONData = JSON.parse(data.geodataframe);
+                    var geoJsonLayer = L.geoJSON(geoJSONData, {
+                      style: {
+                        color: "green", // Polygon border color
+                        weight: 1,      // Polygon border weight
+                        fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
+                      },
+                      onEachFeature: function (feature, layer) {
+                        // Add mouseover event to highlight the shape and display information
+                        layer.on('mouseover', function (e) {
+                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин;
+                          layer.bindPopup(popupContent, { autoClose: false }).openPopup();
+                          layer.setStyle({
+                            color: 'red', // Highlighted border color
+                            weight: 2       // Highlighted border weight
+                          });
+                        });
+
+                        // Add mouseout event to reset the shape style
+                        layer.on('mouseout', function (e) {
+                          layer.closePopup();
+                          geoJsonLayer.resetStyle(layer);
+                        });
+                      }
+                    });
+
+                    // Add the GeoJSON layer to the map
+                    geoJsonLayer.addTo(map);
+
+
+                    },
                 error: function(error) {
                     console.error('Error:', error);
                     $button.html(originalContent);
@@ -338,6 +470,8 @@
             });
         });
     });
+
+
 </script>
 
 
@@ -391,21 +525,25 @@ predictModal.addEventListener('click', function() {
 });
 
 
+
 function multiplyValues() {
   var table = document.getElementById('mySampleTable');
   var realValue = document.getElementById('realValue').value;
   var pixelValue = document.getElementById('pixelValue').value;
   var rows = table.getElementsByTagName('tr');
+  var nanDetected = false;
 
   for (var i = 0; i < rows.length; i++) {
     var cells = rows[i].getElementsByTagName('td');
     if (cells[1]){
       var value = parseFloat(cells[1].textContent);
       var multipliedValue = (value / pixelValue * realValue)/1000;
+      if (isNaN(multipliedValue)){nanDetected=true;};
       cells[2].textContent = multipliedValue.toFixed(3);
-
+      console.log(multipliedValue);
     }
   }
+  if (!nanDetected){$("#switchToModalB").show();};
 }
 
 
@@ -458,6 +596,229 @@ function multiplyValues() {
         }
     }
   }
+
+  // Function to switch to Modal A
+  $("#switchToModalA").click(function() {
+    $("#myModalSim").modal("hide"); // Close Modal B
+    $("#myModal").modal("show"); // Open Modal A
+  });
+
+  // Function to switch to Modal B
+  $("#switchToModalB").click(function() {
+    $("#myModal").modal("hide"); // Close Modal A
+    $("#myModalSim").modal("show"); // Open Modal B
+  });
+
+
+
+  function disableSimulation(){
+    $("#switchToModalB").hide();
+  }
+
+
+  var formCount = 0;
+
+  // Function to append the elements to the modal body
+  function appendElements() {
+
+    if ($("#plantName").val().replace(/\s/g, '')){
+        formCount++;
+
+        // Create a button element to toggle the form
+        var toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.id = "toggleButton" + formCount;
+        toggleButton.className = "btn btn-outline-success btn-sm btn-block";
+        toggleButton.textContent = $("#plantName").val();
+        toggleButton.setAttribute("onClick", "toggleForm(" + formCount + ");");
+
+        var deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.id = "deleteButton" + formCount;
+        deleteButton.className = "btn btn-outline-danger btn-sm btn-block ml-1";
+        deleteButton.textContent = "Удалить растение";
+        deleteButton.setAttribute("onClick", "deleteForm(" + formCount + ");");
+
+        var form = document.createElement("form");
+        var lineBreak = document.createElement("br");
+
+        var breakDiv = document.createElement("div");
+        breakDiv.id = "breakDiv" + formCount;
+        var breakElement = document.createElement("br");
+        breakDiv.appendChild(breakElement);
+
+        form.id = "form" + formCount;
+        form.style.display = "none";
+        form.className = "border p-4";
+        form.innerHTML = `
+
+            <div class="form-group">
+              <label for="plant${formCount}">Название</label>
+              <input type="text" class="form-control" id="plant${formCount}" value="${$("#plantName").val()}">
+            </div>
+
+
+
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="temperatureToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="temperatureToleranceLower${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="temperatureToleranceIdeal${formCount}">Благоприятная темература</label>
+                      <input type="number" class="form-control" id="temperatureToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="temperatureToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="temperatureToleranceUpper${formCount}" placeholder="">
+                    </div>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="moistureToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="moistureToleranceLower${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="moistureToleranceIdeal${formCount}">Благоприятная влажность</label>
+                      <input type="number" class="form-control" id="moistureToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="moistureToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="moistureToleranceUpper${formCount}" placeholder="">
+                    </div>
+                </div>
+              </div>
+
+
+
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="radiationToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="radiationToleranceLower${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="radiationToleranceIdeal${formCount}">Благоприятная радиация</label>
+                      <input type="number" class="form-control" id="radiationToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="radiationToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <input type="number" class="form-control" id="radiationToleranceUpper${formCount}" placeholder="">
+                    </div>
+                </div>
+              </div>
+
+
+
+            <!-- Peak dates and values -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="firstPeak${formCount}">Дата пика №1</label>
+                      <input type="date" class="form-control" id="firstPeak${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="max1Y${formCount}">Максимальное значение пика №1</label>
+                      <input type="number" class="form-control" id="max1Y${formCount}" step="0.01">
+                    </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="secondPeak${formCount}">Дата пика №2</label>
+                      <input type="date" class="form-control" id="secondPeak${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="max2Y${formCount}">Максимальное значение пика №2</label>
+                      <input type="number" class="form-control" id="max2Y${formCount}" step="0.01">
+                    </div>
+                </div>
+              </div>
+
+
+            <!-- Growth and Death Rate -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="growthRate${formCount}">Темп роста (мм/день)</label>
+                      <input type="number" class="form-control" id="growthRate${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="deathRate${formCount}">Темп отмирания (мм/день)</label>
+                      <input type="number" class="form-control" id="deathRate${formCount}">
+                    </div>
+                </div>
+              </div>
+
+
+            <!-- Sigma and Plant Density -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="sigma${formCount}">Сигма</label>
+                      <input type="number" class="form-control" id="sigma${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="plantDensity${formCount}">Плотность растения</label>
+                      <input type="number" class="form-control" id="plantDensity${formCount}">
+                    </div>
+                </div>
+              </div>
+
+
+
+        `;
+
+        // Append the toggleButton and form to the modal body
+        if (formCount==1){document.getElementById("modalBody").appendChild(lineBreak);};
+        document.getElementById("modalBody").appendChild(toggleButton);
+        form.appendChild(deleteButton);
+        document.getElementById("modalBody").appendChild(breakDiv);
+        document.getElementById("modalBody").appendChild(form);
+      }
+    }
+
+
+  // Function to toggle a specific form
+  function toggleForm(formId) {
+    $("#form" + formId).toggle();
+  }
+
+  function deleteForm(formId) {
+    $("#form" + formId).remove();
+    $("#toggleButton" + formId).remove();
+    $("#deleteButton" + formId).remove();
+    $("#breakDiv" + formId).remove();
+  }
+
+
 </script>
 
 
