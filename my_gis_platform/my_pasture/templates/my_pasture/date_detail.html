@@ -112,6 +112,23 @@
             </div>
           </div>
 
+          <div id="user_added_plants">
+          </div>
+
+          <div id="user_added_forms">
+          </div>
+
+
+
+
+          <div style="display: none" id="paddocks_bio_content">
+            <h6>Раздел определения ботанического состава для загонов</h6>
+            <hr>
+
+          </div>
+
+
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" id="switchToModalA">Назад</button>
@@ -147,8 +164,8 @@
         <hr>
         <h5>Доступные функции:</h5>
         <hr>
-        <p><a href="#" role="button" class="btn btn-secondary popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">mean(канал)</a> - функция позволяет рассчитать среднее значение канала</p>
-        <p><a href="#" role="button" class="btn btn-secondary popover-test"  data-toggle="tooltip" data-placement="top" title="Tooltip on top">median(канал)</a> - функция позволяет рассчитать медианное значение канала</p>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test">mean(канал)</a> - функция позволяет рассчитать среднее значение канала</p>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test">median(канал)</a> - функция позволяет рассчитать медианное значение канала</p>
         <hr>
         <h5>Примеры составления формул:</h5>
         <hr>
@@ -503,6 +520,10 @@ predictModal.addEventListener('click', function() {
   var sampleBody = document.createElement('tbody');
 
   var rows = table.getElementsByTagName('tr');
+
+  var realValue = $("#realValue").val();
+  var pixelValue = $("#pixelValue").val();
+
   for (var i = 0; i < rows.length; i++) {
 
     var sampleTableRow = document.createElement('tr');
@@ -510,6 +531,7 @@ predictModal.addEventListener('click', function() {
     var zagon = rows[i].getElementsByTagName('td')[0];
     var sum = rows[i].getElementsByTagName('td')[1];
     var new_sum = document.createElement('td'); new_sum.textContent = "";
+
 
     if (sum){
 
@@ -525,8 +547,10 @@ predictModal.addEventListener('click', function() {
 });
 
 
+var paddocks_resources = [];
 
 function multiplyValues() {
+  paddocks_resources.length = 0;
   var table = document.getElementById('mySampleTable');
   var realValue = document.getElementById('realValue').value;
   var pixelValue = document.getElementById('pixelValue').value;
@@ -538,12 +562,12 @@ function multiplyValues() {
     if (cells[1]){
       var value = parseFloat(cells[1].textContent);
       var multipliedValue = (value / pixelValue * realValue)/1000;
-      if (isNaN(multipliedValue)){nanDetected=true;};
-      cells[2].textContent = multipliedValue.toFixed(3);
-      console.log(multipliedValue);
+      if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
+        cells[2].textContent = multipliedValue.toFixed(3);
+        paddocks_resources.push(multipliedValue.toFixed(3))
     }
   }
-  if (!nanDetected){$("#switchToModalB").show();};
+  if (!nanDetected && realValue && pixelValue){$("#switchToModalB").show();};
 }
 
 
@@ -617,12 +641,20 @@ function multiplyValues() {
 
 
   var formCount = 0;
+  var added_plants = [];
 
   // Function to append the elements to the modal body
   function appendElements() {
 
     if ($("#plantName").val().replace(/\s/g, '')){
         formCount++;
+        added_plants.push(formCount);
+
+        if (added_plants.length){
+            console.log("Plants array is not empty");
+            document.getElementById("paddocks_bio_content").style.display = "block";
+        };
+
 
         // Create a button element to toggle the form
         var toggleButton = document.createElement("button");
@@ -797,11 +829,11 @@ function multiplyValues() {
         `;
 
         // Append the toggleButton and form to the modal body
-        if (formCount==1){document.getElementById("modalBody").appendChild(lineBreak);};
-        document.getElementById("modalBody").appendChild(toggleButton);
+        if (formCount==1){document.getElementById("user_added_plants").appendChild(lineBreak);};
+        document.getElementById("user_added_plants").appendChild(toggleButton);
         form.appendChild(deleteButton);
-        document.getElementById("modalBody").appendChild(breakDiv);
-        document.getElementById("modalBody").appendChild(form);
+        document.getElementById("user_added_plants").appendChild(breakDiv);
+        document.getElementById("user_added_plants").appendChild(form);
       }
     }
 
@@ -816,6 +848,17 @@ function multiplyValues() {
     $("#toggleButton" + formId).remove();
     $("#deleteButton" + formId).remove();
     $("#breakDiv" + formId).remove();
+
+    var indexToRemove = added_plants.indexOf(formId);
+    if (indexToRemove !== -1) {
+      added_plants.splice(indexToRemove, 1);
+    if (!added_plants.length){
+        console.log("Plants array is empty");
+        document.getElementById("paddocks_bio_content").style.display = "none";
+    };
+
+    };
+
   }
 
 
