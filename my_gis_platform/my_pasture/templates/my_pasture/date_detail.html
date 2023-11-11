@@ -16,10 +16,21 @@
         text-align: center;
         vertical-align: top;
     }
+
+    #paddocks_bio_content {
+      cursor: pointer;
+    }
+
+    /* Optional: Add some styling for better visibility */
+    .section-header {
+      padding: 20px;
+      background-color: #e0e0e0;
+      border: 1px solid #ccc;
+    }
 </style>
 
 
-<!-- Modal #1 -->
+<!-- Prediction Modal -->
 <div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document">
     <div class="modal-content">
@@ -51,7 +62,7 @@
 </div>
 
 
-<!-- Modal #2 -->
+<!-- Simulation Modal -->
 <div class="modal fade bd-example-modal-lg" id="myModalSim" tabindex="-1" role="dialog" aria-labelledby="myModalSimLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl" role="document">
     <div class="modal-content">
@@ -63,7 +74,7 @@
       </div>
       <div class="modal-body" id="modalBody">
 
-        <h6>Раздел назначения дат сезона и выпаса КРС</h6>
+        <h6 class="section-header">Раздел назначения дат сезона и выпаса КРС</h6>
         <hr>
 
           <div class="row">
@@ -96,11 +107,10 @@
             </div>
           </div>
 
+          <h6 class="section-header">Раздел симуляции растении</h6>
+          <hr>
 
-        <h6>Раздел симуляции растении</h6>
-        <hr>
-
-          <div class="row">
+          <div class="row mb-3">
             <div class="col">
               <p class="">Название растения: </p>
             </div>
@@ -112,21 +122,14 @@
             </div>
           </div>
 
-          <div id="user_added_plants">
-          </div>
+          <div id="user_added_plants"></div>
 
-          <div id="user_added_forms">
-          </div>
+          <div id="user_added_forms"></div>
 
+          <h6 class="section-header mt-3" id="paddocks_bio_content">Раздел назначения ботанического состава загонов</h6>
+          <hr>
 
-
-
-          <div style="display: none" id="paddocks_bio_content">
-            <h6>Раздел определения ботанического состава для загонов</h6>
-            <hr>
-
-          </div>
-
+          <div id="paddocks_bio_content_div"></div>
 
 
       </div>
@@ -427,7 +430,7 @@
                     // Show the table
                     $('#data-table').show();
                     $('#histograms_header').show();
-                    paddocks_count = document.getElementById('data-table').getElementsByTagName('tr').length - 3;
+                    // paddocks_count = document.getElementById('data-table').getElementsByTagName('tr').length - 2;
 
                     $button.html(originalContent);
                     $button.attr('disabled', false);
@@ -453,9 +456,9 @@
                     .bindTooltip('Initial Tooltip', { permanent: false, opacity: 0.7 })
 
                       // Function to update marker position based on new data
-                    function updateMarkerPosition(latitude, longitude, index) {
+                    function updateMarkerPosition(latitude, longitude, index, paddock_number) {
                         marker.setLatLng([latitude, longitude]);
-                        marker.getTooltip().setContent('Номер КРС: ' + index);
+                        marker.getTooltip().setContent('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number);
                     }
 
 
@@ -468,7 +471,7 @@
                               'cow_number': 123
                           },
                           success: function(data) {
-                          updateMarkerPosition(parseFloat(data.latitude), parseFloat(data.longitude), data.index);
+                          updateMarkerPosition(parseFloat(data.latitude), parseFloat(data.longitude), data.index, data.paddock_number);
                         },
                         error: function(xhr, status, error) {
                           console.error('Ajax request failed', status, error);
@@ -477,12 +480,14 @@
                     }
 
                     // Set the interval to send the Ajax request every 5 seconds (adjust as needed)
-                    setInterval(sendAjaxRequest, 10000); // 5000 milliseconds = 5 seconds
+                    // setInterval(sendAjaxRequest, 10000); // 5000 milliseconds = 5 seconds
 
 
 
 
                     var geoJSONData = JSON.parse(data.geodataframe);
+                    paddocks_count = geoJSONData.features.length -1;
+
                     var geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
                         color: "green", // Polygon border color
@@ -668,6 +673,105 @@ function multiplyValues() {
   });
 
 
+    // Function to create options dynamically
+    function createOptions(count) {
+        let optionsHTML = '';
+        for (let i = 1; i <= count; i++) {
+            optionsHTML += `<option value="${i}">Загона №${i}</option>`;
+        }
+        return optionsHTML;
+    }
+
+
+    function createChecks(count) {
+        let checksHTML = '';
+        for (let i = 1; i <= count; i++) {
+            checksHTML += `
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault${i}">
+              <label class="form-check-label" for="flexCheckDefault${i}">
+                Default checkbox ${i}
+              </label>
+            </div>
+
+
+            `;
+        }
+        return checksHTML;
+    }
+
+
+
+  var counter = 1;
+  $("#paddocks_bio_content").click(function(){
+
+    if (counter % 2 == 0){
+        document.getElementById("paddocks_bio_content_div").innerHTML = "";
+    }
+    else
+    {
+        var form = document.createElement("form");
+
+        form.id = "PaddockNumber";
+        form.style.display = "block";
+        form.className = "border p-4";
+        form.innerHTML = `
+
+            <div class="form-group">
+              <label for="paddock_number">Ботанический состав для: </label>
+                <select id="paddock_number" class="form-select" aria-label="Default select example">
+                  ${createOptions(paddocks_count)}
+                </select>
+            </div>
+
+        `
+        document.getElementById("paddocks_bio_content_div").appendChild(form);
+
+        var selectElement = document.getElementById("paddock_number");
+        selectElement.addEventListener("change", function() {
+            // Get the selected value
+            var selectedValue = selectElement.value;
+
+            var paddocks_number = [];
+            for (let i = 1; i < paddocks_count+1; i++) {
+              paddocks_number.push(i);
+            }
+
+            var other_forms = paddocks_number.filter(element => element !== selectedValue);
+            other_forms.forEach(form => $("#Paddock" + form).hide())
+
+            $("#Paddock" + selectedValue).show();
+
+            // Log or do something with the selected value
+            // console.log("Selected Value:", paddocks_resources);
+        });
+
+
+        for (let paddock = 1; paddock < paddocks_count+1; paddock++){
+            var form = document.createElement("form");
+
+            form.id = "Paddock" + paddock;
+            form.style.display = "none";
+            form.className = "border p-4";
+            form.innerHTML = `
+
+                ${createChecks(added_plants.length)}
+
+            `
+            document.getElementById("paddocks_bio_content_div").appendChild(form);
+
+        }
+
+
+
+    }
+    counter++;
+  });
+
+
+
+
 
   function disableSimulation(){
     $("#switchToModalB").hide();
@@ -676,6 +780,7 @@ function multiplyValues() {
 
   var formCount = 0;
   var added_plants = [];
+  var added_plants_names = [];
 
   // Function to append the elements to the modal body
   function appendElements() {
@@ -683,18 +788,13 @@ function multiplyValues() {
     if ($("#plantName").val().replace(/\s/g, '')){
         formCount++;
         added_plants.push(formCount);
-
-        if (added_plants.length){
-            console.log("Plants array is not empty");
-            document.getElementById("paddocks_bio_content").style.display = "block";
-        };
-
+        added_plants_names.push($("#plantName").val());
 
         // Create a button element to toggle the form
         var toggleButton = document.createElement("button");
         toggleButton.type = "button";
         toggleButton.id = "toggleButton" + formCount;
-        toggleButton.className = "btn btn-outline-success btn-sm btn-block";
+        toggleButton.className = "btn btn-outline-success btn-sm";
         toggleButton.textContent = $("#plantName").val();
         toggleButton.setAttribute("onClick", "toggleForm(" + formCount + ");");
 
@@ -706,12 +806,6 @@ function multiplyValues() {
         deleteButton.setAttribute("onClick", "deleteForm(" + formCount + ");");
 
         var form = document.createElement("form");
-        var lineBreak = document.createElement("br");
-
-        var breakDiv = document.createElement("div");
-        breakDiv.id = "breakDiv" + formCount;
-        var breakElement = document.createElement("br");
-        breakDiv.appendChild(breakElement);
 
         form.id = "form" + formCount;
         form.style.display = "none";
@@ -863,11 +957,9 @@ function multiplyValues() {
         `;
 
         // Append the toggleButton and form to the modal body
-        if (formCount==1){document.getElementById("user_added_plants").appendChild(lineBreak);};
         document.getElementById("user_added_plants").appendChild(toggleButton);
         form.appendChild(deleteButton);
-        document.getElementById("user_added_plants").appendChild(breakDiv);
-        document.getElementById("user_added_plants").appendChild(form);
+        document.getElementById("user_added_forms").appendChild(form);
       }
     }
 
@@ -875,6 +967,8 @@ function multiplyValues() {
   // Function to toggle a specific form
   function toggleForm(formId) {
     $("#form" + formId).toggle();
+    const other_forms = added_plants.filter(element => element !== formId);
+    other_forms.forEach(form => $("#form" + form).hide())
   }
 
   function deleteForm(formId) {
@@ -886,11 +980,6 @@ function multiplyValues() {
     var indexToRemove = added_plants.indexOf(formId);
     if (indexToRemove !== -1) {
       added_plants.splice(indexToRemove, 1);
-    if (!added_plants.length){
-        console.log("Plants array is empty");
-        document.getElementById("paddocks_bio_content").style.display = "none";
-    };
-
     };
 
   }

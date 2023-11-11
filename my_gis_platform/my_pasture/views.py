@@ -62,6 +62,12 @@ colors = ['tomato', 'navy', 'MediumSpringGreen', 'lightblue', 'orange', 'blue',
 
 parameters_to_ignore = ["time", "sunrise", "sunset", "weathercode"]
 
+
+IGNORE_LAST_PADDOCK = False;
+ilp = 1 if IGNORE_LAST_PADDOCK else 0
+
+
+
 FORECAST_PARAMETERS = [
     "temperature_2m_max",
     "temperature_2m_min",
@@ -250,7 +256,7 @@ class SentinelRequest():
         self.pasture_df = gpd.read_file(self.kml_file, driver='KML')
 
         self.all_zagons = []
-        for zagon in range(len(self.pasture_df.index)):
+        for zagon in range(len(self.pasture_df.index)-ilp):
             self.all_zagons.append(self.pasture_df.loc[zagon].geometry)
 
         self.merged_zagons = unary_union(self.all_zagons)
@@ -344,7 +350,7 @@ class SentinelRequest():
 
         self.masks = []
         self.pasture_edges = []
-        for zagon in range(len(self.pasture_df)-1):
+        for zagon in range(len(self.pasture_df)-ilp):
             polygon=[]
 
             for coords in self.pasture_df.loc[zagon].geometry.exterior.coords:
@@ -444,7 +450,7 @@ class SentinelRequest():
     def get_true_color_image(self, size=(12, 5)):
 
         fig, ax = plt.subplots(figsize=size)
-        for zagon in range(len(self.pasture_df)-1):
+        for zagon in range(len(self.pasture_df)-ilp):
 
             ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
@@ -492,7 +498,7 @@ class SentinelRequest():
 
 
             fig, ax = plt.subplots(figsize=(12, 5))
-            for zagon in range(len(self.pasture_df)-1):
+            for zagon in range(len(self.pasture_df)-ilp):
 
                 ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
@@ -525,7 +531,8 @@ class SentinelRequest():
 
                 ep.hist(zagon, colors = colors[i], title=title, cols=4, alpha=0.5,
                 figsize = (12, 5))
-                summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
+                if (i+1 < len(test_index_masked_array)):
+                    summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
                 plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
                 plt.axvline(ma.median(test_index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
                 has_negative_or_zero = test_index_masked_array[i] <= 0
@@ -544,7 +551,7 @@ class SentinelRequest():
                 decoded_hist_images.append(image_encoded)
 
             summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
-            sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [summary_df['Сумма'].sum()], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
+            sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
             summary_df = pd.concat([summary_df, sum_row])
 
             # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
@@ -1084,6 +1091,12 @@ def ajax_view(request):
 
             return JsonResponse(response_data)
         elif "cow_number" in request.GET:
+            point = Point(float(test_cattle["longitude"]), float(test_cattle["latitude"]))
+            for i in HolderClass.sentinel_request.pasture_df.index:
+                if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                    test_cattle["paddock_number"] = f"{i+1}"
+                    print(test_cattle)
+
             return JsonResponse(test_cattle)
         else:
             return JsonResponse({'message': 'Undefined response'})
