@@ -107,6 +107,76 @@
             </div>
           </div>
 
+
+          <h6 class="section-header">Раздел симуляции КРС</h6>
+          <hr>
+
+
+            <div class="form-group">
+
+              <div class="row">
+                <div class="col">
+                  <p class="text-center" for="count">Количество особей:</p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="cattleCount">
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col">
+                  <p class="mt-2">Пол особей:</p>
+                  <select class="form-control" id="cattleSex">
+                    <option>Случайный</option>
+                    <option>Бычки</option>
+                    <option>Коровы</option>
+                  </select>
+                </div>
+                <div class="col">
+                  <p class="mt-2">Порода особей:</p>
+                  <select class="form-control" id="cattleBreed">
+                    <option>Случайный</option>
+                    <option>Angus</option>
+                    <option>Hereford</option>
+                    <option>Limousin</option>
+                    <option>Charolais</option>
+                  </select>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="col">
+                  <p class="text-center mt-3">Диапазон возраста</p>
+                </div>
+                <div class="col">
+                  <p class="text-center mt-3">Диапазон веса</p>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="col">
+                  <label for="lowerAge">Нижнее значение:</label>
+                  <input type="number" class="form-control" id="lowerAge">
+                </div>
+                <div class="col">
+                  <label for="UpperAge">Верхнее значение:</label>
+                  <input type="number" class="form-control" id="UpperAge">
+                </div>
+                <div class="col">
+                  <label for="lowerWeight">Нижнее значение:</label>
+                  <input type="number" class="form-control" id="lowerWeight">
+                </div>
+                <div class="col">
+                  <label for="UpperWeight">Верхнее значение:</label>
+                  <input type="number" class="form-control" id="UpperWeight">
+                </div>
+              </div>
+
+            </div>
+
+
           <h6 class="section-header">Раздел симуляции растении</h6>
           <hr>
 
@@ -136,7 +206,7 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" id="switchToModalA">Назад</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
-        <button type="button" class="btn btn-success">Начать</button>
+        <button type="button" class="btn btn-success" onclick="startSimulation()">Начать</button>
       </div>
     </div>
   </div>
@@ -684,42 +754,53 @@ function multiplyValues() {
 
 
     function createChecks(count, paddock) {
-        let checksHTML = '';
-        for (let i = 0; i < count; i++) {
-            checksHTML += `
+        let checksHTML = `
+            <div class="form-group">
+              <div class="row">
+                <div class="col">
+                    <label for="paddock_resource${paddock}">Ресурс загона (т)</label>
+                </div>
+                <div class="col">
+                    <input type="number" class="form-control" id="paddock_resource${paddock}" placeholder="" value="${paddocks_resources[paddock-1]}">
+                </div>
+              </div>
+            </div>
+        `;
 
-        <div class="form-check mb-1">
-          <div class="row">
-            <div class="col">
-                <div class="form-check form-check-inline">
-                  <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="flexCheckDefault${i}${paddock}" onclick="myFunction(${i},${paddock})">
-                  <label class="form-check-label" for="flexCheckDefault${added_plants_names[i]}">
-                    ${added_plants_names[i]}
-                  </label>
+        for (let i = 0; i < count; i++) {
+
+            checksHTML += `
+                <div class="form-check mb-1">
+                  <div class="row">
+                    <div class="col">
+                        <div class="form-check form-check-inline">
+                          <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="plantsOptions-${i}-${paddock}" onclick="myFunction(${i},${paddock})">
+                          <label class="form-check-label">
+                            ${added_plants_names[i]}
+                          </label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check form-check-inline">
+                        <input type="number" class="form-control mr-1" id="percentage-${i}-${paddock}" placeholder="" disabled>%
+                        </div>
+                    </div>
+                  </div>
                 </div>
-            </div>
-            <div class="col">
-                <div class="form-check form-check-inline">
-                <input type="number" class="form-control mr-1" id="percentage${i}${paddock}" placeholder="" disabled>%
-                </div>
-            </div>
-          </div>
-        </div>
             `;
         }
         return checksHTML;
     }
 
     function myFunction(index, paddock){
-      var enableCheckbox = document.getElementById('flexCheckDefault'+index+paddock);
-      var numberInput = document.getElementById('percentage'+index+paddock);
+      var enableCheckbox = document.getElementById('plantsOptions'+'-'+index+'-'+paddock);
+      var numberInput = document.getElementById('percentage'+'-'+index+'-'+paddock);
       numberInput.disabled = !enableCheckbox.checked;
     }
 
-  var counter = 1;
   $("#paddocks_bio_content").click(function(){
 
-    if (counter % 2 == 0){
+    if (document.getElementById("paddocks_bio_content_div").innerHTML){
         document.getElementById("paddocks_bio_content_div").innerHTML = "";
     }
     else
@@ -755,9 +836,6 @@ function multiplyValues() {
             other_forms.forEach(form => $("#Paddock" + form).hide())
 
             $("#Paddock" + selectedValue).show();
-
-            // Log or do something with the selected value
-            // console.log("Selected Value:", paddocks_resources);
         });
 
 
@@ -777,7 +855,6 @@ function multiplyValues() {
         }
 
     }
-    counter++;
   });
 
 
@@ -805,14 +882,14 @@ function multiplyValues() {
         var toggleButton = document.createElement("button");
         toggleButton.type = "button";
         toggleButton.id = "toggleButton" + formCount;
-        toggleButton.className = "btn btn-outline-success btn-sm";
+        toggleButton.className = "btn btn-success mr-1";
         toggleButton.textContent = $("#plantName").val();
         toggleButton.setAttribute("onClick", "toggleForm(" + formCount + ");");
 
         var deleteButton = document.createElement("button");
         deleteButton.type = "button";
         deleteButton.id = "deleteButton" + formCount;
-        deleteButton.className = "btn btn-outline-danger btn-sm btn-block ml-1";
+        deleteButton.className = "btn btn-danger btn-block ml-1";
         deleteButton.textContent = "Удалить растение";
         deleteButton.setAttribute("onClick", "deleteForm(" + formCount + ");");
 
@@ -962,11 +1039,7 @@ function multiplyValues() {
                     </div>
                 </div>
               </div>
-
-
-
         `;
-
         // Append the toggleButton and form to the modal body
         document.getElementById("user_added_plants").appendChild(toggleButton);
         form.appendChild(deleteButton);
@@ -998,6 +1071,26 @@ function multiplyValues() {
   }
 
 
+function startSimulation() {
+    var modalBody = document.querySelector('#modalBody');
+
+    var inputElements = modalBody.querySelectorAll('input');
+    var selectElements = modalBody.querySelectorAll('select');
+
+    selectElements.forEach(function (select) {
+      var selectedOption = select.options[select.selectedIndex];
+      if (select.id != "paddock_number"){
+          console.log('Select ID:', select.id);
+          console.log('Selected Option Value:', selectedOption.value);
+      }
+
+    });
+
+    // inputElements.forEach(function (input) {
+    //   console.log('Input ID:', input.id);
+    //   console.log('Input Value:', input.value);
+    // });
+}
 
 
 
