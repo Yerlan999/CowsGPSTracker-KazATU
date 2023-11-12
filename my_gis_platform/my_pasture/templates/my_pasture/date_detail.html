@@ -675,7 +675,7 @@ function multiplyValues() {
 
     // Function to create options dynamically
     function createOptions(count) {
-        let optionsHTML = '';
+        let optionsHTML = '<option value=""></option>';
         for (let i = 1; i <= count; i++) {
             optionsHTML += `<option value="${i}">Загона №${i}</option>`;
         }
@@ -683,25 +683,38 @@ function multiplyValues() {
     }
 
 
-    function createChecks(count) {
+    function createChecks(count, paddock) {
         let checksHTML = '';
-        for (let i = 1; i <= count; i++) {
+        for (let i = 0; i < count; i++) {
             checksHTML += `
 
-            <div class="form-check">
-              <input class="form-check-input" type="checkbox" value="" id="flexCheckDefault${i}">
-              <label class="form-check-label" for="flexCheckDefault${i}">
-                Default checkbox ${i}
-              </label>
+        <div class="form-check mb-1">
+          <div class="row">
+            <div class="col">
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="flexCheckDefault${i}${paddock}" onclick="myFunction(${i},${paddock})">
+                  <label class="form-check-label" for="flexCheckDefault${added_plants_names[i]}">
+                    ${added_plants_names[i]}
+                  </label>
+                </div>
             </div>
-
-
+            <div class="col">
+                <div class="form-check form-check-inline">
+                <input type="number" class="form-control mr-1" id="percentage${i}${paddock}" placeholder="" disabled>%
+                </div>
+            </div>
+          </div>
+        </div>
             `;
         }
         return checksHTML;
     }
 
-
+    function myFunction(index, paddock){
+      var enableCheckbox = document.getElementById('flexCheckDefault'+index+paddock);
+      var numberInput = document.getElementById('percentage'+index+paddock);
+      numberInput.disabled = !enableCheckbox.checked;
+    }
 
   var counter = 1;
   $("#paddocks_bio_content").click(function(){
@@ -756,14 +769,12 @@ function multiplyValues() {
             form.className = "border p-4";
             form.innerHTML = `
 
-                ${createChecks(added_plants.length)}
+                ${createChecks(added_plants.length, paddock)}
 
             `
             document.getElementById("paddocks_bio_content_div").appendChild(form);
 
         }
-
-
 
     }
     counter++;
@@ -960,6 +971,7 @@ function multiplyValues() {
         document.getElementById("user_added_plants").appendChild(toggleButton);
         form.appendChild(deleteButton);
         document.getElementById("user_added_forms").appendChild(form);
+        document.getElementById('plantName').value = '';
       }
     }
 
@@ -980,6 +992,7 @@ function multiplyValues() {
     var indexToRemove = added_plants.indexOf(formId);
     if (indexToRemove !== -1) {
       added_plants.splice(indexToRemove, 1);
+      added_plants_names.splice(indexToRemove, 1);
     };
 
   }

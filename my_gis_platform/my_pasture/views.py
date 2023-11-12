@@ -63,11 +63,6 @@ colors = ['tomato', 'navy', 'MediumSpringGreen', 'lightblue', 'orange', 'blue',
 parameters_to_ignore = ["time", "sunrise", "sunset", "weathercode"]
 
 
-IGNORE_LAST_PADDOCK = False;
-ilp = 1 if IGNORE_LAST_PADDOCK else 0
-
-
-
 FORECAST_PARAMETERS = [
     "temperature_2m_max",
     "temperature_2m_min",
@@ -256,7 +251,7 @@ class SentinelRequest():
         self.pasture_df = gpd.read_file(self.kml_file, driver='KML')
 
         self.all_zagons = []
-        for zagon in range(len(self.pasture_df.index)-ilp):
+        for zagon in range(len(self.pasture_df.index)):
             self.all_zagons.append(self.pasture_df.loc[zagon].geometry)
 
         self.merged_zagons = unary_union(self.all_zagons)
@@ -350,7 +345,7 @@ class SentinelRequest():
 
         self.masks = []
         self.pasture_edges = []
-        for zagon in range(len(self.pasture_df)-ilp):
+        for zagon in range(len(self.pasture_df)):
             polygon=[]
 
             for coords in self.pasture_df.loc[zagon].geometry.exterior.coords:
@@ -450,7 +445,7 @@ class SentinelRequest():
     def get_true_color_image(self, size=(12, 5)):
 
         fig, ax = plt.subplots(figsize=size)
-        for zagon in range(len(self.pasture_df)-ilp):
+        for zagon in range(len(self.pasture_df)):
 
             ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
@@ -498,7 +493,7 @@ class SentinelRequest():
 
 
             fig, ax = plt.subplots(figsize=(12, 5))
-            for zagon in range(len(self.pasture_df)-ilp):
+            for zagon in range(len(self.pasture_df)):
 
                 ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
