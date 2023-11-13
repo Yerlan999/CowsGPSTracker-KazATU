@@ -1093,6 +1093,11 @@ def ajax_view(request):
                     print(test_cattle)
 
             return JsonResponse(test_cattle)
+        elif "simulation_data" in request.GET:
+            print()
+            print(request.GET)
+            print()
+            return JsonResponse({'message': 'Successfully got simulation data'})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:

@@ -510,6 +510,12 @@
                     $('#map').show();
                     $("#map_header").show();
 
+                    var existingMap = L.DomUtil.get('map');
+
+                    if (existingMap) {
+                      existingMap._leaflet_id = null;
+                    }
+
                     var map = L.map('map').setView([data.centroid[1], data.centroid[0]], 15); // Set the initial map view
 
                     var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
@@ -1071,7 +1077,9 @@ function multiplyValues() {
   }
 
 
+
 function startSimulation() {
+    var inputData = {};
     var modalBody = document.querySelector('#modalBody');
 
     var inputElements = modalBody.querySelectorAll('input');
@@ -1080,16 +1088,31 @@ function startSimulation() {
     selectElements.forEach(function (select) {
       var selectedOption = select.options[select.selectedIndex];
       if (select.id != "paddock_number"){
-          console.log('Select ID:', select.id);
-          console.log('Selected Option Value:', selectedOption.value);
+          inputData[select.id] = selectedOption.value;
       }
 
     });
 
-    // inputElements.forEach(function (input) {
-    //   console.log('Input ID:', input.id);
-    //   console.log('Input Value:', input.value);
-    // });
+    inputElements.forEach(function (input) {
+      inputData[input.id] = input.value;
+    });
+
+    var serializedData = JSON.stringify(inputData);
+
+    $.ajax({
+      type: "GET",
+      url: "/ajax/",
+      data: {
+          'simulation_data': serializedData
+      },
+      success: function(data) {
+      console.log(data)
+      },
+      error: function(xhr, status, error) {
+      console.error('Ajax request failed', status, error);
+        }
+    });
+
 }
 
 
