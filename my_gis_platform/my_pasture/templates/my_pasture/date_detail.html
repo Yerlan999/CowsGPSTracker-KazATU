@@ -1097,6 +1097,9 @@ function startSimulation() {
       inputData[input.id] = input.value;
     });
 
+    inputData["plants_count"] = added_plants_names.length;
+    inputData["paddocks_count"] = paddocks_count;
+
     var serializedData = JSON.stringify(inputData);
 
     $.ajax({

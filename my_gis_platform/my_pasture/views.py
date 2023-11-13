@@ -1054,6 +1054,17 @@ class Pasture():
 test_cattle = dict()
 
 
+def play_simulation(request):
+    # datetime.datetime.strptime(request["seasonStart"], "%Y-%m-%d").date()
+
+    list_of_pants = []
+    pasture = Pasture(HolderClass.sentinel_request.pasture_size, HolderClass.sentinel_request.masks)
+    for plant_id in range(request["plants_count"]):
+        print(f"plant{plant_id+1}", request[f"plant{plant_id+1}"])
+
+
+
+
 @csrf_exempt
 def ajax_view(request):
     global test_cattle
@@ -1094,8 +1105,11 @@ def ajax_view(request):
 
             return JsonResponse(test_cattle)
         elif "simulation_data" in request.GET:
+            sim_request = json.loads(request.GET['simulation_data'])
             print()
-            print(request.GET)
+            print(sim_request.keys())
+            print()
+            play_simulation(sim_request)
             print()
             return JsonResponse({'message': 'Successfully got simulation data'})
         else:
