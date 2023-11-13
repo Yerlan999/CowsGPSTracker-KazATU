@@ -127,19 +127,19 @@
                 <div class="col">
                   <p class="mt-2">Пол особей:</p>
                   <select class="form-control" id="cattleSex">
-                    <option>Случайный</option>
-                    <option>Бычки</option>
-                    <option>Коровы</option>
+                    <option value="random">Случайный</option>
+                    <option value="male">Бычки</option>
+                    <option value="female">Коровы</option>
                   </select>
                 </div>
                 <div class="col">
                   <p class="mt-2">Порода особей:</p>
                   <select class="form-control" id="cattleBreed">
-                    <option>Случайный</option>
-                    <option>Angus</option>
-                    <option>Hereford</option>
-                    <option>Limousin</option>
-                    <option>Charolais</option>
+                    <option value="random">Случайный</option>
+                    <option value="Angus">Angus</option>
+                    <option value="Hereford">Hereford</option>
+                    <option value="Limousin">Limousin</option>
+                    <option value="Charolais">Charolais</option>
                   </select>
                 </div>
               </div>
@@ -147,10 +147,10 @@
 
               <div class="row">
                 <div class="col">
-                  <p class="text-center mt-3">Диапазон возраста</p>
+                  <p class="text-center mt-3">Диапазон возраста (месяцев)</p>
                 </div>
                 <div class="col">
-                  <p class="text-center mt-3">Диапазон веса</p>
+                  <p class="text-center mt-3">Диапазон веса (кг)</p>
                 </div>
               </div>
 
@@ -162,7 +162,7 @@
                 </div>
                 <div class="col">
                   <label for="UpperAge">Верхнее значение:</label>
-                  <input type="number" class="form-control" id="UpperAge">
+                  <input type="number" class="form-control" id="upperAge">
                 </div>
                 <div class="col">
                   <label for="lowerWeight">Нижнее значение:</label>
@@ -170,7 +170,7 @@
                 </div>
                 <div class="col">
                   <label for="UpperWeight">Верхнее значение:</label>
-                  <input type="number" class="form-control" id="UpperWeight">
+                  <input type="number" class="form-control" id="upperWeight">
                 </div>
               </div>
 
@@ -201,6 +201,9 @@
 
           <div id="paddocks_bio_content_div"></div>
 
+          <h6 class="section-header mt-3" id="resource-carousel-header" hidden>Результаты симуляции</h6>
+          <hr>
+          <div id="resource-carousel-container"></div>
 
       </div>
       <div class="modal-footer">
@@ -555,8 +558,8 @@
                       });
                     }
 
-                    // Set the interval to send the Ajax request every 5 seconds (adjust as needed)
-                    // setInterval(sendAjaxRequest, 10000); // 5000 milliseconds = 5 seconds
+                    // Периодичность запросов GPS координат
+                    // setInterval(sendAjaxRequest, 10000); // milliseconds
 
 
 
@@ -780,7 +783,7 @@ function multiplyValues() {
                   <div class="row">
                     <div class="col">
                         <div class="form-check form-check-inline">
-                          <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="plantsOptions-${i}-${paddock}" onclick="myFunction(${i},${paddock})">
+                          <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="plantsOptions-${paddock}-${i}" onclick="myFunction(${i},${paddock})">
                           <label class="form-check-label">
                             ${added_plants_names[i]}
                           </label>
@@ -788,7 +791,7 @@ function multiplyValues() {
                     </div>
                     <div class="col">
                         <div class="form-check form-check-inline">
-                        <input type="number" class="form-control mr-1" id="percentage-${i}-${paddock}" placeholder="" disabled>%
+                        <input type="number" class="form-control mr-1" id="percentage-${paddock}-${i}" placeholder="" disabled>%
                         </div>
                     </div>
                   </div>
@@ -799,8 +802,8 @@ function multiplyValues() {
     }
 
     function myFunction(index, paddock){
-      var enableCheckbox = document.getElementById('plantsOptions'+'-'+index+'-'+paddock);
-      var numberInput = document.getElementById('percentage'+'-'+index+'-'+paddock);
+      var enableCheckbox = document.getElementById('plantsOptions'+'-'+paddock+'-'+index);
+      var numberInput = document.getElementById('percentage'+'-'+paddock+'-'+index);
       numberInput.disabled = !enableCheckbox.checked;
     }
 
@@ -880,7 +883,6 @@ function multiplyValues() {
   function appendElements() {
 
     if ($("#plantName").val().replace(/\s/g, '')){
-        formCount++;
         added_plants.push(formCount);
         added_plants_names.push($("#plantName").val());
 
@@ -908,27 +910,26 @@ function multiplyValues() {
 
             <div class="form-group">
               <label for="plant${formCount}">Название</label>
-              <input type="text" class="form-control" id="plant${formCount}" value="${$("#plantName").val()}">
+              <input type="text" class="form-control" id="plant${formCount}" value="${$("#plantName").val()}" readonly>
             </div>
-
 
 
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="temperatureToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <label for="temperatureToleranceLower${formCount}">Нижняя неблагоприятная (&deg;C)</label>
                       <input type="number" class="form-control" id="temperatureToleranceLower${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="temperatureToleranceIdeal${formCount}">Благоприятная темература</label>
+                      <label for="temperatureToleranceIdeal${formCount}">Благоприятная темература (&deg;C)</label>
                       <input type="number" class="form-control" id="temperatureToleranceIdeal${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="temperatureToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <label for="temperatureToleranceUpper${formCount}">Верхняя неблагоприятная (&deg;C)</label>
                       <input type="number" class="form-control" id="temperatureToleranceUpper${formCount}" placeholder="">
                     </div>
                 </div>
@@ -938,19 +939,19 @@ function multiplyValues() {
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="moistureToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <label for="moistureToleranceLower${formCount}">Нижняя неблагоприятная (мм)</label>
                       <input type="number" class="form-control" id="moistureToleranceLower${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="moistureToleranceIdeal${formCount}">Благоприятная влажность</label>
+                      <label for="moistureToleranceIdeal${formCount}">Благоприятные осадки (мм)</label>
                       <input type="number" class="form-control" id="moistureToleranceIdeal${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="moistureToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <label for="moistureToleranceUpper${formCount}">Верхняя неблагоприятная (мм)</label>
                       <input type="number" class="form-control" id="moistureToleranceUpper${formCount}" placeholder="">
                     </div>
                 </div>
@@ -961,19 +962,19 @@ function multiplyValues() {
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="radiationToleranceLower${formCount}">Нижняя неблагоприятная</label>
+                      <label for="radiationToleranceLower${formCount}">Нижняя неблагоприятная (МДж/м&sup2)</label>
                       <input type="number" class="form-control" id="radiationToleranceLower${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="radiationToleranceIdeal${formCount}">Благоприятная радиация</label>
+                      <label for="radiationToleranceIdeal${formCount}">Благоприятная радиация (МДж/м&sup2)</label>
                       <input type="number" class="form-control" id="radiationToleranceIdeal${formCount}" placeholder="">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="radiationToleranceUpper${formCount}">Верхняя неблагоприятная</label>
+                      <label for="radiationToleranceUpper${formCount}">Верхняя неблагоприятная (МДж/м&sup2)</label>
                       <input type="number" class="form-control" id="radiationToleranceUpper${formCount}" placeholder="">
                     </div>
                 </div>
@@ -985,7 +986,7 @@ function multiplyValues() {
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="firstPeak${formCount}">Дата пика №1</label>
+                      <label for="firstPeak${formCount}">Дата пика роста №1</label>
                       <input type="date" class="form-control" id="firstPeak${formCount}">
                     </div>
                 </div>
@@ -1000,7 +1001,7 @@ function multiplyValues() {
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="secondPeak${formCount}">Дата пика №2</label>
+                      <label for="secondPeak${formCount}">Дата пика роста №2</label>
                       <input type="date" class="form-control" id="secondPeak${formCount}">
                     </div>
                 </div>
@@ -1034,13 +1035,13 @@ function multiplyValues() {
               <div class="row">
                 <div class="col">
                     <div class="form-group">
-                      <label for="sigma${formCount}">Сигма</label>
+                      <label for="sigma${formCount}">Сигма (~60)</label>
                       <input type="number" class="form-control" id="sigma${formCount}">
                     </div>
                 </div>
                 <div class="col">
                     <div class="form-group">
-                      <label for="plantDensity${formCount}">Плотность растения</label>
+                      <label for="plantDensity${formCount}">Плотность растения (г/м&sup2)</label>
                       <input type="number" class="form-control" id="plantDensity${formCount}">
                     </div>
                 </div>
@@ -1051,6 +1052,8 @@ function multiplyValues() {
         form.appendChild(deleteButton);
         document.getElementById("user_added_forms").appendChild(form);
         document.getElementById('plantName').value = '';
+
+      formCount++;
       }
     }
 
@@ -1094,7 +1097,11 @@ function startSimulation() {
     });
 
     inputElements.forEach(function (input) {
-      inputData[input.id] = input.value;
+      if (input.type === 'checkbox') {
+        inputData[input.id] = [input.value, input.checked];
+      } else {
+        inputData[input.id] = input.value;
+      }
     });
 
     inputData["plants_count"] = added_plants_names.length;
@@ -1109,7 +1116,65 @@ function startSimulation() {
           'simulation_data': serializedData
       },
       success: function(data) {
-      console.log(data)
+        var carouselContainer = $('<div id="resource-image-carousel" class="carousel slide" data-ride="carousel"></div>');
+        var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
+
+        var carouselInner = $('<div class="carousel-inner"></div>');
+
+        var prev_parentElement = $('<a class="carousel-control-prev" href="#image-carousel" role="button" data-slide="prev"></a>');
+        var prev_childElement1 = $('<span class="carousel-control-prev-icon" aria-hidden="true"></span>');
+        var prev_childElement2 = $('<span class="sr-only">Previous</span>');
+
+        // Append child elements to the parent element
+        prev_parentElement.append(prev_childElement1);
+        prev_parentElement.append(prev_childElement2);
+
+        var next_parentElement = $('<a class="carousel-control-next" href="#resource-image-carousel" role="button" data-slide="next"></a>');
+        var next_childElement1 = $('<span class="carousel-control-next-icon" aria-hidden="true"></span>');
+        var next_childElement2 = $('<span class="sr-only">Next</span>');
+
+        // Append child elements to the parent element
+        next_parentElement.append(next_childElement1);
+        next_parentElement.append(next_childElement2);
+
+
+        data.paddocks_grazing_graphs.forEach(function(graph, index) {
+
+            var carouselIndicator = $('<li style="background-color: #C7C7C7;" data-target="#resource-image-carousel" data-slide-to="' + index + '"></li>');
+            var carouselItem = $('<div class="carousel-item"></div>');
+
+            if (index === 0) {
+                carouselIndicator.addClass('active');
+                carouselItem.addClass('active');
+            }
+
+            var imgElement = $('<img class="d-block w-100 img-thumbnail" src="data:image/png;base64,' + graph + '">');
+            carouselItem.append(imgElement);
+
+            carouselIndicators.append(carouselIndicator);
+            carouselInner.append(carouselItem);
+
+        });
+
+        carouselContainer.append(carouselIndicators);
+        carouselContainer.append(carouselInner);
+
+        carouselContainer.append(prev_parentElement);
+        carouselContainer.append(next_parentElement);
+
+        // Add the carousel to the page
+        $('#resource-carousel-container').empty();
+        $('#resource-carousel-container').append(carouselContainer);
+        // $('#image-carousel').carousel();
+          $('#resource-image-carousel').carousel({
+            interval: false
+          });
+        var header = document.getElementById('resource-carousel-header');
+        header.removeAttribute('hidden');
+
+        var scrollContent = document.getElementById('modalBody');
+        scrollContent.scrollTop += 1000;
+
       },
       error: function(xhr, status, error) {
       console.error('Ajax request failed', status, error);

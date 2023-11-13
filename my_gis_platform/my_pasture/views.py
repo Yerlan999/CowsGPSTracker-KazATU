@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys
+import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys, random, itertools
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -828,7 +828,6 @@ class Cattle():
         x = int(np.interp(curr_coord_x, [x_min, x_max], [0, aoi_width])) # 157
         y = int(np.interp(curr_coord_y, [y_min, y_max], [aoi_height, 0])) # 78
 
-        print(f"Координаты: {curr_coord_y}, {curr_coord_x} || Пиксельный эквивалент: {y}, {x}")
         for i, paddock in enumerate(masks, start=1):
             if not paddock.reshape(aoi_height, aoi_width)[y, x]:
                 self.current_paddock = i
@@ -942,8 +941,11 @@ class Grazing():
         start_date = self.start_date + datetime.timedelta(-20)
         end_date = self.end_date + datetime.timedelta(+20)
 
+        longitude = HolderClass.sentinel_request.pasture_bbox.geometry.centroid.coords.xy[0][0]
+        latitude = HolderClass.sentinel_request.pasture_bbox.geometry.centroid.coords.xy[1][0]
+
         Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date.date()}&end_date={end_date.date()}"
-        Hist_URL = apply_params_to_URL(Hist_URL, history_parameters)
+        Hist_URL = apply_params_to_URL(Hist_URL, HISTORY_PARAMETERS)
         history_json_obj = make_API_request(Hist_URL)
         history_df = pd.DataFrame(history_json_obj["daily"])
         history_df.drop(columns=["weathercode", "sunrise", "sunset"], inplace=True)
@@ -1051,16 +1053,133 @@ class Pasture():
         return total_forage_daily_consumption
 
 
-test_cattle = dict()
+test_cattle = {"latitude": 0,
+                "longitude": 0,
+                "index": 0,
+                "paddock_number": 0}
+
+def str2date(date_string):
+    return datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
 
 
 def play_simulation(request):
-    # datetime.datetime.strptime(request["seasonStart"], "%Y-%m-%d").date()
 
-    list_of_pants = []
+    dict_of_pants = dict()
+
+    plants_count = int(request["plants_count"])
+    paddocks_count = int(request["paddocks_count"])
+
     pasture = Pasture(HolderClass.sentinel_request.pasture_size, HolderClass.sentinel_request.masks)
-    for plant_id in range(request["plants_count"]):
-        print(f"plant{plant_id+1}", request[f"plant{plant_id+1}"])
+
+
+    for plant_id in range(plants_count):
+        plant_name = request[f"plant{plant_id}"]
+        temperatureToleranceLower = float(request[f"temperatureToleranceLower{plant_id}"])
+        temperatureToleranceIdeal = float(request[f"temperatureToleranceIdeal{plant_id}"])
+        temperatureToleranceUpper = float(request[f"temperatureToleranceUpper{plant_id}"])
+        moistureToleranceLower = float(request[f"moistureToleranceLower{plant_id}"])
+        moistureToleranceIdeal = float(request[f"moistureToleranceIdeal{plant_id}"])
+        moistureToleranceUpper = float(request[f"moistureToleranceUpper{plant_id}"])
+        radiationToleranceLower = float(request[f"radiationToleranceLower{plant_id}"])
+        radiationToleranceIdeal = float(request[f"radiationToleranceIdeal{plant_id}"])
+        radiationToleranceUpper = float(request[f"radiationToleranceUpper{plant_id}"])
+        growthRate = float(request[f"growthRate{plant_id}"])
+        deathRate = float(request[f"deathRate{plant_id}"])
+        firstPeak = request[f"firstPeak{plant_id}"]
+        secondPeak = request[f"secondPeak{plant_id}"]
+        max1Y = float(request[f"max1Y{plant_id}"])
+        max2Y = float(request[f"max2Y{plant_id}"])
+        sigma = float(request[f"sigma{plant_id}"])
+        plantDensity = float(request[f"plantDensity{plant_id}"])
+
+        temperatures = [temperatureToleranceLower, temperatureToleranceIdeal, temperatureToleranceUpper]
+        moistures = [moistureToleranceLower, moistureToleranceIdeal, moistureToleranceUpper]
+        radiations = [radiationToleranceLower, radiationToleranceIdeal, radiationToleranceUpper]
+
+        plant_object = Plant(plant_name, growthRate, deathRate, temperatures, moistures, radiations,
+                         first_peak = firstPeak, max1_y = max1Y,
+                         second_peak = secondPeak, max2_y = max2Y,
+                         sigma = sigma,
+                         plant_density = plantDensity)
+
+        dict_of_pants[plant_name] = plant_object
+
+    for paddock in range(1, paddocks_count+1):
+        paddock_content_dict = dict()
+        paddock_resource = float(request[f"paddock_resource{paddock}"])
+        for plant in range(plants_count):
+            plant_name = request[f"plantsOptions-{paddock}-{plant}"][0]
+            to_include = bool(request[f"plantsOptions-{paddock}-{plant}"][1])
+            coverage = request[f"percentage-{paddock}-{plant}"]
+            if to_include and coverage:
+                paddock_content_dict[plant_name] = [dict_of_pants[plant_name], int(coverage)]
+
+        pasture.botanical_composition(paddock, paddock_content_dict)
+        pasture.set_paddock_resource(paddock, paddock_resource*1000)
+
+    cattle_count = int(request["cattleCount"])
+    cattle_sex = request["cattleSex"]
+    cattle_breed = request["cattleBreed"]
+    lower_age = int(request["lowerAge"])
+    upper_age = int(request["upperAge"])
+    lower_weight = int(request["lowerWeight"])
+    upper_weight = int(request["upperWeight"])
+
+    if cattle_sex == "random":
+        cattle_sex = ["male", "female"]
+    else:
+        cattle_sex = [cattle_sex]
+
+    if cattle_breed == "random":
+        cattle_breed = list(breed_factors.keys())
+    else:
+        cattle_breed = [cattle_breed]
+
+    for _ in range(cattle_count):
+        cattle = Cattle(sex=random.choice(cattle_sex), breed=random.choice(cattle_breed), weight=random.randint(lower_weight, upper_weight), age=random.randint(lower_age, upper_age))
+        pasture.add_cattle_into_paddock(cattle, 1)
+
+    grazing_start = request["grazingStart"]
+    grazing_end = request["grazingEnd"]
+
+    grazing = Grazing(grazing_start, grazing_end, pasture)
+    grazing.start_grazing()
+
+    paddocks_grazing_graphs = []
+    for paddock in range(1, paddocks_count+1):
+
+        data = TimeLine.watcher[f"paddock_{paddock}_resource_history"]
+
+        indices = list(range(1, len(data) + 1))
+
+        custom_x_ticks = []
+
+        current_date = grazing.start_date
+        while current_date <= grazing.end_date+datetime.timedelta(days=30):
+            custom_x_ticks.append(current_date.strftime("%b"))
+            current_date = current_date + datetime.timedelta(days=30)  # Approximate number of days in a month
+
+        custom_x_ticks = list(set(custom_x_ticks))
+
+        custom_x_ticks.sort(key=lambda x: datetime.datetime.strptime(x, "%b").month)
+        custom_x_tick_positions = np.linspace(0, grazing.grazing_duration.days, len(custom_x_ticks))
+
+        plt.figure(figsize=(10, 5))
+        plt.xticks(custom_x_tick_positions, custom_x_ticks)
+
+        plt.plot(indices, data, color="green")
+        plt.xlabel("Дни")
+        plt.ylabel(f"Урожайность (кг)")
+        plt.title(f"Изменение урожайности в загоне №{paddock}.")
+        plt.grid(True)
+
+        image_buffer = io.BytesIO()
+        plt.savefig(image_buffer, format='png')
+        plt.close()
+        image_encoded = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+        paddocks_grazing_graphs.append(image_encoded)
+
+    return paddocks_grazing_graphs
 
 
 
@@ -1070,7 +1189,6 @@ def ajax_view(request):
     global test_cattle
 
     if request.method == 'POST':
-
         latitude = request.POST.get('latitude')
         longitude = request.POST.get('longitude')
         index = request.POST.get('index')
@@ -1101,17 +1219,11 @@ def ajax_view(request):
             for i in HolderClass.sentinel_request.pasture_df.index:
                 if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
                     test_cattle["paddock_number"] = f"{i+1}"
-                    print(test_cattle)
-
             return JsonResponse(test_cattle)
         elif "simulation_data" in request.GET:
             sim_request = json.loads(request.GET['simulation_data'])
-            print()
-            print(sim_request.keys())
-            print()
-            play_simulation(sim_request)
-            print()
-            return JsonResponse({'message': 'Successfully got simulation data'})
+            paddocks_grazing_graphs = play_simulation(sim_request)
+            return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:

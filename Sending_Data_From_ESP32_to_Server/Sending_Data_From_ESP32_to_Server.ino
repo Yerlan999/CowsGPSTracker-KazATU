@@ -9,14 +9,10 @@ const char* ssid = "LeChatGarcon";
 const char* password = "LeChatGarcon999";
 
 unsigned long lastTime = 0;  
-unsigned long timerDelay = 10000;    // КАЖДЫЕ 30 секунд
+unsigned long timerDelay = 10000;    // КАЖДЫЕ 10 секунд
 
 float latitude;
 float longitude;
-int counter = 0;
-
-
-String coordinates;
 
 TinyGPSPlus gps;
 
@@ -47,9 +43,6 @@ void loop() {
         latitude = gps.location.lat();
         longitude = gps.location.lng();
 
-        // coordinates = "Latitude: " + String(latitude, 6) + " Longitude: " + String(longitude, 6);
-        coordinates = "Test string";
-
         // Serial.print("Latitude = ");
         // Serial.print(latitude, 6);
         // Serial.print(" || Longitude = ");
@@ -62,27 +55,16 @@ void loop() {
   }
  
  if ((millis() - lastTime) > timerDelay) {
-   counter++;
+   
    if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
    
      HTTPClient http;   
    
-     http.begin("http://192.168.0.17:8000/ajax/");
+     http.begin("http://192.168.0.15:8000/ajax/");
      http.addHeader("Content-Type", "application/x-www-form-urlencoded");             
-     String latitude;
-     String longitude;
-
-     if (counter%2==0){
-      latitude = "54.214535";
-      longitude = "69.514887";
-     }
-     else{
-      latitude = "54.214545";
-      longitude = "69.514897";
-     }
      
      String index = "123";
-     String postData = "latitude=" + latitude + "&longitude=" + longitude + "&index=" + index;
+     String postData = "latitude=" + String(latitude, 6) + "&longitude=" + String(longitude, 6) + "&index=" + index;
 
      int httpResponseCode = http.POST(postData);   //Send the actual POST request
    
