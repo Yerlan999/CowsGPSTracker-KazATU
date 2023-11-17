@@ -43,14 +43,16 @@
       <div class="modal-body">
             <table class="table table-striped" id="mySampleTable">
             </table>
+
             <div class="row mt-3">
                 <div class="col">
-                    <input type="number" id="pixelValue" class="form-control" placeholder="Значение пикселя">
+                    <input type="number" id="minRealValue" class="form-control" placeholder="Мин. реальный эквивалент (кг)">
                 </div>
                 <div class="col">
-                    <input type="number" id="realValue" class="form-control" placeholder="Реальный эквивалент (кг)">
+                    <input type="number" id="maxRealValue" class="form-control" placeholder="Макс. реальный эквивалент (кг)">
                 </div>
             </div>
+
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" onclick="multiplyValues()">Рассчитать</button>
@@ -670,22 +672,41 @@ var paddocks_resources = [];
 function multiplyValues() {
   paddocks_resources.length = 0;
   var table = document.getElementById('mySampleTable');
-  var realValue = document.getElementById('realValue').value;
-  var pixelValue = document.getElementById('pixelValue').value;
+
+  var minRealValue = document.getElementById('minRealValue').value;
+  var maxRealValue = document.getElementById('maxRealValue').value;
+
   var rows = table.getElementsByTagName('tr');
   var nanDetected = false;
 
-  for (var i = 0; i < rows.length; i++) {
-    var cells = rows[i].getElementsByTagName('td');
-    if (cells[1]){
-      var value = parseFloat(cells[1].textContent);
-      var multipliedValue = (value / pixelValue * realValue)/1000;
-      if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
-        cells[2].textContent = multipliedValue.toFixed(3);
-        paddocks_resources.push(multipliedValue.toFixed(3))
+  $.ajax({
+      type: "GET",
+      url: "/ajax/",
+      data: {
+          'pasture_resourece': true,
+          'minRealValue': minRealValue,
+          'maxRealValue': maxRealValue,
+      },
+      success: function(data) {
+      console.log(data.resources);
+      console.log(data.resources_mean);
+      console.log(data.resources_median);
+      for (var i = 0; i < rows.length; i++) {
+          var cells = rows[i].getElementsByTagName('td');
+          if (cells[1]){
+              var multipliedValue = data.resources[i-1];
+              if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
+              cells[2].textContent = multipliedValue.toFixed(3);
+              paddocks_resources.push(multipliedValue.toFixed(3));
+          }
+        };
+      if (!nanDetected){$("#switchToModalB").show();};
+    },
+    error: function(xhr, status, error) {
+      console.error('Ajax request failed', status, error);
     }
-  }
-  if (!nanDetected && realValue && pixelValue){$("#switchToModalB").show();};
+  });
+
 }
 
 

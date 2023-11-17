@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
-import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys, random, itertools
+import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys, random, itertools, statistics
 from math import ceil
 import matplotlib.pyplot as plt
 import numpy as np
@@ -232,6 +232,7 @@ class SentinelRequest():
         self.recent_date = recent_date
         self.kml_file = kml_file.lstrip('/')
         self.project_path = settings.BASE_DIR
+        self.current_requested_index = None
 
         self.CLIENT_ID = os.getenv('CLIENT_ID')
         self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
@@ -499,6 +500,7 @@ class SentinelRequest():
 
             header = formula
             self.precision = 4
+            self.current_requested_index = test_meet
 
             ep.plot_bands(test_meet, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
 
@@ -1224,6 +1226,32 @@ def ajax_view(request):
             sim_request = json.loads(request.GET['simulation_data'])
             paddocks_grazing_graphs = play_simulation(sim_request)
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
+        elif "pasture_resourece" in request.GET:
+            minRealValue = float(request.GET.get('minRealValue'))
+            maxRealValue = float(request.GET.get('maxRealValue'))
+            current_requested_index = HolderClass.sentinel_request.current_requested_index
+
+            min_value = np.min(current_requested_index)
+            max_value = np.max(current_requested_index)
+
+            real_world_min_value = minRealValue
+            real_world_max_value = maxRealValue
+
+            scaled_matrix = (current_requested_index - min_value) * (real_world_max_value - real_world_min_value) / (max_value - min_value) + real_world_min_value
+
+            test_index_masked_array = []
+            test_index_masked_array_mean = []
+            test_index_masked_array_median = []
+            for i, mask in enumerate(HolderClass.sentinel_request.masks):
+                mx = ma.masked_array(scaled_matrix, mask=mask.reshape(HolderClass.sentinel_request.aoi_height, HolderClass.sentinel_request.aoi_width))
+                test_index_masked_array_mean.append(mx.mean())
+                test_index_masked_array_median.append(ma.median(mx))
+                test_index_masked_array.append(mx.sum())
+
+            test_index_masked_array.append(sum(test_index_masked_array))
+            test_index_masked_array_mean.append(statistics.mean(test_index_masked_array_mean))
+            test_index_masked_array_median.append(statistics.median(test_index_masked_array_median))
+            return JsonResponse({'resources': test_index_masked_array, 'resources_mean':  test_index_masked_array_mean, 'resources_median':  test_index_masked_array_median})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
