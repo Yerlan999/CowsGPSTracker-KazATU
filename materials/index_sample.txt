@@ -28,3 +28,78 @@ for i, zagon in enumerate(index_masked_array):
     else:
         plt.legend([f"Средняя: {ma.mean(index_masked_array[i])}",f"Медианная: {ma.median(index_masked_array[i])}"])
 plt.show()
+
+
+
+
+
+
+
+# sun_zenith_angle = []
+# sun_azimuth_angle = []
+# view_zenith_angle = []
+# view_azimuth_angle = []
+
+# for data in clear_date_dict.keys():
+#     image_date = clear_date_dict[data]
+#     sun_azimuth_angle.append((aux_data[image_date][:, :, aux_data_dict["sunAzimuthAngles"]]).mean())
+#     sun_zenith_angle.append((aux_data[image_date][:, :, aux_data_dict["sunZenithAngles"]]).mean())
+#     view_azimuth_angle.append((aux_data[image_date][:, :, aux_data_dict["viewAzimuthMean"]]).mean())
+#     view_zenith_angle.append((aux_data[image_date][:, :, aux_data_dict["viewZenithMean"]]).mean())
+
+
+# relative_azimuth_angle = []
+# for x, y in zip(sun_azimuth_angle, view_azimuth_angle):
+#     relative_azimuth_angle.append(x - y)
+
+# relative_zenith_angle = []
+# for x, y in zip(sun_zenith_angle, view_zenith_angle):
+#     relative_zenith_angle.append(x - y)
+
+# # Convert dates to numerical values for plotting
+# num_dates = np.arange(len(list(clear_date_dict.keys())))
+# dates = list(clear_date_dict.keys())
+
+# # Sample data
+# list1 = sun_zenith_angle
+# list2 = sun_azimuth_angle
+# list3 = view_zenith_angle
+# list4 = view_azimuth_angle
+
+# # Plotting
+# plt.plot(num_dates, list1, label='SZA')
+# plt.plot(num_dates, list2, label='SAA')
+# plt.plot(num_dates, list3, label='VZA')
+# plt.plot(num_dates, list4, label='VAA')
+
+# # Highlight max and min values for each list
+# for i, lst in enumerate([list1, list2, list3, list4]):
+#     max_val = float(max(lst))
+#     min_val = float(min(lst))
+
+#     max_index = np.argmax(lst)
+#     min_index = np.argmin(lst)
+
+#     # Scatter plot for max value
+#     plt.scatter(max_index, max_val, color='red', marker='^')
+
+#     # Scatter plot for min value
+#     plt.scatter(min_index, min_val, color='blue', marker='v')
+
+
+#     # Text annotations for max and min values
+#     plt.text(max_index, max_val, f'{round(max_val, 2)}', ha='right', va='bottom', color='red', fontsize=8)
+#     plt.text(min_index, min_val, f'{round(min_val, 2)}', ha='right', va='top', color='blue', fontsize=8)
+
+# # Customize the plot
+# plt.xticks(num_dates, dates, rotation=90, ha='right', fontsize=8)  # Rotate labels for better readability
+# plt.xlabel('Даты Май-Август')
+# plt.ylabel('Значения (град)')
+# plt.title('2023 год')
+# plt.legend()
+
+# # Adjust the layout
+# plt.tight_layout()
+
+# # Show the plot
+# plt.show()
