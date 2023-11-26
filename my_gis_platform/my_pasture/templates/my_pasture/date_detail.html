@@ -46,10 +46,16 @@
 
             <div class="row mt-3">
                 <div class="col">
-                    <input type="number" id="minRealValue" class="form-control" placeholder="Мин. реальный эквивалент (кг)">
+                    <select id="methodSelection" class="form-control" aria-label="Default select example">
+                      <option value="1 Сумма">Сумма</option>
+                      <option value="2 Средняя">Средняя</option>
+                      <option value="3 Медианная" selected>Медианная</option>
+                      <option value="4 Макс." selected>Макс.</option>
+                      <option value="5 Мин." selected>Мин.</option>
+                    </select>
                 </div>
                 <div class="col">
-                    <input type="number" id="maxRealValue" class="form-control" placeholder="Макс. реальный эквивалент (кг)">
+                    <input type="number" id="transferCoeff" class="form-control" placeholder="Коэффициент преобразования">
                 </div>
             </div>
 
@@ -620,7 +626,10 @@ var predictModal = document.getElementById('predict');
 
 // Add event listener to the modal to dynamically populate the column values
 predictModal.addEventListener('click', function() {
-  var columnNumber = 1; // Specify the column number you want to copy (starting from 0)
+
+  var selectElement = document.getElementById("methodSelection");
+  // Set the selected value programmatically
+  selectElement.value = "3 Медианная";
 
   mySampleTable.innerHTML = "";
 
@@ -628,8 +637,8 @@ predictModal.addEventListener('click', function() {
   sampleHeader.classList.add("thead-dark");
   var sampleHeaderRow = document.createElement('tr');
   var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
-  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Cумма";
-  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т)";
+  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Медианная";
+  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)";
 
   sampleHeaderRow.appendChild(sampleHeaderTitle1);
   sampleHeaderRow.appendChild(sampleHeaderTitle2);
@@ -649,12 +658,10 @@ predictModal.addEventListener('click', function() {
     var sampleTableRow = document.createElement('tr');
 
     var zagon = rows[i].getElementsByTagName('td')[0];
-    var sum = rows[i].getElementsByTagName('td')[1];
+    var sum = rows[i].getElementsByTagName('td')[3];
     var new_sum = document.createElement('td'); new_sum.textContent = "";
 
-
     if (sum){
-
         sampleTableRow.appendChild(zagon.cloneNode(true));
         sampleTableRow.appendChild(sum.cloneNode(true));
         sampleTableRow.appendChild(new_sum);
@@ -673,40 +680,21 @@ function multiplyValues() {
   paddocks_resources.length = 0;
   var table = document.getElementById('mySampleTable');
 
-  var minRealValue = document.getElementById('minRealValue').value;
-  var maxRealValue = document.getElementById('maxRealValue').value;
+  var transferCoeff = document.getElementById('transferCoeff').value;
 
   var rows = table.getElementsByTagName('tr');
   var nanDetected = false;
 
-  $.ajax({
-      type: "GET",
-      url: "/ajax/",
-      data: {
-          'pasture_resourece': true,
-          'minRealValue': minRealValue,
-          'maxRealValue': maxRealValue,
-      },
-      success: function(data) {
-      console.log(data.resources);
-      console.log(data.resources_mean);
-      console.log(data.resources_median);
-      for (var i = 0; i < rows.length; i++) {
-          var cells = rows[i].getElementsByTagName('td');
-          if (cells[1]){
-              var multipliedValue = data.resources[i-1];
-              if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
-              cells[2].textContent = multipliedValue.toFixed(3);
-              paddocks_resources.push(multipliedValue.toFixed(3));
-          }
-        };
-      if (!nanDetected){$("#switchToModalB").show();};
-    },
-    error: function(xhr, status, error) {
-      console.error('Ajax request failed', status, error);
-    }
-  });
-
+  for (var i = 0; i < rows.length; i++) {
+      var cells = rows[i].getElementsByTagName('td');
+      if (cells[1]){
+          var multipliedValue = transferCoeff * cells[1].textContent;
+          if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
+          cells[2].textContent = multipliedValue.toFixed(3);
+          paddocks_resources.push(multipliedValue.toFixed(3));
+      }
+    };
+  if (!nanDetected){$("#switchToModalB").show();};
 }
 
 
@@ -1203,6 +1191,62 @@ function startSimulation() {
     });
 
 }
+
+
+    var selectElement = document.getElementById("methodSelection");
+
+    // Attach a change event listener
+    selectElement.addEventListener("change", function() {
+        // This function will be called when the option is changed
+        var selectedOption = selectElement.value.split(' ');;
+
+        var table = document.getElementById('data-table');
+        var mySampleTable = document.getElementById('mySampleTable');
+
+        // Add event listener to the modal to dynamically populate the column values
+
+          mySampleTable.innerHTML = "";
+
+          var sampleHeader = document.createElement('thead');
+          sampleHeader.classList.add("thead-dark");
+          var sampleHeaderRow = document.createElement('tr');
+          var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
+          var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = selectedOption[1];
+          var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)";
+
+          sampleHeaderRow.appendChild(sampleHeaderTitle1);
+          sampleHeaderRow.appendChild(sampleHeaderTitle2);
+          sampleHeaderRow.appendChild(sampleHeaderTitle3);
+
+          sampleHeader.appendChild(sampleHeaderRow)
+
+          var sampleBody = document.createElement('tbody');
+
+          var rows = table.getElementsByTagName('tr');
+
+          var realValue = $("#realValue").val();
+          var pixelValue = $("#pixelValue").val();
+
+          for (var i = 0; i < rows.length; i++) {
+
+            var sampleTableRow = document.createElement('tr');
+
+            var zagon = rows[i].getElementsByTagName('td')[0];
+            var sum = rows[i].getElementsByTagName('td')[parseInt(selectedOption[0])];
+            var new_sum = document.createElement('td'); new_sum.textContent = "";
+
+            if (sum){
+                sampleTableRow.appendChild(zagon.cloneNode(true));
+                sampleTableRow.appendChild(sum.cloneNode(true));
+                sampleTableRow.appendChild(new_sum);
+
+                sampleBody.appendChild(sampleTableRow);
+            }
+          }
+          mySampleTable.appendChild(sampleHeader);
+          mySampleTable.appendChild(sampleBody);
+
+    });
 
 
 

@@ -1226,32 +1226,6 @@ def ajax_view(request):
             sim_request = json.loads(request.GET['simulation_data'])
             paddocks_grazing_graphs = play_simulation(sim_request)
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
-        elif "pasture_resourece" in request.GET:
-            minRealValue = float(request.GET.get('minRealValue'))
-            maxRealValue = float(request.GET.get('maxRealValue'))
-            current_requested_index = HolderClass.sentinel_request.current_requested_index
-
-            min_value = np.min(current_requested_index)
-            max_value = np.max(current_requested_index)
-
-            real_world_min_value = minRealValue
-            real_world_max_value = maxRealValue
-
-            scaled_matrix = (current_requested_index - min_value) * (real_world_max_value - real_world_min_value) / (max_value - min_value) + real_world_min_value
-
-            test_index_masked_array = []
-            test_index_masked_array_mean = []
-            test_index_masked_array_median = []
-            for i, mask in enumerate(HolderClass.sentinel_request.masks):
-                mx = ma.masked_array(scaled_matrix, mask=mask.reshape(HolderClass.sentinel_request.aoi_height, HolderClass.sentinel_request.aoi_width))
-                test_index_masked_array_mean.append(mx.mean())
-                test_index_masked_array_median.append(ma.median(mx))
-                test_index_masked_array.append(mx.sum())
-
-            test_index_masked_array.append(sum(test_index_masked_array))
-            test_index_masked_array_mean.append(statistics.mean(test_index_masked_array_mean))
-            test_index_masked_array_median.append(statistics.median(test_index_masked_array_median))
-            return JsonResponse({'resources': test_index_masked_array, 'resources_mean':  test_index_masked_array_mean, 'resources_median':  test_index_masked_array_median})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
