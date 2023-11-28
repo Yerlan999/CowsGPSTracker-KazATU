@@ -1,5 +1,3 @@
-# import the standard Django Forms
-# from built-in library
 from django import forms
 from .models import InputModel
 from django.core.exceptions import ValidationError
