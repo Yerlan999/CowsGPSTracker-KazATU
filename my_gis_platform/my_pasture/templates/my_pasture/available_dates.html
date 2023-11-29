@@ -13,7 +13,7 @@
         <h4 class="text-left text-justify">Порог значения облачности</h4>
     </div>
     <div class="col-sm">
-        <input class="form-control" type="number" id="filterValue" min="1" value="1">
+        <input class="form-control" type="number" id="filterValue" min="0" value="100">
     </div>
     <div class="col-sm">
       <button class="btn btn-primary btn-block btn-sm" type="button" onclick="iterateForms()">Фильтровать по облачности</button>
@@ -38,9 +38,10 @@
 
 
 <script>
+    iterateForms();
+
     function iterateForms() {
         var filterValue = document.getElementById("filterValue").value;
-
         var forms = document.forms;
         for (var i = 0; i < forms.length; i++) {
             if (parseFloat(forms[i].id) <= parseFloat(filterValue)){
