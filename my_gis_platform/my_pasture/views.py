@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 from sentinelhub import SHConfig
 from sentinelhub import SentinelHubCatalog
 
+from datetime import timezone, timedelta
 import datetime, os, csv, math, io, matplotlib, json, re, codecs, sys, random, itertools, statistics
 from math import ceil
 import matplotlib.pyplot as plt
@@ -375,9 +376,16 @@ class SentinelRequest():
             self.clear_date_dict.append((str(timestamp.date().isoformat()), i))
         self.clear_date_dict = dict(self.clear_date_dict)
 
+        self.image_date_cloud = []
+        for date in self.unique_acquisitions:
+            for index in range(len(self.results)):
+                if datetime.datetime.strptime(self.results[index]['properties']['datetime'], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) == date:
+                    self.image_date_cloud.append((str(date.date()), self.results[index]['properties']["eo:cloud_cover"]))
+        self.image_date_cloud = dict(self.image_date_cloud)
+
 
     def get_unique_acquisitions(self):
-        return self.clear_date_dict
+        return list(zip(self.clear_date_dict, self.image_date_cloud.values()))
 
     def set_choosen_date(self, pk):
         self.image_date = int(pk)
@@ -441,7 +449,7 @@ class SentinelRequest():
         self.VZM = (self.aux_data[self.image_date][:, :, self.aux_data_dict["viewZenithMean"]]).mean()
 
         self.precision = 4
-        self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level}"
+        self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level} || Облачность: {self.image_date_cloud[self.unique_acquisitions[self.image_date].date().isoformat()]}"
 
     def get_true_color_image(self, size=(12, 5)):
 

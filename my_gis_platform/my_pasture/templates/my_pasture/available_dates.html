@@ -7,21 +7,51 @@
 
 {% block content %}
 
+<div class="container mb-5">
+  <div class="row">
+    <div class="col-sm">
+        <h4 class="text-left text-justify">Порог значения облачности</h4>
+    </div>
+    <div class="col-sm">
+        <input class="form-control" type="number" id="filterValue" min="1" value="1">
+    </div>
+    <div class="col-sm">
+      <button class="btn btn-primary btn-block btn-sm" type="button" onclick="iterateForms()">Фильтровать по облачности</button>
+    </div>
+  </div>
+</div>
+
 <div class="container"><br>
 
     <h1 class="text-center">ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
     <h3 class="text-center">Доступные даты на выбранный промежуток</h3>
         {% if unique_acquisitions %}
             {% for unique_date in unique_acquisitions %}
-                <form id="hidden_form" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
+                <form id="{{ unique_date.1 }}" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
                     {% csrf_token %}
                     <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
-                    <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-dark btn-lg btn-block loadMoreButton mt-1" type="submit">{{ unique_date }}</button>
+                    <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-dark btn-lg btn-block loadMoreButton mt-1" type="submit">| {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)</button>
                 </form>
             {% endfor %}
         {% endif %}
 </div>
 
+
+<script>
+    function iterateForms() {
+        var filterValue = document.getElementById("filterValue").value;
+
+        var forms = document.forms;
+        for (var i = 0; i < forms.length; i++) {
+            if (parseFloat(forms[i].id) <= parseFloat(filterValue)){
+                forms[i].removeAttribute("hidden");
+            }
+            else{
+                forms[i].setAttribute("hidden", true);
+            }
+        }
+    }
+</script>
 
 
 {% endblock %}
