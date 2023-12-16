@@ -16,20 +16,19 @@
 
 <style>
 .loading-spinner {
-  display: none; /* Initially hide the spinner */
-  width: 40px; /* Adjust the width as needed */
-  height: 40px; /* Adjust the height as needed */
-  border: 3px solid #f3f3f3; /* Border color */
-  border-top: 3px solid #3498db; /* Top border color (spinner color) */
-  border-radius: 50%; /* Create a circular shape */
-  animation: spin 1s linear infinite; /* Animation properties */
-  position: absolute; /* Position the spinner */
-  top: 50%; /* Adjust the vertical position as needed */
-  left: 50%; /* Adjust the horizontal position as needed */
-  transform: translate(-50%, -50%); /* Center the spinner */
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
-/* Define the animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
@@ -66,21 +65,19 @@
 
   <script>
 
-  // Function to set custom text in the alert
   function setAlertText(text) {
     var alertElement = document.getElementById('myAlert');
     if (alertElement) {
-      // Set the custom text
+
       alertElement.innerHTML = text;
-      // Show the alert
+
       alertElement.style.display = 'block';
       alertElement.hidden = false;
     }
   }
 
-    // Function to show the loading spinner
+
     function showLoadingSpinner() {
-      // Show the loading spinner
       document.querySelector('.loading-spinner').style.display = 'none';
     }
 
@@ -102,7 +99,6 @@
         $('#main-content').hide();
       });
 
-    // Call the showLoadingSpinner function on page load
     window.addEventListener('load', showLoadingSpinner);
   </script>
 
@@ -112,7 +108,18 @@
         var startDateInput = document.getElementById('id_start_date');
         var endDateInput = document.getElementById('id_end_date');
 
+        // Load the stored state
+        var checkboxState = localStorage.getItem('checkboxState');
+        if (checkboxState === 'checked') {
+            checkbox.checked = true;
+            startDateInput.disabled = true;
+            endDateInput.disabled = true;
+        }
+
+
         checkbox.addEventListener('change', function () {
+            localStorage.setItem('checkboxState', checkbox.checked ? 'checked' : 'unchecked');
+
             startDateInput.disabled = checkbox.checked;
             endDateInput.disabled = checkbox.checked;
         });

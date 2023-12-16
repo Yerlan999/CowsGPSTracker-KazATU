@@ -391,7 +391,7 @@ class SentinelRequest():
         self.image_date = int(pk)
 
     def set_date(self, date):
-        self.image_date = self.clear_date_dict[date]
+        self.image_date = self.clear_date_dict[date[0]]
 
     def pasture(self, index):
         only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
@@ -451,17 +451,24 @@ class SentinelRequest():
         self.precision = 4
         self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level} || Облачность: {self.image_date_cloud[self.unique_acquisitions[self.image_date].date().isoformat()]}"
 
-    def get_true_color_image(self, size=(12, 5)):
+    def get_true_color_image(self, size=(12, 5), with_title=True):
 
         fig, ax = plt.subplots(figsize=size)
         for zagon in range(len(self.pasture_df)):
 
             ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
 
-        ep.plot_rgb(np.stack([self.FULL_RED, self.FULL_GREEN, self.FULL_BLUE]), ax=ax,
-                    title="RGB "+self.general_info,
-                    figsize=size,
-                    )
+        if with_title:
+            ep.plot_rgb(np.stack([self.FULL_RED, self.FULL_GREEN, self.FULL_BLUE]), ax=ax,
+                        title="RGB "+self.general_info,
+                        figsize=size,
+                        )
+        else:
+            ep.plot_rgb(np.stack([self.FULL_RED, self.FULL_GREEN, self.FULL_BLUE]), ax=ax,
+                        figsize=size,
+                        title="RGB "+self.general_info,
+                        )
+            ax.set_title("RGB "+self.general_info, fontsize=10)  # Adjust the font size as needed
 
         fig.tight_layout()
 
@@ -648,15 +655,15 @@ def available_dates(request):
     HolderClass.sentinel_request = SentinelRequest(level, start_date, end_date, recent_date, kml_file)
     unique_acquisitions = HolderClass.sentinel_request.get_unique_acquisitions()
 
-    # dict_of_images = dict()
-    # for date in unique_acquisitions:
-    #     HolderClass.sentinel_request.set_date(date)
-    #     HolderClass.sentinel_request.prepare_all_bands()
-    #     image_data = HolderClass.sentinel_request.get_true_color_image(size=(6, 3))
-    #     dict_of_images[date] = image_data
+    dict_of_images = dict()
+    for date in unique_acquisitions:
+        HolderClass.sentinel_request.set_date(date)
+        HolderClass.sentinel_request.prepare_all_bands()
+        image_data = HolderClass.sentinel_request.get_true_color_image(size=(6, 3), with_title=False)
+        dict_of_images[date] = image_data
 
     context = {
-        # 'dict_of_images': dict_of_images,
+        'dict_of_images': dict_of_images,
         'unique_acquisitions': unique_acquisitions,
         'counter_start': 0,  # Starting value for the loop counter
     }
