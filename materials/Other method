@@ -1,0 +1,49 @@
+def gaussian(x, mu, sigma, A):
+    return A * np.exp(-((x - mu) / sigma) ** 2)
+
+
+
+self.y = gaussian(x, max1_x, sigma, max1_y) + gaussian(x, max2_x, sigma, max2_y)
+self.y = self.max1_y * np.exp(-((self.x - self.max1_x) / self.sigma) ** 2) + self.max2_y * np.exp(-((self.x - self.max2_x) / self.sigma) ** 2)
+
+self.dy_dx = -(self.x - self.max1_x) * self.max1_y * np.exp(-((self.x - self.max1_x) / self.sigma) ** 2) / sigma**2 - \
+              (self.x - self.max2_x) * self.max2_y * np.exp(-((self.x - self.max2_x) / self.sigma) ** 2) / self.sigma**2
+
+new_min = 0; new_max = 0.5;
+self.dy_dx_normalized = new_min + (self.dy_dx - np.min(self.dy_dx)) / (np.max(self.dy_dx) - np.min(self.dy_dx)) * (new_max - new_min)
+
+self.dy_dx_normalized = (self.dy_dx - np.min(self.dy_dx)) / (np.max(self.dy_dx) - np.min(self.dy_dx))
+
+
+
+
+def get_linear_death_rate(self, grazing_day, grazing_duration, grazing_start_date):
+    days_passed = (grazing_day - grazing_start_date).days
+    self.death_x = np.linspace(0, grazing_duration.days, grazing_duration.days)
+    self.death_y = self.death_x / grazing_duration.days
+    return self.death_y[days_passed]
+
+inv_coeff = obj.get_linear_death_rate(grazing_day, self.grazing_duration, self.grazing_start_date) * inv_coeff
+
+
+
+
+def check_current_paddock_resource(self, paddock_number):
+    paddock_current_resource = getattr(self, f"paddock_{paddock_number}_resource")
+    first_paddock_resource = TimeLine.watcher[f"paddock_{paddock_number}_resource_history"][0]
+    if first_paddock_resource * self.resource_threshold > paddock_current_resource:
+#         if paddock_current_resource < 5000:
+        next_paddock_number = next(self.grazing_cycle)
+        print(f" ### To the next Paddock: №{next_paddock_number}")
+        for cattle in Cattle.cattle_stack:
+            self.add_cattle_into_paddock(cattle, next_paddock_number)
+
+
+
+def start_grazing(self):
+    print("Grazing started!")
+    for day in range(self.grazing_duration.days):
+        current_date = self.start_date + datetime.timedelta(days=day)
+        print("|| Date: ", current_date.date())
+        self.pasture.update_paddock_resource(current_date)
+    print("Grazing finished!")

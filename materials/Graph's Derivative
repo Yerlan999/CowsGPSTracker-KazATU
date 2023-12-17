@@ -1,0 +1,87 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import datetime
+
+# Function to calculate the Gaussian distribution
+def gaussian(x, mu, sigma, A):
+    return A * np.exp(-((x - mu) / sigma) ** 2)
+
+# Season parameters
+season_start_date = "2023-03-01"
+season_end_date = "2023-09-30"
+season_start_date = datetime.datetime.strptime(season_start_date, "%Y-%m-%d")
+season_end_date = datetime.datetime.strptime(season_end_date, "%Y-%m-%d")
+season_duration = season_end_date - season_start_date
+
+# Peak parameters
+first_peak = "2023-04-01"; max1_y = 0.5
+second_peak = "2023-08-20"; max2_y = 0.3
+first_peak = datetime.datetime.strptime(first_peak, "%Y-%m-%d")
+second_peak = datetime.datetime.strptime(second_peak, "%Y-%m-%d")
+
+# Define the two maximum points
+max1_x = (first_peak - season_start_date).days  # x value of the first maximum point
+max2_x = (second_peak - season_start_date).days  # x value of the second maximum point
+
+# Generate x values (months)
+x = np.linspace(0, season_duration.days+30, season_duration.days+30)  # Adjust the range as needed
+
+sigma = 50  # Increase this value to make the curve less steep
+
+# Calculate the y values based on the Gaussian distribution for the two maxima
+y = gaussian(x, max1_x, sigma, max1_y) + gaussian(x, max2_x, sigma, max2_y)
+
+# Find the derivative of y with respect to x
+dy_dx = -(x - max1_x) * max1_y * np.exp(-((x - max1_x) / sigma) ** 2) / sigma**2 - \
+         (x - max2_x) * max2_y * np.exp(-((x - max2_x) / sigma) ** 2) / sigma**2
+
+
+# new_min = 0
+# new_max = 0.2
+# dy_dx_normalized = new_min + (dy_dx - np.min(dy_dx)) / (np.max(dy_dx) - np.min(dy_dx)) * (new_max - new_min)
+# dy_dx_normalized = (dy_dx - np.min(dy_dx)) / (np.max(dy_dx) - np.min(dy_dx))
+
+# Initialize an empty list to store month labels
+custom_x_ticks = []
+
+# Generate month labels for each month in the season duration
+current_date = season_start_date
+while current_date <= season_end_date:
+    custom_x_ticks.append(current_date.strftime("%b"))
+    current_date = current_date + datetime.timedelta(days=30)  # Approximate number of days in a month
+
+# Remove duplicate month labels if any
+custom_x_ticks = list(set(custom_x_ticks))
+
+# Sort the month labels in chronological order
+custom_x_ticks.sort(key=lambda x: datetime.datetime.strptime(x, "%b").month)
+
+# Calculate the positions of the custom x ticks
+# In this case, I'm spreading them evenly across the x-axis
+custom_x_tick_positions = np.linspace(0, season_duration.days, len(custom_x_ticks))
+
+# Create the plot for the original function and its derivative
+plt.figure(figsize=(10, 8))
+
+# Plot for the original function
+plt.subplot(2, 1, 1)
+plt.plot(x, y, label="Коэффициент роста растений", color="green")
+plt.xlabel("Месяц")
+plt.ylabel("Коэффициент")
+plt.title("Сезонный коэффициент роста растений")
+plt.xticks(custom_x_tick_positions, custom_x_ticks)
+plt.legend()
+plt.grid(True)
+
+# Plot for the derivative
+plt.subplot(2, 1, 2)
+plt.plot(x, dy_dx, label="Производная (норм)", color="blue")
+plt.xlabel("Месяц")
+plt.ylabel("Производная")
+plt.title("Производная от коэффициента роста растений")
+plt.xticks(custom_x_tick_positions, custom_x_ticks)
+plt.legend()
+plt.grid(True)
+
+plt.tight_layout()  # Adjust layout for better visualization
+plt.show()

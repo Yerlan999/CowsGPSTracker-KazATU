@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-9n#kdhkz+#5+0w18c(hi9w_@4(chp!z_fto^j12*l538e+au$!
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0:8000', '127.0.0.1', 'localhost', '192.168.0.17', '192.168.8.169', '192.168.8.7', '192.168.0.15']
+ALLOWED_HOSTS = ['test.page']
 
 
 # Application definition
@@ -129,9 +129,9 @@ DATE_INPUT_FORMATS =  ['%Y-%m-%d']
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "my_pasture/static/"
 STATICFILES_DIRS = (
-    os.path.join(BASE_DIR, "static/"),
+    os.path.join(BASE_DIR, STATIC_URL),
 )
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
