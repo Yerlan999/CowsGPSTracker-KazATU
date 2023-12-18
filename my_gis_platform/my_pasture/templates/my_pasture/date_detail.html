@@ -1,7 +1,7 @@
 {% extends "my_pasture/master.html" %}
 
 {% block title %}
-  ГИС платформа ТОО "Северо-Казахстанская СХОС"
+  ГИС платформа КазАТИУ
 {% endblock %}
 
 
@@ -41,10 +41,20 @@
         </button>
       </div>
       <div class="modal-body">
-            <table class="table table-striped" id="mySampleTable">
+            <table class="table table-striped" id="mySampleTable" style="border: 1px solid #ddd; border-collapse: collapse;">
             </table>
 
             <div class="row mt-3">
+                <div class="col">
+                  <p class="font-italic">x = Выбранный параметр</p>
+                </div>
+                <div class="col">
+                  <p class="font-italic">Уравнение урожайности: y = mx + b</p>
+                </div>
+            </div>
+
+
+            <div class="row">
                 <div class="col">
                     <select id="methodSelection" class="form-control" aria-label="Default select example">
                       <option value="1 Сумма">Сумма</option>
@@ -55,7 +65,10 @@
                     </select>
                 </div>
                 <div class="col">
-                    <input type="number" id="transferCoeff" class="form-control" placeholder="Коэффициент преобразования">
+                    <input type="number" id="slope" class="form-control" placeholder="m = Угловой коэффициент">
+                </div>
+                <div class="col">
+                    <input type="number" id="intercept" class="form-control" placeholder="b = Свободный член">
                 </div>
             </div>
 
@@ -269,26 +282,26 @@
 
 <div class="container shadow-lg"><br>
 
-    <h1 class="text-center">ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
-    <h3 class="text-center">Более подробная информация по выбранной дате</h3>
+    <h1 class="text-center">ГИС платформа анализа пастбищных ресурсов</h1><br>
+    <h3 class="text-center bg-secondary text-white">Информация по выбранной дате</h3>
 
     <img class="img-fluid img-thumbnail" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image">
     <div class="container mt-4">
-      <div class="d-flex justify-content-center">
-        <h5 class="text-center">Погодные данные</h5>
-      </div>
+
+    <h5 class="text-center bg-secondary text-white">Погодные данные</h5>
+
       <div class="table-responsive">
           {{ weather_data|safe }}
       </div>
     </div>
 
-    <h5 id="requested_date_image_header" class="text-center mt-3" hidden>Запрошенный индекс (канал)</h5>
+    <h5 id="requested_date_image_header" class="text-center mt-3 bg-secondary text-white" hidden>Запрошенный индекс (канал)</h5>
     <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
-    <h5 id="map_header" class="text-center mt-3" style="display: none">GPS треккинг КРС</h5>
+    <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
-    <h5 id="histograms_header" class="text-center mt-3" style="display: none">Гистограммы и таблица загонов </h5>
+    <h5 id="histograms_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Гистограммы и таблица загонов </h5>
     <div id="carousel-container"></div>
 
     <table id="data-table" class="table table-striped" style="display: none;"> <!-- Initially hidden -->
@@ -304,12 +317,12 @@
         </thead>
         <tbody></tbody>
     </table>
-    <button id="predict" type="button" class="btn btn-secondary btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden onclick="disableSimulation()">Прогноз</button>
+    <button id="predict" type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden onclick="disableSimulation()">Прогноз</button>
 
     <div id="myAlert" class="alert alert-danger alert-dismissible fade show mt-3 mb-3" role="alert" hidden="true">
     </div>
 
-    <h5 class="text-center mt-5">Форма контроля параметров запроса</h5>
+    <h5 class="text-center mt-5 bg-secondary text-white">Форма контроля параметров запроса</h5>
     <div class="input-group mb-3 mt-1">
       <span class="input-group-text" id="basic-addon1">f(к)=</span>
       <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="Для справки нажмите на кнопку '?' справа -> " data-placement="top">
@@ -636,9 +649,9 @@ predictModal.addEventListener('click', function() {
   var sampleHeader = document.createElement('thead');
   sampleHeader.classList.add("thead-dark");
   var sampleHeaderRow = document.createElement('tr');
-  var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
-  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Медианная";
-  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)";
+  var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №"; sampleHeaderTitle1.style.textAlign = "left";
+  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Медианная"; sampleHeaderTitle2.style.textAlign = "left";
+  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)"; sampleHeaderTitle3.style.textAlign = "left";
 
   sampleHeaderRow.appendChild(sampleHeaderTitle1);
   sampleHeaderRow.appendChild(sampleHeaderTitle2);
@@ -680,7 +693,8 @@ function multiplyValues() {
   paddocks_resources.length = 0;
   var table = document.getElementById('mySampleTable');
 
-  var transferCoeff = document.getElementById('transferCoeff').value;
+  var slope = document.getElementById('slope').value;
+  var intercept = document.getElementById('intercept').value;
 
   var rows = table.getElementsByTagName('tr');
   var nanDetected = false;
@@ -688,7 +702,7 @@ function multiplyValues() {
   for (var i = 0; i < rows.length; i++) {
       var cells = rows[i].getElementsByTagName('td');
       if (cells[1]){
-          var multipliedValue = transferCoeff * cells[1].textContent;
+          var multipliedValue = parseFloat(slope * cells[1].textContent)+parseFloat(intercept);
           if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
           cells[2].textContent = multipliedValue.toFixed(3);
           paddocks_resources.push(multipliedValue.toFixed(3));
@@ -776,7 +790,7 @@ function multiplyValues() {
             <div class="form-group">
               <div class="row">
                 <div class="col">
-                    <label for="paddock_resource${paddock}">Ресурс загона (т)</label>
+                    <label for="paddock_resource${paddock}">Ресурс загона (т/га)</label>
                 </div>
                 <div class="col">
                     <input type="number" class="form-control" id="paddock_resource${paddock}" placeholder="" value="${paddocks_resources[paddock-1]}">

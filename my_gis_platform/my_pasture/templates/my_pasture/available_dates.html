@@ -1,7 +1,7 @@
 {% extends "my_pasture/master.html" %}
 
 {% block title %}
-  ГИС платформа ТОО "Северо-Казахстанская СХОС"
+  ГИС платформа
 {% endblock %}
 
 
@@ -24,23 +24,26 @@
 
 <div class="container"><br>
 
-    <h1 class="text-center">ГИС платформа ТОО "Северо-Казахстанская СХОС"</h1><br>
+    <h1 class="text-center">ГИС платформа анализа пастбищных ресурсов</h1><br>
     <h3 class="text-center">Доступные даты на выбранный промежуток</h3>
 
-    {% if dict_of_images %}
-        {% for unique_date, image in dict_of_images.items %}
-            <form id="{{ unique_date.1 }}" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
-                {% csrf_token %}
-                <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
-                <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-dark btn-lg btn-block ShowItsImage mt-1" type="submit">| {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)</button>
+    <div class="mb-5">
+        {% if dict_of_images %}
+            {% for unique_date, image in dict_of_images.items %}
+                <form id="{{ unique_date.1 }}" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
+                    <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-dark btn-lg btn-block ShowItsImage mt-1" type="submit">| {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)</button>
 
-                <div id="{{ unique_date.0 }}" class="container d-flex align-items-center justify-content-center">
-                    <img class="img-responsive" src="data:image/png;base64,{{ image }}" alt="{{ unique_date.0 }}" hidden>
-                </div>
+                    <div id="{{ unique_date.0 }}" class="container d-flex align-items-center justify-content-center">
+                        <img class="img-responsive" src="data:image/png;base64,{{ image }}" alt="{{ unique_date.0 }}" hidden>
+                    </div>
 
-            </form>
-        {% endfor %}
-    {% endif %}
+                </form>
+            {% endfor %}
+        {% endif %}
+    </div>
+
 </div>
 
 

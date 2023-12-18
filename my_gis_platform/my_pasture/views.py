@@ -1132,7 +1132,8 @@ def play_simulation(request):
                 paddock_content_dict[plant_name] = [dict_of_pants[plant_name], int(coverage)]
 
         pasture.botanical_composition(paddock, paddock_content_dict)
-        pasture.set_paddock_resource(paddock, paddock_resource*1000)
+        paddock_size_ha = (HolderClass.sentinel_request.masks[paddock-1].size-HolderClass.sentinel_request.masks[paddock-1].sum())*(10**2)/10000
+        pasture.set_paddock_resource(paddock, paddock_resource*1000*paddock_size_ha)
 
     cattle_count = int(request["cattleCount"])
     cattle_sex = request["cattleSex"]
