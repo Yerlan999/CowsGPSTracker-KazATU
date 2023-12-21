@@ -562,9 +562,16 @@ class SentinelRequest():
                 image_encoded = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
                 decoded_hist_images.append(image_encoded)
 
+
+            paddocks_area = []
+            for i, mask in enumerate(self.masks):
+                paddocks_area.append((mask.size-mask.sum())*(10**2)/10000)
+            paddocks_area.append(sum(paddocks_area))
+
             summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
             sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
             summary_df = pd.concat([summary_df, sum_row])
+            summary_df["Площадь"] = paddocks_area
 
             # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
             # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
@@ -1074,6 +1081,9 @@ test_cattle = {"latitude": 0,
                 "longitude": 0,
                 "index": 0,
                 "paddock_number": 0}
+pasture_load = None
+
+list_of_cattles = []
 
 def str2date(date_string):
     return datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
@@ -1204,15 +1214,16 @@ def play_simulation(request):
 
 @csrf_exempt
 def ajax_view(request):
-    global test_cattle
+    global list_of_cattles
 
+    # Data from ESP32 module
     if request.method == 'POST':
-        latitude = request.POST.get('latitude')
-        longitude = request.POST.get('longitude')
-        index = request.POST.get('index')
-        test_cattle = {"latitude": latitude,
-                        "longitude": longitude,
-                        "index": index}
+        list_of_cattles = []
+        for cattle in json.loads(request.body):
+            # print(cattle)
+            list_of_cattles.append(cattle)
+        # print("Updated List of Cattles after POST:", list_of_cattles)
+
 
     if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' and request.method == 'GET':
 
@@ -1232,12 +1243,30 @@ def ajax_view(request):
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid,}
 
             return JsonResponse(response_data)
-        elif "cow_number" in request.GET:
-            point = Point(float(test_cattle["longitude"]), float(test_cattle["latitude"]))
-            for i in HolderClass.sentinel_request.pasture_df.index:
-                if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                    test_cattle["paddock_number"] = f"{i+1}"
-            return JsonResponse(test_cattle)
+        elif "cattle_tracker" in request.GET:
+            # Dummy Example
+
+            if HolderClass.sentinel_request:
+
+                pasture_load = dict()
+                for i in HolderClass.sentinel_request.pasture_df.index:
+                    pasture_load[i+1] = 0
+
+                for i in HolderClass.sentinel_request.pasture_df.index:
+
+                    for cattle in list_of_cattles:
+                        point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+
+                        if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                            cattle["paddock_number"] = f"{i+1}"
+                            pasture_load[i+1] += 1
+
+                # print("Yes request!", list_of_cattles)
+                return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
+            else:
+                # print("No request has been made yet!", list_of_cattles)
+                return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": None})
+
         elif "simulation_data" in request.GET:
             sim_request = json.loads(request.GET['simulation_data'])
             paddocks_grazing_graphs = play_simulation(sim_request)

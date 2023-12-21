@@ -8,6 +8,43 @@
 {% block content %}
 
 <style>
+
+  /*Legend specific*/
+  .legend {
+    padding: 6px 8px;
+    font: 14px Arial, Helvetica, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    /*box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);*/
+    /*border-radius: 5px;*/
+    line-height: 24px;
+    color: #555;
+  }
+  .legend h4 {
+    text-align: center;
+    font-size: 16px;
+    margin: 2px 12px 8px;
+    color: #777;
+  }
+
+  .legend span {
+    position: relative;
+    bottom: 3px;
+  }
+
+  .legend i {
+    width: 18px;
+    height: 18px;
+    float: left;
+    margin: 0 8px 0 0;
+    opacity: 0.7;
+  }
+
+  .legend i.icon {
+    background-size: 18px;
+    background-color: rgba(255, 255, 255, 1);
+  }
+
     /* Custom CSS to change the color of carousel control icons */
     .carousel-control-prev-icon, .carousel-control-next-icon {
         background-color: #C7C7C7; /* Change to your desired color */
@@ -300,6 +337,8 @@
 
     <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
+    <input id="map_input" type="text" id="mapFormulaInput" placeholder="Enter formula or number" style="display: none">
+    <button id="map_button" onclick="updateMap()" style="display: none">Update Map</button>
 
     <h5 id="histograms_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Гистограммы и таблица загонов </h5>
     <div id="carousel-container"></div>
@@ -313,6 +352,7 @@
                 <th class="text-left">Медианная</th>
                 <th class="text-left">Макс.</th>
                 <th class="text-left">Мин.</th>
+                <th class="text-left">Площадь (га)</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -389,6 +429,8 @@
 <script>
 
     var paddocks_count = 0;
+    var map = null;
+    legend = null;
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -518,6 +560,7 @@
                         tr.append('<td>' + row.Медианная + '</td>');
                         tr.append('<td>' + row.Макс + '</td>');
                         tr.append('<td>' + row.Мин + '</td>');
+                        tr.append('<td>' + row.Площадь + '</td>');
                         tbody.append(tr);
                     });
 
@@ -533,6 +576,8 @@
 
                     $('#map').show();
                     $("#map_header").show();
+                    $("#map_button").show();
+                    $("#map_input").show();
 
                     var existingMap = L.DomUtil.get('map');
 
@@ -540,7 +585,7 @@
                       existingMap._leaflet_id = null;
                     }
 
-                    var map = L.map('map').setView([data.centroid[1], data.centroid[0]], 15); // Set the initial map view
+                    map = L.map('map').setView([data.centroid[1], data.centroid[0]], 15); // Set the initial map view
 
                     var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
                             maxZoom: 20,
@@ -551,16 +596,35 @@
                     googleSat.addTo(map);
 
 
-                    var marker = L.marker([0, 0])
-                    .addTo(map)
-                    .bindTooltip('Initial Tooltip', { permanent: false, opacity: 0.7 })
+                    var markers = [];
 
-                      // Function to update marker position based on new data
-                    function updateMarkerPosition(latitude, longitude, index, paddock_number) {
+                    // Function to create markers
+                    function createMarker(latitude, longitude, index, paddock_number) {
+                        var marker = L.marker([latitude, longitude])
+                            .addTo(map)
+                            .bindTooltip('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number, { permanent: false, opacity: 0.7 });
+
+                        marker.options.index = index;  // Set the custom 'index' attribute
+                        markers.push(marker); // Add the marker to the array
+                    }
+
+                    // Function to update marker position based on new data
+                    function updateMarkerPosition(marker, latitude, longitude, index, paddock_number) {
                         marker.setLatLng([latitude, longitude]);
                         marker.getTooltip().setContent('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number);
                     }
 
+                    // Function to remove marker by index
+                    function removeMarkerByIndex(index) {
+                        var markerIndex = markers.findIndex(function(marker) {
+                            return marker.options.index === index;
+                        });
+
+                        if (markerIndex !== -1) {
+                            var removedMarker = markers.splice(markerIndex, 1)[0];
+                            map.removeLayer(removedMarker);
+                        }
+                    }
 
                     // Function to send the Ajax request
                     function sendAjaxRequest() {
@@ -568,10 +632,41 @@
                           type: "GET",
                           url: "/ajax/",
                           data: {
-                              'cow_number': 123
+                              'cattle_tracker': true,
                           },
                           success: function(data) {
-                          updateMarkerPosition(parseFloat(data.latitude), parseFloat(data.longitude), data.index, data.paddock_number);
+
+                          data.list_of_cattles.forEach(function(cattle) {
+                              // console.log(cattle);
+                          // Check if a marker with the same index already exists
+                          var existingMarker = markers.find(function(marker) {
+                              return marker.options.index === cattle.index;
+                          });
+
+                          if (existingMarker) {
+                              // If marker exists, update its position
+                              updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                          } else {
+                              // If marker doesn't exist, create a new one
+                              createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                          }
+                              // updateMarkerPosition(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                          });
+
+                          // // Check for markers that need to be removed
+                          // markers.forEach(function(marker) {
+                          //     var markerIndex = data.list_of_cattles.findIndex(function(cattle) {
+                          //         return cattle.index === marker.options.index;
+                          //     });
+
+                          //     if (markerIndex === -1) {
+                          //         // Marker exists in markers but not in the current dataset, remove it
+                          //         map.removeLayer(marker);
+                          //     }
+                          // });
+
+
+
                         },
                         error: function(xhr, status, error) {
                           console.error('Ajax request failed', status, error);
@@ -580,14 +675,13 @@
                     }
 
                     // Периодичность запросов GPS координат
-                    // setInterval(sendAjaxRequest, 10000); // milliseconds
+                    setInterval(sendAjaxRequest, 10000); // milliseconds
 
 
 
 
                     var geoJSONData = JSON.parse(data.geodataframe);
                     paddocks_count = geoJSONData.features.length -1;
-
                     var geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
                         color: "green", // Polygon border color
@@ -597,7 +691,7 @@
                       onEachFeature: function (feature, layer) {
                         // Add mouseover event to highlight the shape and display information
                         layer.on('mouseover', function (e) {
-                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин;
+                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин + "<br><b>Площадь (га):</b> " + feature.properties.Площадь;
                           layer.bindPopup(popupContent, { autoClose: false }).openPopup();
                           layer.setStyle({
                             color: 'red', // Highlighted border color
@@ -615,6 +709,23 @@
 
                     // Add the GeoJSON layer to the map
                     geoJsonLayer.addTo(map);
+
+
+                    /*Legend specific*/
+                    legend = L.control({ position: "bottomleft" });
+
+                    legend.onAdd = function(map) {
+                      var div = L.DomUtil.create("div", "legend");
+                      div.innerHTML += "<h4>Нагрузка загонов</h4>";
+                      for (let i = 1; i < paddocks_count+1; i++) {
+                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><br>';
+                      }
+
+                      return div;
+                    };
+
+                    legend.addTo(map);
+
 
 
                     },
@@ -1224,9 +1335,9 @@ function startSimulation() {
           var sampleHeader = document.createElement('thead');
           sampleHeader.classList.add("thead-dark");
           var sampleHeaderRow = document.createElement('tr');
-          var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №";
-          var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = selectedOption[1];
-          var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)";
+          var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №"; sampleHeaderTitle1.style.textAlign = "left";
+          var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = selectedOption[1]; sampleHeaderTitle2.style.textAlign = "left";
+          var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)"; sampleHeaderTitle3.style.textAlign = "left";
 
           sampleHeaderRow.appendChild(sampleHeaderTitle1);
           sampleHeaderRow.appendChild(sampleHeaderTitle2);
@@ -1262,6 +1373,28 @@ function startSimulation() {
 
     });
 
+
+
+    function updateMap() {
+        // Get user input from the input field
+        var userInput = document.getElementById('map_input').value;
+        if (legend) {
+            legend.remove(map);
+        }
+
+        legend = L.control({ position: "bottomleft" });
+        legend.onAdd = function(map) {
+          var div = L.DomUtil.create("div", "legend");
+          div.innerHTML += "<h4>Нагрузка загонов</h4>";
+          for (let i = 1; i < paddocks_count+1; i++) {
+            div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Вагон №' + i + '</span><br>';
+          }
+
+          return div;
+        };
+
+        legend.addTo(map);
+    }
 
 
 </script>
