@@ -337,8 +337,29 @@
 
     <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
-    <input id="map_input" type="text" id="mapFormulaInput" placeholder="Enter formula or number" style="display: none">
-    <button id="map_button" onclick="updateMap()" style="display: none">Update Map</button>
+
+    <div class="row">
+        <div class="col">
+            <select id="fast_methodSelection" class="form-control" aria-label="Default select example" style="display: none">
+              <option value="1 Сумма">Сумма</option>
+              <option value="2 Средняя">Средняя</option>
+              <option value="3 Медианная" selected>Медианная</option>
+              <option value="4 Макс." selected>Макс.</option>
+              <option value="5 Мин." selected>Мин.</option>
+            </select>
+        </div>
+        <div class="col">
+            <input type="number" id="fast_slope" class="form-control" placeholder="m = Угловой коэффициент" style="display: none">
+        </div>
+        <div class="col">
+            <input type="number" id="fast_intercept" class="form-control" placeholder="b = Свободный член" style="display: none">
+        </div>
+        <div class="col">
+            <button class="btn btn-secondary" id="map_button" onclick="updateMap()" style="display: none">Рассчитать ресурс</button>
+        </div>
+    </div>
+
+
 
     <h5 id="histograms_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Гистограммы и таблица загонов </h5>
     <div id="carousel-container"></div>
@@ -431,6 +452,8 @@
     var paddocks_count = 0;
     var map = null;
     legend = null;
+    var geoJSONData = null;
+    var pasture_load = null;
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -572,12 +595,13 @@
                     $button.html(originalContent);
                     $button.attr('disabled', false);
 
-
-
                     $('#map').show();
                     $("#map_header").show();
                     $("#map_button").show();
                     $("#map_input").show();
+                    $("#fast_intercept").show();
+                    $("#fast_slope").show();
+                    $("#fast_methodSelection").show();
 
                     var existingMap = L.DomUtil.get('map');
 
@@ -635,7 +659,10 @@
                               'cattle_tracker': true,
                           },
                           success: function(data) {
+                          // console.log(data.pasture_load);
+                          pasture_load = data.pasture_load;
 
+                          updateMap()
                           data.list_of_cattles.forEach(function(cattle) {
                               // console.log(cattle);
                           // Check if a marker with the same index already exists
@@ -680,7 +707,7 @@
 
 
 
-                    var geoJSONData = JSON.parse(data.geodataframe);
+                    geoJSONData = JSON.parse(data.geodataframe);
                     paddocks_count = geoJSONData.features.length -1;
                     var geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
@@ -718,7 +745,7 @@
                       var div = L.DomUtil.create("div", "legend");
                       div.innerHTML += "<h4>Нагрузка загонов</h4>";
                       for (let i = 1; i < paddocks_count+1; i++) {
-                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><br>';
+                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span> Кол КРС: ' + 0 + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
                       }
 
                       return div;
@@ -1377,7 +1404,16 @@ function startSimulation() {
 
     function updateMap() {
         // Get user input from the input field
-        var userInput = document.getElementById('map_input').value;
+
+        var table = document.getElementById('data-table');
+        var selectedValue = document.getElementById("fast_methodSelection").value;
+
+        var slope = document.getElementById('fast_slope').value;
+        var intercept = document.getElementById('fast_intercept').value;
+
+        console.log(selectedValue);
+        console.log(table);
+
         if (legend) {
             legend.remove(map);
         }
@@ -1387,7 +1423,7 @@ function startSimulation() {
           var div = L.DomUtil.create("div", "legend");
           div.innerHTML += "<h4>Нагрузка загонов</h4>";
           for (let i = 1; i < paddocks_count+1; i++) {
-            div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Вагон №' + i + '</span><br>';
+            div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
           }
 
           return div;
