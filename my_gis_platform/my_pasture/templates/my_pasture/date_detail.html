@@ -83,10 +83,10 @@
 
             <div class="row mt-3">
                 <div class="col">
-                  <p class="font-italic">x = Выбранный параметр</p>
+                  <p class="font-italic text-center">x = Выбранный параметр</p>
                 </div>
                 <div class="col">
-                  <p class="font-italic">Уравнение урожайности: y = mx + b</p>
+                  <p class="font-italic text-center">Уравнение урожайности: y = mx + b</p>
                 </div>
             </div>
 
@@ -97,8 +97,8 @@
                       <option value="1 Сумма">Сумма</option>
                       <option value="2 Средняя">Средняя</option>
                       <option value="3 Медианная" selected>Медианная</option>
-                      <option value="4 Макс." selected>Макс.</option>
-                      <option value="5 Мин." selected>Мин.</option>
+                      <option value="4 Макс.">Макс.</option>
+                      <option value="5 Мин.">Мин.</option>
                     </select>
                 </div>
                 <div class="col">
@@ -338,14 +338,26 @@
     <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
+    <div id="fast_description" class="row" style="display: none">
+        <div class="col">
+          <p class="font-italic text-center">K = Суточное потребление 1 КРС (кг)</p>
+        </div>
+        <div class="col">
+          <p class="font-italic text-center">P = Резерв кормов (%)</p>
+        </div>
+        <div class="col">
+          <p class="font-italic text-center">Уравнение урожайности: y = mx + b</p>
+        </div>
+    </div>
+
     <div class="row">
         <div class="col">
             <select id="fast_methodSelection" class="form-control" aria-label="Default select example" style="display: none">
               <option value="1 Сумма">Сумма</option>
               <option value="2 Средняя">Средняя</option>
               <option value="3 Медианная" selected>Медианная</option>
-              <option value="4 Макс." selected>Макс.</option>
-              <option value="5 Мин." selected>Мин.</option>
+              <option value="4 Макс.">Макс.</option>
+              <option value="5 Мин.">Мин.</option>
             </select>
         </div>
         <div class="col">
@@ -353,6 +365,12 @@
         </div>
         <div class="col">
             <input type="number" id="fast_intercept" class="form-control" placeholder="b = Свободный член" style="display: none">
+        </div>
+        <div class="col">
+            <input type="number" id="fast_intake" class="form-control" placeholder="К = Сут. потребление" style="display: none">
+        </div>
+        <div class="col">
+            <input type="number" id="fast_reserve" class="form-control" min="0" max="100" value="30" placeholder="P = Резерв (%)" style="display: none">
         </div>
         <div class="col">
             <button class="btn btn-secondary" id="map_button" onclick="updateMapWithFormula()" style="display: none">Рассчитать ресурс</button>
@@ -455,6 +473,8 @@
     var geoJSONData = null;
     var geoJsonLayer = null;
     var pasture_load = null;
+    var resourceValues = null;
+    var cattle_count = null;
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -601,6 +621,9 @@
                     $("#map_button").show();
                     $("#map_input").show();
                     $("#fast_intercept").show();
+                    $("#fast_description").show();
+                    $("#fast_intake").show();
+                    $("#fast_reserve").show();
                     $("#fast_slope").show();
                     $("#fast_methodSelection").show();
 
@@ -661,8 +684,9 @@
                           },
                           success: function(data) {
                           pasture_load = data.pasture_load;
+                          cattle_count = Object.values(pasture_load).reduce((acc, value) => acc + value, 0);
 
-                          updateMap()
+                          updateMapWithFormula()
 
                           data.list_of_cattles.forEach(function(cattle) {
 
@@ -722,7 +746,7 @@
                       onEachFeature: function (feature, layer) {
                         // Add mouseover event to highlight the shape and display information
                         layer.on('mouseover', function (e) {
-                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин + "<br><b>Площадь (га):</b> " + feature.properties.Площадь;
+                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь;
                           layer.bindPopup(popupContent, { autoClose: false }).openPopup();
                           layer.setStyle({
                             color: 'red', // Highlighted border color
@@ -749,7 +773,7 @@
                       var div = L.DomUtil.create("div", "legend");
                       div.innerHTML += "<h4>Нагрузка загонов</h4>";
                       for (let i = 1; i < paddocks_count+1; i++) {
-                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span> Кол. КРС: ' + 0 + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
+                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + 0 + '</span><br>';
                       }
 
                       return div;
@@ -1420,7 +1444,9 @@ function startSimulation() {
         return columnValues;
     }
 
-
+    function subtractPercentage(number, percentage) {
+      return number - (number * (percentage / 100));
+    }
 
     function updateMapWithFormula() {
         // Get user input from the input field
@@ -1430,6 +1456,8 @@ function startSimulation() {
 
         var slope = document.getElementById('fast_slope').value;
         var intercept = document.getElementById('fast_intercept').value;
+        var intake = document.getElementById('fast_intake').value;
+        var reserve = document.getElementById('fast_reserve').value;
 
         // Extract integer value using regular expression
         var intValueMatch = selectedValue.match(/^(\d+)/);
@@ -1437,11 +1465,11 @@ function startSimulation() {
         // Check if there is a match and extract the integer value
         var intValue = intValueMatch ? parseInt(intValueMatch[1], 10) : null;
 
-        var columnValues = getColumnValues(table, intValue);
+        resourceValues = getColumnValues(table, intValue);
 
 
         // Update valuesArray in-place
-        columnValues.forEach(function (value, index, array) {
+        resourceValues.forEach(function (value, index, array) {
             array[index] = parseFloat(((parseFloat(slope) * parseFloat(value)) + parseFloat(intercept)).toFixed(4));
         });
 
@@ -1458,7 +1486,7 @@ function startSimulation() {
             var div = L.DomUtil.create("div", "legend");
             div.innerHTML += "<h4>Нагрузка загонов</h4>";
             for (let i = 1; i < paddocks_count+1; i++) {
-              div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
+              div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><br>';
             }
 
             return div;
@@ -1477,12 +1505,35 @@ function startSimulation() {
         // Iterate through features and assign values from the array to a new property
         geoJSONData.features.forEach(function (feature, index) {
             // Add the new property to the properties of each feature
-            feature.properties.Урож = parseFloat(columnValues[index]);
+            feature.properties.Урож = parseFloat(resourceValues[index]);
+        });
+
+        // Iterate through features and assign values from the array to a new property
+        geoJSONData.features.forEach(function (feature, index) {
+            // Add the new property to the properties of each feature
+            if (parseInt(feature.properties.КолКРС)){
+                feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(4);
+            }
+            else{
+                feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(4);
+            }
+
+        });
+
+        // Iterate through features and assign values from the array to a new property
+        geoJSONData.features.forEach(function (feature, index) {
+            // Add the new property to the properties of each feature
+            if (pasture_load){
+              feature.properties.КолКРС = parseInt(pasture_load[index+1]);
+            }
+            else{
+              feature.properties.КолКРС = parseInt(0);
+            }
         });
 
         // Now, geoJSONData contains the added property with values from the array
 
-        paddocks_count = geoJSONData.features.length -1;
+        paddocks_count = geoJSONData.features.length-1;
         geoJsonLayer = L.geoJSON(geoJSONData, {
           style: {
             color: "green", // Polygon border color
@@ -1492,7 +1543,13 @@ function startSimulation() {
           onEachFeature: function (feature, layer) {
             // Add mouseover event to highlight the shape and display information
             layer.on('mouseover', function (e) {
-              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
+              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(4);
+              if (slope && intercept){
+                popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
+              }
+              if (intake){
+                popupContent += "<br><b>Кормозапас. (дней):</b> " + feature.properties.КормоЗапас;
+              }
               layer.bindPopup(popupContent, { autoClose: false }).openPopup();
               layer.setStyle({
                 color: 'red', // Highlighted border color
@@ -1514,30 +1571,6 @@ function startSimulation() {
 
     }
 
-
-
-
-
-    function updateMap() {
-        // Get user input from the input field
-
-        if (legend) {
-            legend.remove(map);
-        }
-
-        legend = L.control({ position: "bottomleft" });
-        legend.onAdd = function(map) {
-          var div = L.DomUtil.create("div", "legend");
-          div.innerHTML += "<h4>Нагрузка загонов</h4>";
-          for (let i = 1; i < paddocks_count+1; i++) {
-            div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
-          }
-
-          return div;
-        };
-
-        legend.addTo(map);
-    }
 
 
 </script>
