@@ -355,7 +355,7 @@
             <input type="number" id="fast_intercept" class="form-control" placeholder="b = Свободный член" style="display: none">
         </div>
         <div class="col">
-            <button class="btn btn-secondary" id="map_button" onclick="updateMap()" style="display: none">Рассчитать ресурс</button>
+            <button class="btn btn-secondary" id="map_button" onclick="updateMapWithFormula()" style="display: none">Рассчитать ресурс</button>
         </div>
     </div>
 
@@ -451,8 +451,9 @@
 
     var paddocks_count = 0;
     var map = null;
-    legend = null;
+    var legend = null;
     var geoJSONData = null;
+    var geoJsonLayer = null;
     var pasture_load = null;
 
     $(document).ready(function() {
@@ -659,12 +660,12 @@
                               'cattle_tracker': true,
                           },
                           success: function(data) {
-                          // console.log(data.pasture_load);
                           pasture_load = data.pasture_load;
 
                           updateMap()
+
                           data.list_of_cattles.forEach(function(cattle) {
-                              // console.log(cattle);
+
                           // Check if a marker with the same index already exists
                           var existingMarker = markers.find(function(marker) {
                               return marker.options.index === cattle.index;
@@ -705,11 +706,14 @@
                     setInterval(sendAjaxRequest, 10000); // milliseconds
 
 
-
+                    // Remove existing GeoJSON layer if it exists
+                    if (geoJsonLayer) {
+                        map.removeLayer(geoJsonLayer);
+                    }
 
                     geoJSONData = JSON.parse(data.geodataframe);
                     paddocks_count = geoJSONData.features.length -1;
-                    var geoJsonLayer = L.geoJSON(geoJSONData, {
+                    geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
                         color: "green", // Polygon border color
                         weight: 1,      // Polygon border weight
@@ -745,15 +749,13 @@
                       var div = L.DomUtil.create("div", "legend");
                       div.innerHTML += "<h4>Нагрузка загонов</h4>";
                       for (let i = 1; i < paddocks_count+1; i++) {
-                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span> Кол КРС: ' + 0 + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
+                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span> Кол. КРС: ' + 0 + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
                       }
 
                       return div;
                     };
 
                     legend.addTo(map);
-
-
 
                     },
                 error: function(error) {
@@ -1401,8 +1403,26 @@ function startSimulation() {
     });
 
 
+    // Function to get column values by index
+    function getColumnValues(table, columnIndex) {
+        var columnValues = [];
 
-    function updateMap() {
+        // Iterate through each row in the table
+        for (var i = 1; i < table.rows.length; i++) { // Start from 1 to skip the header row
+            var cell = table.rows[i].cells[columnIndex];
+
+            // Check if the cell exists
+            if (cell) {
+                columnValues.push(cell.innerText.trim());
+            }
+        }
+
+        return columnValues;
+    }
+
+
+
+    function updateMapWithFormula() {
         // Get user input from the input field
 
         var table = document.getElementById('data-table');
@@ -1411,8 +1431,95 @@ function startSimulation() {
         var slope = document.getElementById('fast_slope').value;
         var intercept = document.getElementById('fast_intercept').value;
 
-        console.log(selectedValue);
-        console.log(table);
+        // Extract integer value using regular expression
+        var intValueMatch = selectedValue.match(/^(\d+)/);
+
+        // Check if there is a match and extract the integer value
+        var intValue = intValueMatch ? parseInt(intValueMatch[1], 10) : null;
+
+        var columnValues = getColumnValues(table, intValue);
+
+
+        // Update valuesArray in-place
+        columnValues.forEach(function (value, index, array) {
+            array[index] = parseFloat(((parseFloat(slope) * parseFloat(value)) + parseFloat(intercept)).toFixed(4));
+        });
+
+
+
+        if (pasture_load){
+
+          if (legend) {
+              legend.remove(map);
+          }
+
+          legend = L.control({ position: "bottomleft" });
+          legend.onAdd = function(map) {
+            var div = L.DomUtil.create("div", "legend");
+            div.innerHTML += "<h4>Нагрузка загонов</h4>";
+            for (let i = 1; i < paddocks_count+1; i++) {
+              div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><span> | </span><span> Площадь (га): ' + geoJSONData.features[i-1].properties.Площадь + '</span><br>';
+            }
+
+            return div;
+          };
+
+          legend.addTo(map);
+        }
+
+
+
+        // Remove existing GeoJSON layer if it exists
+        if (geoJsonLayer) {
+            map.removeLayer(geoJsonLayer);
+        }
+
+        // Iterate through features and assign values from the array to a new property
+        geoJSONData.features.forEach(function (feature, index) {
+            // Add the new property to the properties of each feature
+            feature.properties.Урож = parseFloat(columnValues[index]);
+        });
+
+        // Now, geoJSONData contains the added property with values from the array
+
+        paddocks_count = geoJSONData.features.length -1;
+        geoJsonLayer = L.geoJSON(geoJSONData, {
+          style: {
+            color: "green", // Polygon border color
+            weight: 1,      // Polygon border weight
+            fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
+          },
+          onEachFeature: function (feature, layer) {
+            // Add mouseover event to highlight the shape and display information
+            layer.on('mouseover', function (e) {
+              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Сумма:</b> " + feature.properties.Сумма + "<br><b>Cреднаяя:</b> " + feature.properties.Cреднаяя + "<br><b>Медианная:</b> " + feature.properties.Медианная  + "<br><b>Макс:</b> " + feature.properties.Макс + "<br><b>Мин:</b> " + feature.properties.Мин + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
+              layer.bindPopup(popupContent, { autoClose: false }).openPopup();
+              layer.setStyle({
+                color: 'red', // Highlighted border color
+                weight: 2       // Highlighted border weight
+              });
+            });
+
+            // Add mouseout event to reset the shape style
+            layer.on('mouseout', function (e) {
+              layer.closePopup();
+              geoJsonLayer.resetStyle(layer);
+            });
+          }
+        });
+
+        // Add the GeoJSON layer to the map
+        geoJsonLayer.addTo(map);
+
+
+    }
+
+
+
+
+
+    function updateMap() {
+        // Get user input from the input field
 
         if (legend) {
             legend.remove(map);

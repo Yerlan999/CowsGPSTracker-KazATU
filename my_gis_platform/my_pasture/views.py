@@ -1085,6 +1085,28 @@ pasture_load = None
 
 list_of_cattles = []
 
+list_of_dummy_cattles = [
+
+  {"latitude": 54.214284,
+  "longitude": 69.514049,
+  "index": "1",},
+
+  {"latitude": 54.214440,
+  "longitude": 69.511097,
+  "index": "2",},
+
+  {"latitude": 54.213070,
+  "longitude": 69.511260,
+  "index": "3",},
+
+]
+
+# Function to randomize latitude and longitude
+def randomize_coordinates(lat, lon, max_offset=0.000100):
+    offset = random.uniform(-max_offset, max_offset)
+    return lat + offset, lon + offset
+
+
 def str2date(date_string):
     return datetime.datetime.strptime(date_string, "%Y-%m-%d").date()
 
@@ -1254,15 +1276,30 @@ def ajax_view(request):
 
                 for i in HolderClass.sentinel_request.pasture_df.index:
 
-                    for cattle in list_of_cattles:
-                        point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+                    if (list_of_cattles): # Handling real cattles
+                        for cattle in list_of_cattles:
+                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
 
-                        if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                            cattle["paddock_number"] = f"{i+1}"
-                            pasture_load[i+1] += 1
+                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                                cattle["paddock_number"] = f"{i+1}"
+                                pasture_load[i+1] += 1
+                    else: # Dealing with dummy cattle
 
-                # print("Yes request!", list_of_cattles)
-                return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
+                        # # Randomize coordinates in the list of dictionaries
+                        # for cattle in list_of_dummy_cattles:
+                        #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
+
+                        for cattle in list_of_dummy_cattles:
+                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+
+                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                                cattle["paddock_number"] = f"{i+1}"
+                                pasture_load[i+1] += 1
+
+                if (list_of_cattles):
+                    return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
+                else:
+                    return JsonResponse({"list_of_cattles": list_of_dummy_cattles, "pasture_load": pasture_load})
             else:
                 # print("No request has been made yet!", list_of_cattles)
                 return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": None})
