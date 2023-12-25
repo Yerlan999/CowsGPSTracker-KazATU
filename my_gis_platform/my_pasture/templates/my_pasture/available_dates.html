@@ -4,9 +4,25 @@
   ГИС платформа
 {% endblock %}
 
-
 {% block content %}
+<style>
+    /* Custom CSS to set tooltip opacity to 1 */
+    .tooltip {
+      opacity: 1 !important;
+    }
+    .tooltip-inner {
+        max-width: 100%; /* Set the maximum width to 100% */
+        background-color: black; /* Set the background color to white */
+        opacity: 1;
+    }
 
+    @media (min-width: 576px) {
+        /* Adjust the max-width based on the window size */
+        .tooltip-inner {
+            max-width: 500px;
+        }
+    }
+</style>
 
 <div class="container mb-5">
   <div class="row">
@@ -33,12 +49,15 @@
                 <form id="{{ unique_date.1 }}" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
                     {% csrf_token %}
                     <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
-                    <button name="date" value="{{ counter_start|add:forloop.counter0 }}" class="btn btn-outline-dark btn-lg btn-block ShowItsImage mt-1" type="submit">| {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)</button>
-
-                    <div id="{{ unique_date.0 }}" class="container d-flex align-items-center justify-content-center">
-                        <img class="img-responsive" src="data:image/png;base64,{{ image }}" alt="{{ unique_date.0 }}" hidden>
-                    </div>
-
+                    <button
+                        name="date"
+                        value="{{ counter_start|add:forloop.counter0 }}"
+                        class="btn btn-outline-dark btn-lg btn-block ShowItsImage mt-1"
+                        data-toggle="tooltip"
+                        title='<img src="data:image/png;base64,{{ image }}" alt="{{ unique_date.0 }}" class="img-fluid img-thumbnail" style="opacity:1;">'
+                    >
+                        | {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)
+                    </button>
                 </form>
             {% endfor %}
         {% endif %}
@@ -46,50 +65,31 @@
 
 </div>
 
-
 <script>
-    iterateForms();
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            html: true,
+            trigger: 'hover',
+            animation: false,
+            delay: { "show": 100, "hide": 100 },
+            placement: 'auto',
+        });
+    });
 
     function iterateForms() {
         var filterValue = document.getElementById("filterValue").value;
         var forms = document.forms;
         for (var i = 0; i < forms.length; i++) {
-            if (parseFloat(forms[i].id) <= parseFloat(filterValue)){
-                forms[i].removeAttribute("hidden");
-            }
-            else{
-                forms[i].setAttribute("hidden", true);
+            var buttons = forms[i].getElementsByClassName('ShowItsImage');
+            for (var j = 0; j < buttons.length; j++) {
+                if (parseFloat(buttons[j].value) <= parseFloat(filterValue)){
+                    buttons[j].removeAttribute("hidden");
+                } else {
+                    buttons[j].setAttribute("hidden", true);
+                }
             }
         }
     }
-
-
-    var elements = document.getElementsByClassName('ShowItsImage');
-
-    function handleMouseOver() {
-        let match = this.innerHTML.match(/\|([^|]+)\|/);
-        let result = match ? match[1].trim() : null;
-
-        var peek_div = document.getElementById(result);
-        peek_div.children[0].removeAttribute('hidden');
-    }
-
-    function handleMouseOut() {
-        let match = this.innerHTML.match(/\|([^|]+)\|/);
-        let result = match ? match[1].trim() : null;
-
-        var peek_div = document.getElementById(result);
-        peek_div.children[0].setAttribute('hidden', true);
-    }
-
-    Array.from(elements).forEach(function(element) {
-        element.addEventListener('mouseover', handleMouseOver);
-        element.addEventListener('mouseout', handleMouseOut);
-    });
-
-
 </script>
 
-
 {% endblock %}
-
