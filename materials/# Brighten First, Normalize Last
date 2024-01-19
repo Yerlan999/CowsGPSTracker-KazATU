@@ -1,0 +1,82 @@
+# Brighten First, Normalize Last
+
+
+        ULTRA_BLUE = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B01"]])))
+
+        BLUE = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B02"]])))
+        GREEN = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B03"]])))
+        RED = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B04"]])))
+
+        RED_EDGE1 = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B05"]])))
+        RED_EDGE2 = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B06"]])))
+        RED_EDGE3 = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B07"]])))
+
+        NIR = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B08"]])))
+        N_NIR = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B8A"]])))
+        WV = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B09"]])))
+        if "B10" in bands_dict:
+            SWIR_C = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B10"]])))
+        SWIR2 = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B11"]])))
+        SWIR3 = normalize(brighten(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B12"]])))
+    else:
+        # НЕ Нормализированные по пастбищу
+        ULTRA_BLUE = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B01"]])))
+
+        BLUE = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B02"]])))
+        GREEN = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B03"]])))
+        RED = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B04"]])))
+
+        RED_EDGE1 = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B05"]])))
+        RED_EDGE2 = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B06"]])))
+        RED_EDGE3 = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B07"]])))
+
+        NIR = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B08"]])))
+        N_NIR = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B8A"]])))
+        WV = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B09"]])))
+        if "B10" in bands_dict:
+            SWIR_C = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B10"]])))
+        SWIR2 = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B11"]])))
+        SWIR3 = get_only_pasture(normalize(brighten(all_bands_data[image_date][:, :, bands_dict["B12"]])))
+
+
+
+
+# Normalize First, Brighten Last
+
+
+        ULTRA_BLUE = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B01"]])))
+
+        BLUE = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B02"]])))
+        GREEN = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B03"]])))
+        RED = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B04"]])))
+
+        RED_EDGE1 = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B05"]])))
+        RED_EDGE2 = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B06"]])))
+        RED_EDGE3 = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B07"]])))
+
+        NIR = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B08"]])))
+        N_NIR = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B8A"]])))
+        WV = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B09"]])))
+        if "B10" in bands_dict:
+            SWIR_C = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B10"]])))
+        SWIR2 = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B11"]])))
+        SWIR3 = brighten(normalize(get_only_pasture(all_bands_data[image_date][:, :, bands_dict["B12"]])))
+    else:
+        # НЕ Нормализированные по пастбищу
+        ULTRA_BLUE = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B01"]])))
+
+        BLUE = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B02"]])))
+        GREEN = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B03"]])))
+        RED = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B04"]])))
+
+        RED_EDGE1 = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B05"]])))
+        RED_EDGE2 = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B06"]])))
+        RED_EDGE3 = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B07"]])))
+
+        NIR = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B08"]])))
+        N_NIR = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B8A"]])))
+        WV = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B09"]])))
+        if "B10" in bands_dict:
+            SWIR_C = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B10"]])))
+        SWIR2 = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B11"]])))
+        SWIR3 = get_only_pasture(brighten(normalize(all_bands_data[image_date][:, :, bands_dict["B12"]])))
