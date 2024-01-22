@@ -8,6 +8,7 @@ from django.conf import settings
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import urllib, base64
 from django.http import JsonResponse
+from pandas import json_normalize
 
 from googletrans import Translator
 
@@ -154,9 +155,10 @@ class HolderClass():
 
 class EvalScripts():
 
-    def __init__(self, bands_dict, aux_data_dict):
+    def __init__(self, bands_dict, aux_data_dict, universal_bands_dict):
         self.bands_dict = bands_dict
         self.aux_data_dict = aux_data_dict
+        self.universal_bands_dict = universal_bands_dict
 
         self.evalscript_all_bands = """
             //VERSION=3
@@ -211,6 +213,30 @@ class EvalScripts():
         settings = {"BANDS": template1, "SAMPLE": template2, "COUNT": str(len(self.aux_data_dict))}
         self.evalscript_aux_data = self.evalscript_aux_data.format(**settings)
 
+        if self.universal_bands_dict:
+            self.universal_evalscript_all_bands = """
+                //VERSION=3
+                function setup() {{
+                    return {{
+                        input: [{{
+                            bands: [{BANDS}],
+                        }}],
+                        output: {{
+                            bands: {COUNT},
+                        }}
+                    }};
+                }}
+
+                function evaluatePixel(sample) {{
+                    return [{SAMPLE}];
+                }}
+            """
+            template1 = ""; template2 = ""
+            for band in self.universal_bands_dict.keys():
+                template1 += f'"{band}", ';
+                template2 += f'sample.{band}, ';
+            settings = {"BANDS": template1, "SAMPLE": template2, "COUNT": str(len(self.universal_bands_dict))}
+            self.universal_evalscript_all_bands = self.universal_evalscript_all_bands.format(**settings)
 
 
 def normalize(band):
@@ -234,9 +260,14 @@ class SentinelRequest():
         self.kml_file = kml_file.lstrip('/')
         self.project_path = settings.BASE_DIR
         self.current_requested_index = None
+        self.eng_column_names = ["temp", "feels_like", "pressure", "humidity", "dew_point", "clouds", "wind_speed", "wind_deg"]
+        self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
+
+        self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
 
         self.CLIENT_ID = os.getenv('CLIENT_ID')
         self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+        self.WEATHERAPI = os.environ.get('OpenWeatherAPIKey')
 
         self.config = SHConfig()
 
@@ -265,11 +296,19 @@ class SentinelRequest():
         self.pasture_bbox = BBox(bbox=self.pasture_coords_wgs84, crs=CRS.WGS84)
         self.pasture_size = bbox_to_dimensions(self.pasture_bbox, resolution=self.resolution)
 
+        self.longitude = self.pasture_bbox.geometry.centroid.coords.xy[0][0]
+        self.latitude = self.pasture_bbox.geometry.centroid.coords.xy[1][0]
+
         self.data_collection = DataCollection.SENTINEL2_L2A if self.level == "L2A" else DataCollection.SENTINEL2_L1C
         self.bands_dict = dict([(band.name, i) for i, band in enumerate(self.data_collection.bands)])
         self.aux_data_dict = dict([(band, i) for i, band in enumerate(["sunZenithAngles","sunAzimuthAngles","viewZenithMean","viewAzimuthMean"])])
 
-        self.scripts = EvalScripts(self.bands_dict, self.aux_data_dict)
+        if self.level == "L2A":
+            self.universal_bands_dict = dict([(band, i) for i, band in enumerate(["AOT", "SNW", "CLD", "SCL", "CLP", "CLM", "dataMask"])])
+        else:
+            self.universal_bands_dict = None
+
+        self.scripts = EvalScripts(self.bands_dict, self.aux_data_dict, self.universal_bands_dict)
 
         self.start_date_str = self.start_date.strftime("%Y-%m-%d")
         self.end_date_str = self.end_date.strftime("%Y-%m-%d")
@@ -313,9 +352,6 @@ class SentinelRequest():
             )
             self.all_bands_process_requests.append(request)
 
-
-
-
         self.aux_data_process_requests = []
 
         for timestamp in self.unique_acquisitions:
@@ -335,6 +371,26 @@ class SentinelRequest():
             self.aux_data_process_requests.append(request)
 
 
+        self.uni_bands_process_requests = []
+
+        if self.level == "L2A":
+            for timestamp in self.unique_acquisitions:
+                request = SentinelHubRequest(
+                    evalscript=self.scripts.universal_evalscript_all_bands,
+                    input_data=[
+                        SentinelHubRequest.input_data(
+                            data_collection=self.data_collection,
+                            time_interval=(timestamp - time_difference, timestamp + time_difference),
+                        )
+                    ],
+                    responses=[SentinelHubRequest.output_response("default", MimeType.TIFF)],
+                    bbox=self.pasture_bbox,
+                    size=self.pasture_size,
+                    config=self.config,
+                )
+                self.uni_bands_process_requests.append(request)
+
+
         self.client = SentinelHubDownloadClient(config=self.config)
 
         all_bands_download_requests = [request.download_list[0] for request in self.all_bands_process_requests]
@@ -342,6 +398,10 @@ class SentinelRequest():
 
         aux_data_download_requests = [request.download_list[0] for request in self.aux_data_process_requests]
         self.aux_data = self.client.download(aux_data_download_requests)
+
+        if self.level == "L2A":
+            uni_bands_download_requests = [request.download_list[0] for request in self.uni_bands_process_requests]
+            self.uni_bands_data = self.client.download(uni_bands_download_requests)
 
         self.aoi_height, self.aoi_width, _ = self.all_bands_data[-1].shape
 
@@ -403,6 +463,74 @@ class SentinelRequest():
     def median(self, index):
         return float(ma.median(index))
 
+    def get_zagons_values(self, index):
+        test_index_masked_array = []
+        for i, mask in enumerate(self.masks):
+            mx = ma.masked_array(index, mask=mask.reshape(self.aoi_height, self.aoi_width))
+            test_index_masked_array.append(mx)
+        return test_index_masked_array
+
+    def get_weather_parameters(self, date):
+
+        current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        longitude = HolderClass.sentinel_request.pasture_bbox.geometry.centroid.coords.xy[0][0]
+        latitude = HolderClass.sentinel_request.pasture_bbox.geometry.centroid.coords.xy[1][0]
+
+        api_key = self.WEATHERAPI  # Replace with your OpenWeatherMap API key
+        date_object = datetime.datetime.strptime(date, "%Y-%m-%d")
+        timestamp_utc = int(date_object.replace(tzinfo=timezone.utc).timestamp())
+
+        if not date_object == current_date:
+            url_template = "https://api.openweathermap.org/data/3.0/onecall/timemachine?lat={}&lon={}&dt={}&appid={}&units=metric"
+            url = url_template.format(str(latitude), str(longitude), str(timestamp_utc), api_key)
+        else:
+            url_template = "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&units=metric"
+            url = url_template.format(str(latitude), str(longitude), api_key)
+
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            data = response.json()
+            current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).loc[:, self.eng_column_names]
+            current_weather_df.columns = self.rus_column_names
+            self.current_weather_df = current_weather_df
+            return self.current_weather_df
+        else:
+            print(f"Error: {response.status_code} - {response.text}")
+
+
+    def get_main_weather_params_history(self, seek_date):
+        if isinstance(seek_date, list):
+            l = []
+            for d in seek_date:
+                dt_object = datetime.datetime.strptime(d, "%Y-%m-%d")
+                desired_timezone = datetime.timezone.utc
+                result_datetime = dt_object.replace(hour=7, minute=0, second=0, tzinfo=desired_timezone)
+                l.append(self.round_up_to_hour(result_datetime))
+            date_list_df = pd.DataFrame({'dt_iso': l})
+            df = pd.merge(self.grand_history_weather_df, date_list_df, on='dt_iso', how='right')
+            df = df.drop(columns=['dt', 'dt_iso', 'timezone', 'city_name', 'lat', 'lon', 'weather_id', 'weather_main', 'weather_description', 'weather_icon'])
+        else:
+            dt_object = datetime.datetime.strptime(seek_date, "%Y-%m-%d")
+            desired_timezone = datetime.timezone.utc
+            result_datetime = dt_object.replace(hour=7, minute=0, second=0, tzinfo=desired_timezone)
+            df = self.grand_history_weather_df[self.grand_history_weather_df["dt_iso"] == self.round_up_to_hour(result_datetime)]
+            df = df.drop(columns=['dt', 'dt_iso', 'timezone', 'city_name', 'lat', 'lon', 'weather_id', 'weather_main', 'weather_description', 'weather_icon'])
+        return df.reset_index(drop=True)
+
+    def round_up_to_hour(self, timestamp):
+        if timestamp.minute >= 30:
+            # If minutes are above 30, round up to the next hour
+            rounded_timestamp = timestamp.replace(
+                minute=0, second=0, microsecond=0
+            ) + timedelta(hours=1)
+        else:
+            # Otherwise, round down to the current hour
+            rounded_timestamp = timestamp.replace(minute=0, second=0, microsecond=0)
+
+        return rounded_timestamp.strftime('%Y-%m-%d %H:%M:%S %z %Z')
+
     def prepare_all_bands(self):
 
         self.FULL_BLUE = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]]))
@@ -451,6 +579,9 @@ class SentinelRequest():
         self.precision = 4
         self.general_info = f"|| {self.unique_acquisitions[self.image_date].date().isoformat()} || SZA: {str(round(self.SZA, self.precision))}, VZA: {str(round(self.VZM, self.precision))} || Level: {self.data_collection.processing_level} || Облачность: {self.image_date_cloud[self.unique_acquisitions[self.image_date].date().isoformat()]}"
 
+        if self.level == "L2A":
+            self.cloud_mask = self.uni_bands_data[self.image_date][:, :, self.universal_bands_dict["CLD"]]/255
+
     def get_true_color_image(self, size=(12, 5), with_title=True):
 
         fig, ax = plt.subplots(figsize=size)
@@ -489,6 +620,24 @@ class SentinelRequest():
 
         try:
             test_index = eval(modify_formula(formula, by_pasture))
+
+            if self.level == "L2A":
+
+                cloud_covered_index = ma.masked_array(test_index, mask=self.cloud_mask)
+                only_cloud_index = ma.masked_array(test_index, mask=1-self.cloud_mask)
+
+                clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
+                clouds_masks_by_zagons = self.get_zagons_values(self.cloud_mask)
+                test_index_masked_array = self.get_zagons_values(cloud_covered_index)
+
+                for i, (zagon_cloud_mask, zagon_index, cloud_values) in enumerate(zip(clouds_masks_by_zagons, test_index_masked_array, clouds_values_by_zagons), start=1):
+
+                    mean_value = zagon_index.mean()
+                    std_dev_value = zagon_index.std()
+
+                    normal_distribution_values = np.random.normal(loc=mean_value, scale=std_dev_value, size=np.sum(zagon_cloud_mask == 1))
+                    test_index[np.where(zagon_cloud_mask == 1.0, True, False)] = normal_distribution_values
+
 
             if threshold_check:
                 test_thresh = float(threshold)
@@ -590,40 +739,13 @@ class SentinelRequest():
             return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid
 
         except Exception as error:
+            print()
+            print("REASON:")
             print(error)
-            return None, None, None
+            return None, None, None, None, None
 
     def get_weather_data(self, date):
-        today = datetime.date.today()
-        selected_date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-        longitude = self.pasture_bbox.geometry.centroid.coords.xy[0][0]
-        latitude = self.pasture_bbox.geometry.centroid.coords.xy[1][0]
-
-        if today - selected_date > datetime.timedelta(2):
-            Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={date}&end_date={date}"
-            Hist_URL = apply_params_to_URL(Hist_URL, HISTORY_PARAMETERS)
-            history_json_obj = make_API_request(Hist_URL)
-            unit_measurements = history_json_obj["daily_units"]
-            history_df = pd.DataFrame(history_json_obj["daily"])
-            if (history_df['time'] == date).any():
-                history_df = history_df[history_df["time"] == date]
-            history_df.drop(columns=parameters_to_ignore, inplace=True)
-            unit_measurements = {key: unit_measurements[key] for key in unit_measurements if key not in parameters_to_ignore}
-            new_columns = [f"{param}, {unit}" for unit, param in zip(unit_measurements.values(), HISTORY_RUSSIAN_PARAMETERS)]
-            history_df.rename(columns=dict(zip(history_df.columns, new_columns)), inplace=True)
-        else:
-            Forecast_URL = f'https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&past_days=2'
-            Forecast_URL = apply_params_to_URL(Forecast_URL, FORECAST_PARAMETERS)
-            forecast_json_obj = make_API_request(Forecast_URL)
-            unit_measurements = forecast_json_obj["daily_units"]
-            history_df = pd.DataFrame(forecast_json_obj["daily"])
-            if (history_df['time'] == date).any():
-                history_df = history_df[history_df["time"] == date]
-            history_df.drop(columns=parameters_to_ignore, inplace=True)
-            unit_measurements = {key: unit_measurements[key] for key in unit_measurements if key not in parameters_to_ignore}
-            new_columns = [f"{param}, {unit}" for unit, param in zip(unit_measurements.values(), FORECAST_RUSSIAN_PARAMETERS)]
-            history_df.rename(columns=dict(zip(history_df.columns, new_columns)), inplace=True)
-        return history_df
+        return self.get_weather_parameters(date)
 
 
 
