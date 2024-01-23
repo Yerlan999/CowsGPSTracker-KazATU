@@ -1452,6 +1452,7 @@ function startSimulation() {
         // Get user input from the input field
 
         var table = document.getElementById('data-table');
+        var weather_table = document.getElementById('weather_table');
         var selectedValue = document.getElementById("fast_methodSelection").value;
 
         var slope = document.getElementById('fast_slope').value;
@@ -1469,8 +1470,23 @@ function startSimulation() {
 
 
         // Update valuesArray in-place
+        var temperature = parseFloat(weather_table.rows[1].cells[0].textContent);
+        var pressure = parseFloat(weather_table.rows[1].cells[2].textContent);
+        var humidity = parseFloat(weather_table.rows[1].cells[3].textContent);
+        var RZA = {{ RZA|default:"undefined" }};
+
         resourceValues.forEach(function (value, index, array) {
-            array[index] = parseFloat(((parseFloat(slope) * parseFloat(value)) + parseFloat(intercept)).toFixed(4));
+          // array[index] = parseFloat(((parseFloat(slope) * parseFloat(value)) + parseFloat(intercept)).toFixed(4));
+          console.log(value);
+          var temp_resource = (8.87 * value) + (0.03 * temperature) -7.91;
+          var press_resource = (9.12 * value) - (0.01 * pressure) + 2.18;
+          var humid_resource = (8.49 * value) - (0.00 * humidity) -6.66;
+          var angle_resource = (8.95 * value) - (0.03 * parseFloat(RZA)) -6.06;
+
+          var resource = [temp_resource, press_resource, humid_resource, angle_resource];
+          var mean_resource = resource.reduce((acc, num) => acc + num, 0) / resource.length;
+
+          array[index] = mean_resource.toFixed(4);
         });
 
 
@@ -1506,6 +1522,23 @@ function startSimulation() {
         geoJSONData.features.forEach(function (feature, index) {
             // Add the new property to the properties of each feature
             feature.properties.Урож = parseFloat(resourceValues[index]);
+        });
+
+
+        $.ajax({
+            type: "GET",
+            url: "/ajax/",
+            data: {
+                'assessDaysLeft': true,
+                'resourceValues': resourceValues,
+                'pasture_load': pasture_load,
+            },
+            success: function(data) {
+              console.log(data);
+          },
+          error: function(xhr, status, error) {
+            console.error('Ajax request failed', status, error);
+          }
         });
 
         // Iterate through features and assign values from the array to a new property

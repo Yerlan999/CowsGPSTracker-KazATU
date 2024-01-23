@@ -10,6 +10,9 @@ import urllib, base64
 from django.http import JsonResponse
 from pandas import json_normalize
 
+from sklearn.preprocessing import StandardScaler
+from keras.models import load_model
+
 from googletrans import Translator
 
 import urllib.request
@@ -264,6 +267,7 @@ class SentinelRequest():
         self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
+        self.model = load_model('my_model.keras')
 
         self.CLIENT_ID = os.getenv('CLIENT_ID')
         self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
@@ -537,38 +541,38 @@ class SentinelRequest():
         self.FULL_GREEN = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]]))
         self.FULL_RED = normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]]))
 
-        self.ULTRA_BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
+        self.ULTRA_BLUE = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
 
-        self.BLUE = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
-        self.GREEN = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
-        self.RED = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
+        self.BLUE = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
+        self.GREEN = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
+        self.RED = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
 
-        self.RED_EDGE1 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
-        self.RED_EDGE2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
-        self.RED_EDGE3 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
+        self.RED_EDGE1 = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
+        self.RED_EDGE2 = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
+        self.RED_EDGE3 = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
 
-        self.NIR = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
-        self.N_NIR = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
-        self.WV = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
+        self.NIR = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
+        self.N_NIR = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
+        self.WV = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
         if "B10" in self.bands_dict:
-            self.SWIR_C = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
-        self.SWIR2 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
-        self.SWIR3 = self.pasture(normalize(brighten(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
+            self.SWIR_C = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
+        self.SWIR2 = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
+        self.SWIR3 = self.pasture(brighten(normalize(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
 
-        self.P_ULTRA_BLUE = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
-        self.P_BLUE = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
-        self.P_GREEN = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
-        self.P_RED = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
-        self.P_RED_EDGE1 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
-        self.P_RED_EDGE2 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
-        self.P_RED_EDGE3 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
-        self.P_NIR = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
-        self.P_N_NIR = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
-        self.P_WV = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
+        self.P_ULTRA_BLUE = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B01"]])))
+        self.P_BLUE = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B02"]])))
+        self.P_GREEN = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B03"]])))
+        self.P_RED = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B04"]])))
+        self.P_RED_EDGE1 = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B05"]])))
+        self.P_RED_EDGE2 = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B06"]])))
+        self.P_RED_EDGE3 = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B07"]])))
+        self.P_NIR = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B08"]])))
+        self.P_N_NIR = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B8A"]])))
+        self.P_WV = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B09"]])))
         if "B10" in self.bands_dict:
-            self.P_SWIR_C = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
-        self.P_SWIR2 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
-        self.P_SWIR3 = normalize(brighten(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
+            self.P_SWIR_C = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B10"]])))
+        self.P_SWIR2 = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B11"]])))
+        self.P_SWIR3 = brighten(normalize(self.pasture(self.all_bands_data[self.image_date][:, :, self.bands_dict["B12"]])))
 
 
         self.SAA = (self.aux_data[self.image_date][:, :, self.aux_data_dict["sunAzimuthAngles"]]).mean()
@@ -620,6 +624,11 @@ class SentinelRequest():
 
         try:
             test_index = eval(modify_formula(formula, by_pasture))
+
+            desired_median = 0.88483
+            current_median = ma.median(test_index)
+            coefficient = desired_median / current_median
+            test_index = test_index * coefficient
 
             if self.level == "L2A":
 
@@ -809,11 +818,13 @@ def date_detail(request, *args, **kwargs):
     dict_of_dates = HolderClass.sentinel_request.clear_date_dict
     date_string = next((key for key, value in dict_of_dates.items() if value == int(pk)), None)
 
+    RZA = HolderClass.sentinel_request.SZA + HolderClass.sentinel_request.VZM
+
     weather_df = HolderClass.sentinel_request.get_weather_data(date_string)
 
-    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False)
+    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id='weather_table')
 
-    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df})
+    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df, "RZA": RZA})
 
 
 def modify_formula(formula, by_pasture):
@@ -1430,6 +1441,11 @@ def ajax_view(request):
             sim_request = json.loads(request.GET['simulation_data'])
             paddocks_grazing_graphs = play_simulation(sim_request)
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
+        elif "assessDaysLeft" in request.GET:
+            print()
+            print("Ajax request content:")
+            print(request.GET)
+            return JsonResponse({'message': 'Model has been deployed'})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
