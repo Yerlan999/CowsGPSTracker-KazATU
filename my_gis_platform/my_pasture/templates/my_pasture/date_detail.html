@@ -345,9 +345,6 @@
         <div class="col">
           <p class="font-italic text-center">P = Резерв кормов (%)</p>
         </div>
-        <div class="col">
-          <p class="font-italic text-center">Уравнение урожайности: y = mx + b</p>
-        </div>
     </div>
 
     <div class="row">
@@ -361,13 +358,7 @@
             </select>
         </div>
         <div class="col">
-            <input type="number" id="fast_slope" class="form-control" placeholder="m = Угловой коэффициент" style="display: none">
-        </div>
-        <div class="col">
-            <input type="number" id="fast_intercept" class="form-control" placeholder="b = Свободный член" style="display: none">
-        </div>
-        <div class="col">
-            <input type="number" id="fast_intake" class="form-control" placeholder="К = Сут. потребление" style="display: none">
+            <input type="number" id="fast_intake" class="form-control" value="40" placeholder="К = Сут. потребление" style="display: none">
         </div>
         <div class="col">
             <input type="number" id="fast_reserve" class="form-control" min="0" max="100" value="30" placeholder="P = Резерв (%)" style="display: none">
@@ -620,11 +611,9 @@
                     $("#map_header").show();
                     $("#map_button").show();
                     $("#map_input").show();
-                    $("#fast_intercept").show();
                     $("#fast_description").show();
                     $("#fast_intake").show();
                     $("#fast_reserve").show();
-                    $("#fast_slope").show();
                     $("#fast_methodSelection").show();
 
                     var existingMap = L.DomUtil.get('map');
@@ -1455,8 +1444,6 @@ function startSimulation() {
         var weather_table = document.getElementById('weather_table');
         var selectedValue = document.getElementById("fast_methodSelection").value;
 
-        var slope = document.getElementById('fast_slope').value;
-        var intercept = document.getElementById('fast_intercept').value;
         var intake = document.getElementById('fast_intake').value;
         var reserve = document.getElementById('fast_reserve').value;
 
@@ -1476,8 +1463,7 @@ function startSimulation() {
         var RZA = {{ RZA|default:"undefined" }};
 
         resourceValues.forEach(function (value, index, array) {
-          // array[index] = parseFloat(((parseFloat(slope) * parseFloat(value)) + parseFloat(intercept)).toFixed(4));
-          console.log(value);
+
           var temp_resource = (8.87 * value) + (0.03 * temperature) -7.91;
           var press_resource = (9.12 * value) - (0.01 * pressure) + 2.18;
           var humid_resource = (8.49 * value) - (0.00 * humidity) -6.66;
@@ -1524,14 +1510,16 @@ function startSimulation() {
             feature.properties.Урож = parseFloat(resourceValues[index]);
         });
 
-
+        // Calling ML model for assessing days left
         $.ajax({
             type: "GET",
             url: "/ajax/",
             data: {
                 'assessDaysLeft': true,
-                'resourceValues': resourceValues,
-                'pasture_load': pasture_load,
+                'resourceValues': JSON.stringify(resourceValues),
+                'pasture_load': JSON.stringify(pasture_load),
+                'intake': intake,
+                'reserve': reserve,
             },
             success: function(data) {
               console.log(data);
@@ -1577,9 +1565,9 @@ function startSimulation() {
             // Add mouseover event to highlight the shape and display information
             layer.on('mouseover', function (e) {
               var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(4);
-              if (slope && intercept){
-                popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
-              }
+
+              popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
+
               if (intake){
                 popupContent += "<br><b>Кормозапас. (дней):</b> " + feature.properties.КормоЗапас;
               }

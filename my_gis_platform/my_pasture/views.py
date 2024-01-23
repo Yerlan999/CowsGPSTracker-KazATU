@@ -9,6 +9,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import urllib, base64
 from django.http import JsonResponse
 from pandas import json_normalize
+from IPython.display import display
 
 from sklearn.preprocessing import StandardScaler
 from keras.models import load_model
@@ -264,6 +265,7 @@ class SentinelRequest():
         self.project_path = settings.BASE_DIR
         self.current_requested_index = None
         self.eng_column_names = ["temp", "feels_like", "pressure", "humidity", "dew_point", "clouds", "wind_speed", "wind_deg"]
+        self.alt_eng_column_names = ["temp", "feels_like", "pressure", "humidity", "dew_point", "clouds_all", "wind_speed", "wind_deg"]
         self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
@@ -499,6 +501,15 @@ class SentinelRequest():
             current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).loc[:, self.eng_column_names]
             current_weather_df.columns = self.rus_column_names
             self.current_weather_df = current_weather_df
+
+            # Getting from history file for a while...
+            try:
+                current_weather_df = self.get_main_weather_params_history(date).loc[:, self.eng_column_names]
+            except:
+                current_weather_df = self.get_main_weather_params_history(date).loc[:, self.alt_eng_column_names]
+            current_weather_df.columns = self.rus_column_names
+            self.current_weather_df = current_weather_df
+
             return self.current_weather_df
         else:
             print(f"Error: {response.status_code} - {response.text}")
@@ -625,11 +636,6 @@ class SentinelRequest():
         try:
             test_index = eval(modify_formula(formula, by_pasture))
 
-            desired_median = 0.88483
-            current_median = ma.median(test_index)
-            coefficient = desired_median / current_median
-            test_index = test_index * coefficient
-
             if self.level == "L2A":
 
                 cloud_covered_index = ma.masked_array(test_index, mask=self.cloud_mask)
@@ -665,6 +671,11 @@ class SentinelRequest():
                 lower_bound = float(lower_bound)
                 upper_bound = float(upper_bound)
 
+
+            desired_median = 0.88483
+            current_median = ma.median(test_meet)
+            coefficient = desired_median / current_median
+            test_meet = test_meet * coefficient
 
             fig, ax = plt.subplots(figsize=(12, 5))
             for zagon in range(len(self.pasture_df)):
@@ -1365,6 +1376,11 @@ def play_simulation(request):
     return paddocks_grazing_graphs
 
 
+MODEL_COLUMNS = ['BLUE', 'RED', 'NIR', 'SWIR3', 'resource', 'sunZenithAngles',
+   'sunAzimuthAngles', 'viewZenithMean', 'viewAzimuthMean', 'temp',
+   'feels_like', 'pressure', 'humidity', 'dew_point', 'clouds_all',
+   'wind_speed', 'wind_deg', 'cattle_count', 'daily_intake',
+   'reserve']
 
 
 @csrf_exempt
@@ -1444,7 +1460,46 @@ def ajax_view(request):
         elif "assessDaysLeft" in request.GET:
             print()
             print("Ajax request content:")
-            print(request.GET)
+
+
+            reserve = request.GET.get("reserve")
+            intake = request.GET.get("intake")
+            pasture_load = json.loads(request.GET.get("pasture_load"))
+            resourceValues = json.loads(request.GET.get("resourceValues"))
+
+            current_weather_df = HolderClass.sentinel_request.current_weather_df
+            current_weather_df.columns = HolderClass.sentinel_request.alt_eng_column_names
+
+            BLUE = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.BLUE))
+            RED = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.RED))
+            NIR = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.NIR))
+            SWIR3 = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.SWIR3))
+
+            SZA = HolderClass.sentinel_request.SZA
+            VZM = HolderClass.sentinel_request.VZM
+            SAA = HolderClass.sentinel_request.SAA
+            VAM = HolderClass.sentinel_request.VAM
+
+            upper_list = []
+            for paddock_id, load in pasture_load.items():
+                mask = HolderClass.sentinel_request.masks[int(paddock_id)-1]
+                area = (mask.size-mask.sum())*(10**2)/10000
+                p_resource = (float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
+                inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
+                upper_list.append(inner_list)
+
+            model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
+
+            scaler = StandardScaler()
+            scaler.fit_transform(model_df)
+            model_deep = HolderClass.sentinel_request.model
+
+            new_data_scaled = scaler.transform(model_df)
+            predictions = model_deep.predict(new_data_scaled)
+            predictions_flat = predictions.flatten()
+            predictions_df = pd.DataFrame({'Predictions': predictions_flat})
+            display(predictions_df)
+
             return JsonResponse({'message': 'Model has been deployed'})
         else:
             return JsonResponse({'message': 'Undefined response'})
