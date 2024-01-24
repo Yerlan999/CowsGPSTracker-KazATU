@@ -81,17 +81,17 @@
             <table class="table table-striped" id="mySampleTable" style="border: 1px solid #ddd; border-collapse: collapse;">
             </table>
 
-            <div class="row mt-3">
-                <div class="col">
-                  <p class="font-italic text-center">x = Выбранный параметр</p>
-                </div>
-                <div class="col">
-                  <p class="font-italic text-center">Уравнение урожайности: y = mx + b</p>
-                </div>
+
+            <div class="row mb-3">
+              <div class="col">
+                <h5 class="font-italic text-center">Расчет урожайности загонов по формуле плоскостей</h5>
+              </div>
             </div>
 
-
             <div class="row">
+                <div class="col">
+                    <p class="font-italic text-right">Индекс = </p>
+                </div>
                 <div class="col">
                     <select id="methodSelection" class="form-control" aria-label="Default select example">
                       <option value="1 Сумма">Сумма</option>
@@ -101,11 +101,95 @@
                       <option value="5 Мин.">Мин.</option>
                     </select>
                 </div>
+            </div>
+
+
+            <div class="row mt-3">
+                <!-- Температура -->
                 <div class="col">
-                    <input type="number" id="slope" class="form-control" placeholder="m = Угловой коэффициент">
+                  <p class="font-italic text-left">f(темп., индекс) = </p>
                 </div>
                 <div class="col">
-                    <input type="number" id="intercept" class="form-control" placeholder="b = Свободный член">
+                  <input type="number" class="form-control" id="temp_slope1" value="8.87">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="temp_slope2" value="0.03">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * темп. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="temp_inter" value="-7.91">
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Давление -->
+                <div class="col">
+                  <p class="font-italic text-left">f(давл., индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_slope1" value="9.12">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_slope2" value="-0.01">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * давл. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_inter" value="2.18">
+                </div>
+            </div>
+
+
+            <div class="row">
+                <!-- Влажность -->
+                <div class="col">
+                  <p class="font-italic text-left">f(влаж., индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_slope1" value="8.49">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_slope2" value="0">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * влаж. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_inter" value="-6.66">
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Углы -->
+                <div class="col">
+                  <p class="font-italic text-left">f(угол, индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_slope1" value="8.95">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_slope2" value="-0.03">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * угол. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_inter" value="-6.06">
                 </div>
             </div>
 
@@ -335,7 +419,7 @@
     <h5 id="requested_date_image_header" class="text-center mt-3 bg-secondary text-white" hidden>Запрошенный индекс (канал)</h5>
     <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
-    <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС || Мониторинг ресурса пастбища</h5>
+    <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС | Мониторинг ресурса пастбища</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
     <div id="fast_description" class="row" style="display: none">
@@ -956,8 +1040,25 @@ function multiplyValues() {
   paddocks_resources.length = 0;
   var table = document.getElementById('mySampleTable');
 
-  var slope = document.getElementById('slope').value;
-  var intercept = document.getElementById('intercept').value;
+  var weather_table = document.getElementById('weather_table');
+  var temperature = parseFloat(weather_table.rows[1].cells[0].textContent);
+  var pressure = parseFloat(weather_table.rows[1].cells[2].textContent);
+  var humidity = parseFloat(weather_table.rows[1].cells[3].textContent);
+  var RZA = {{ RZA|default:"undefined" }};
+
+  var temp_slope1 = parseFloat(document.getElementById("temp_slope1").value);
+  var press_slope1 = parseFloat(document.getElementById("press_slope1").value);
+  var humid_slope1 = parseFloat(document.getElementById("humid_slope1").value);
+  var angle_slope1 = parseFloat(document.getElementById("angle_slope1").value);
+  var temp_slope2 = parseFloat(document.getElementById("temp_slope2").value);
+  var press_slope2 = parseFloat(document.getElementById("press_slope2").value);
+  var humid_slope2 = parseFloat(document.getElementById("humid_slope2").value);
+  var angle_slope2 = parseFloat(document.getElementById("angle_slope2").value);
+  var temp_inter = parseFloat(document.getElementById("temp_inter").value);
+  var press_inter = parseFloat(document.getElementById("press_inter").value);
+  var humid_inter = parseFloat(document.getElementById("humid_inter").value);
+  var angle_inter = parseFloat(document.getElementById("angle_inter").value);
+
 
   var rows = table.getElementsByTagName('tr');
   var nanDetected = false;
@@ -965,10 +1066,19 @@ function multiplyValues() {
   for (var i = 0; i < rows.length; i++) {
       var cells = rows[i].getElementsByTagName('td');
       if (cells[1]){
-          var multipliedValue = parseFloat(slope * cells[1].textContent)+parseFloat(intercept);
-          if (isNaN(multipliedValue) || !isFinite(multipliedValue)){nanDetected=true;};
-          cells[2].textContent = multipliedValue.toFixed(3);
-          paddocks_resources.push(multipliedValue.toFixed(3));
+
+          var value = parseFloat(cells[1].textContent);
+          var temp_resource =  (temp_slope1 * value) + (temp_slope2 * temperature)+ temp_inter;
+          var press_resource = (press_slope1 * value) + (press_slope2 * pressure) + press_inter;
+          var humid_resource = (humid_slope1 * value) + (humid_slope2 * humidity) + humid_inter;
+          var angle_resource = (angle_slope1 * value) + (angle_slope2 * parseFloat(RZA)) + angle_inter;
+
+          var resource = [temp_resource, press_resource, humid_resource, angle_resource];
+          var mean_resource = resource.reduce((acc, num) => acc + num, 0) / resource.length;
+
+          if (isNaN(mean_resource) || !isFinite(mean_resource)){nanDetected=true;};
+          cells[2].textContent = mean_resource.toFixed(3);
+          paddocks_resources.push(mean_resource.toFixed(3));
       }
     };
   if (!nanDetected){$("#switchToModalB").show();};
@@ -1621,23 +1731,25 @@ function startSimulation() {
         });
 
         // Calling ML model for assessing days left
-        $.ajax({
-            type: "GET",
-            url: "/ajax/",
-            data: {
-                'assessDaysLeft': true,
-                'resourceValues': JSON.stringify(resourceValues),
-                'pasture_load': JSON.stringify(pasture_load),
-                'intake': intake,
-                'reserve': reserve,
+        if (intake  && reserve){
+          $.ajax({
+              type: "GET",
+              url: "/ajax/",
+              data: {
+                  'assessDaysLeft': true,
+                  'resourceValues': JSON.stringify(resourceValues),
+                  'pasture_load': JSON.stringify(pasture_load),
+                  'intake': intake,
+                  'reserve': reserve,
+              },
+              success: function(data) {
+                console.log(data);
             },
-            success: function(data) {
-              console.log(data);
-          },
-          error: function(xhr, status, error) {
-            console.error('Ajax request failed', status, error);
-          }
-        });
+            error: function(xhr, status, error) {
+              console.error('Ajax request failed', status, error);
+            }
+          });
+        }
 
         // Iterate through features and assign values from the array to a new property
         geoJSONData.features.forEach(function (feature, index) {
@@ -1678,7 +1790,7 @@ function startSimulation() {
 
               popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
 
-              if (intake){
+              if (intake  && reserve){
                 popupContent += "<br><b>Кормозапас. (дней):</b> " + feature.properties.КормоЗапас;
               }
               layer.bindPopup(popupContent, { autoClose: false }).openPopup();
