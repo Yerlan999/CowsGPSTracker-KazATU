@@ -494,25 +494,28 @@ class SentinelRequest():
             url_template = "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&units=metric"
             url = url_template.format(str(latitude), str(longitude), api_key)
 
-        response = requests.get(url)
 
-        if response.status_code == 200:
-            data = response.json()
-            current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).loc[:, self.eng_column_names]
-            current_weather_df.columns = self.rus_column_names
-            self.current_weather_df = current_weather_df
+        # Getting from history file for a while...
+        try:
+            current_weather_df = self.get_main_weather_params_history(date).loc[:, self.eng_column_names]
+        except:
+            current_weather_df = self.get_main_weather_params_history(date).loc[:, self.alt_eng_column_names]
+        current_weather_df.columns = self.rus_column_names
+        self.current_weather_df = current_weather_df
 
-            # Getting from history file for a while...
-            try:
-                current_weather_df = self.get_main_weather_params_history(date).loc[:, self.eng_column_names]
-            except:
-                current_weather_df = self.get_main_weather_params_history(date).loc[:, self.alt_eng_column_names]
-            current_weather_df.columns = self.rus_column_names
-            self.current_weather_df = current_weather_df
+        return self.current_weather_df
 
-            return self.current_weather_df
-        else:
-            print(f"Error: {response.status_code} - {response.text}")
+        # response = requests.get(url)
+
+        # if response.status_code == 200:
+        #     data = response.json()
+        #     current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).loc[:, self.eng_column_names]
+        #     current_weather_df.columns = self.rus_column_names
+        #     self.current_weather_df = current_weather_df
+
+        #     return self.current_weather_df
+        # else:
+        #     print(f"Error: {response.status_code} - {response.text}")
 
 
     def get_main_weather_params_history(self, seek_date):
@@ -1459,7 +1462,7 @@ def ajax_view(request):
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
         elif "assessDaysLeft" in request.GET:
             print()
-            print("Ajax request content:")
+            print("ML predictions:")
 
 
             reserve = request.GET.get("reserve")
@@ -1482,9 +1485,20 @@ def ajax_view(request):
 
             upper_list = []
             for paddock_id, load in pasture_load.items():
+                print()
                 mask = HolderClass.sentinel_request.masks[int(paddock_id)-1]
                 area = (mask.size-mask.sum())*(10**2)/10000
+
+                if load == 0:
+                    load = sum(pasture_load.values())
+
                 p_resource = (float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
+
+                # print(f"Area of paddock №{paddock_id}: {area}")
+                # print(f"Load of paddock №{paddock_id}: {load}")
+                # print(f"Resource of paddock №{paddock_id}: {float(resourceValues[int(paddock_id)-1])}, (t/ha)")
+                # print(f"Resource of paddock №{paddock_id}: {p_resource}, (kg)")
+
                 inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
                 upper_list.append(inner_list)
 
@@ -1501,6 +1515,16 @@ def ajax_view(request):
             display(predictions_df)
 
             return JsonResponse({'message': 'Model has been deployed'})
+        elif "action_on_gate" in request.GET:
+            print()
+            print("Gates actions: ")
+
+            gate_id = request.GET.get("gate_id")
+            gate_action = request.GET.get("gate_action")
+
+            print(f"Gate ID: {gate_id}")
+            print(f"Gate action: {gate_action}")
+            return JsonResponse({'message': 'Gate state has been changed'})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:

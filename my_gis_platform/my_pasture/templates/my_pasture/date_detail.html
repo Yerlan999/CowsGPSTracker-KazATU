@@ -335,7 +335,7 @@
     <h5 id="requested_date_image_header" class="text-center mt-3 bg-secondary text-white" hidden>Запрошенный индекс (канал)</h5>
     <img class="img-fluid img-thumbnail" id="requested_date_image" src="" alt="Requested Image" hidden>
 
-    <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС</h5>
+    <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС || Мониторинг ресурса пастбища</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
     <div id="fast_description" class="row" style="display: none">
@@ -368,6 +368,30 @@
         </div>
     </div>
 
+    <h5 id="gate_control_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Раздел контроля воротами пастбища</h5>
+    <div class="row">
+        <div class="col">
+          <button id="ajaxRunner" class="btn btn-primary btn-block mt-3 mb-3" style="display: none">Начать треккинг</button>
+        </div>
+    </div>
+    <div class="row mb-3">
+        <div class="col">
+          <label id="numberSelectLabel" for="numberSelect" style="display: none">Выбор ворот загона № </label>
+          <select id="numberSelect" style="display: none"></select>
+        </div>
+        <div class="col">
+          <button id="gate_state" type="button" class="btn btn-secondary btn-block" style="display: none"></button>
+        </div>
+        <div class="col">
+            <select id="gate_action" class="form-control" aria-label="Default select example" style="display: none">
+              <option value="open" selected>Открыть</option>
+              <option value="close">Закрыть</option>
+            </select>
+        </div>
+        <div class="col">
+          <button id="action_button" type="button" onclick="applyChanges()" class="btn btn-primary btn-block" style="display: none">Применить</button>
+        </div>
+    </div>
 
 
     <h5 id="histograms_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Гистограммы и таблица загонов </h5>
@@ -458,6 +482,39 @@
 
 <script>
 
+    function applyChanges(){
+      var selectElement = document.getElementById("numberSelect");
+      var selectedValue = selectElement.value;
+      var state_button = document.getElementById("gate_state");
+      var action_button = document.getElementById("gate_action");
+
+      // Calling Intermediate Module to Open or Close certain gates
+      $.ajax({
+          type: "GET",
+          url: "/ajax/",
+          data: {
+              'action_on_gate': true,
+              'gate_id': selectedValue,
+              'gate_action': action_button.value,
+          },
+          success: function(data) {
+            console.log(data);
+        },
+        error: function(xhr, status, error) {
+          console.error('Ajax request failed', status, error);
+        }
+      });
+
+      if (action_button.value == "close"){
+        gates_state[String(selectedValue)] = "Закрыт";
+      }
+      else{
+        gates_state[String(selectedValue)] = "Открыт";
+      }
+      state_button.innerHTML = gates_state[String(selectedValue)];
+    }
+
+
     var paddocks_count = 0;
     var map = null;
     var legend = null;
@@ -466,6 +523,8 @@
     var pasture_load = null;
     var resourceValues = null;
     var cattle_count = null;
+    var gates_state = {};
+    var ajax_request = null;
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -616,8 +675,62 @@
                     $("#fast_reserve").show();
                     $("#fast_methodSelection").show();
 
-                    var existingMap = L.DomUtil.get('map');
+                    var selectElement = document.getElementById("numberSelect");
+                    var state_button = document.getElementById("gate_state");
+                    var p_count = decodedData.length-1
 
+                    for (var i = 1; i <= p_count; i++) {
+                      var key = i;
+                      var value = 'Закрыт';
+                      gates_state[key] = value;
+                    }
+                    state_button.innerHTML = gates_state["1"];
+
+                    for (var i = 1; i <= p_count; i++) {
+                      var optionElement = document.createElement("option");
+                      optionElement.value = i;
+                      optionElement.text = i;
+                      selectElement.appendChild(optionElement);
+                    }
+
+                    selectElement.addEventListener("change", function() {
+                      var selectedValue = selectElement.value;
+                      var state_button = document.getElementById("gate_state");
+                      state_button.innerHTML = gates_state[String(selectedValue)];
+
+                    });
+
+
+                    var toggleButton = document.getElementById("ajaxRunner");
+                    var isRunning = false;
+
+                    function toggleButtonText() {
+                      if (isRunning) {
+                        toggleButton.textContent = "Начать треккинг";
+                        clearInterval(ajax_request);
+                      } else {
+                        toggleButton.textContent = "Остановить треккинг";
+
+                        ajax_request = setInterval(sendAjaxRequest, 10000); // milliseconds
+
+                      }
+                      isRunning = !isRunning;
+                    }
+
+                    // Add a click event listener to the button
+                    toggleButton.addEventListener("click", toggleButtonText);
+
+
+                    $("#numberSelect").show();
+                    $("#numberSelectLabel").show();
+                    $("#gate_control_header").show();
+                    $("#gate_action").show();
+                    $("#ajaxRunner").show();
+                    $("#gate_state").show();
+                    $("#action_button").show();
+
+
+                    var existingMap = L.DomUtil.get('map');
                     if (existingMap) {
                       existingMap._leaflet_id = null;
                     }
@@ -714,9 +827,6 @@
                         }
                       });
                     }
-
-                    // Периодичность запросов GPS координат
-                    setInterval(sendAjaxRequest, 10000); // milliseconds
 
 
                     // Remove existing GeoJSON layer if it exists
