@@ -609,6 +609,7 @@
     var cattle_count = null;
     var gates_state = {};
     var ajax_request = null;
+    var model_resource_prediction = [];
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -1743,7 +1744,9 @@ function startSimulation() {
                   'reserve': reserve,
               },
               success: function(data) {
-                console.log(data);
+                data.model_prediction.forEach(function(value, index) {
+                  model_resource_prediction[index] = value;
+                });
             },
             error: function(xhr, status, error) {
               console.error('Ajax request failed', status, error);
@@ -1754,12 +1757,15 @@ function startSimulation() {
         // Iterate through features and assign values from the array to a new property
         geoJSONData.features.forEach(function (feature, index) {
             // Add the new property to the properties of each feature
-            if (parseInt(feature.properties.КолКРС)){
-                feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(4);
-            }
-            else{
-                feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(4);
-            }
+
+            feature.properties.КормоЗапас = model_resource_prediction[index];
+
+            // if (parseInt(feature.properties.КолКРС)){
+            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(4);
+            // }
+            // else{
+            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(4);
+            // }
 
         });
 

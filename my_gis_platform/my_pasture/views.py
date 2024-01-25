@@ -19,6 +19,7 @@ from googletrans import Translator
 import urllib.request
 import urllib.error
 import requests
+import joblib
 from bs4 import BeautifulSoup
 
 from sentinelhub import SHConfig
@@ -270,6 +271,7 @@ class SentinelRequest():
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
         self.model = load_model('my_model.keras')
+        self.scaler = joblib.load('scaler.joblib')
 
         self.CLIENT_ID = os.getenv('CLIENT_ID')
         self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
@@ -1379,12 +1381,13 @@ def play_simulation(request):
     return paddocks_grazing_graphs
 
 
-MODEL_COLUMNS = ['BLUE', 'RED', 'NIR', 'SWIR3', 'resource', 'sunZenithAngles',
-   'sunAzimuthAngles', 'viewZenithMean', 'viewAzimuthMean', 'temp',
-   'feels_like', 'pressure', 'humidity', 'dew_point', 'clouds_all',
-   'wind_speed', 'wind_deg', 'cattle_count', 'daily_intake',
-   'reserve']
+# MODEL_COLUMNS = ['BLUE', 'RED', 'NIR', 'SWIR3', 'resource', 'sunZenithAngles',
+#    'sunAzimuthAngles', 'viewZenithMean', 'viewAzimuthMean', 'temp',
+#    'feels_like', 'pressure', 'humidity', 'dew_point', 'clouds_all',
+#    'wind_speed', 'wind_deg', 'cattle_count', 'daily_intake',
+#    'reserve']
 
+MODEL_COLUMNS = ['resource', 'cattle_count', 'daily_intake', 'reserve']
 
 @csrf_exempt
 def ajax_view(request):
@@ -1461,9 +1464,6 @@ def ajax_view(request):
             paddocks_grazing_graphs = play_simulation(sim_request)
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
         elif "assessDaysLeft" in request.GET:
-            print()
-            print("ML predictions:")
-
 
             reserve = request.GET.get("reserve")
             intake = request.GET.get("intake")
@@ -1485,7 +1485,7 @@ def ajax_view(request):
 
             upper_list = []
             for paddock_id, load in pasture_load.items():
-                print()
+
                 mask = HolderClass.sentinel_request.masks[int(paddock_id)-1]
                 area = (mask.size-mask.sum())*(10**2)/10000
 
@@ -1494,27 +1494,22 @@ def ajax_view(request):
 
                 p_resource = (float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
 
-                # print(f"Area of paddock №{paddock_id}: {area}")
-                # print(f"Load of paddock №{paddock_id}: {load}")
-                # print(f"Resource of paddock №{paddock_id}: {float(resourceValues[int(paddock_id)-1])}, (t/ha)")
-                # print(f"Resource of paddock №{paddock_id}: {p_resource}, (kg)")
-
-                inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
+                # inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
+                inner_list = [p_resource] + [load, intake, reserve]
                 upper_list.append(inner_list)
 
             model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
 
-            scaler = StandardScaler()
-            scaler.fit_transform(model_df)
+
             model_deep = HolderClass.sentinel_request.model
+            scaler = HolderClass.sentinel_request.scaler
 
             new_data_scaled = scaler.transform(model_df)
             predictions = model_deep.predict(new_data_scaled)
             predictions_flat = predictions.flatten()
             predictions_df = pd.DataFrame({'Predictions': predictions_flat})
-            display(predictions_df)
 
-            return JsonResponse({'message': 'Model has been deployed'})
+            return JsonResponse({'model_prediction': predictions_df["Predictions"].to_list()})
         elif "action_on_gate" in request.GET:
             print()
             print("Gates actions: ")
