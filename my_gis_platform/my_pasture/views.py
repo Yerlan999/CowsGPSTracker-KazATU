@@ -13,6 +13,7 @@ from IPython.display import display
 
 from sklearn.preprocessing import StandardScaler
 from keras.models import load_model
+from scipy.ndimage import binary_dilation
 
 from googletrans import Translator
 
@@ -321,6 +322,9 @@ class SentinelRequest():
         self.start_date_str = self.start_date.strftime("%Y-%m-%d")
         self.end_date_str = self.end_date.strftime("%Y-%m-%d")
 
+        print()
+        print(self.start_date_str, self.end_date_str)
+
         self.time_interval = self.start_date_str, self.end_date_str
 
         self.search_iterator = self.catalog.search(
@@ -338,8 +342,8 @@ class SentinelRequest():
         all_timestamps = self.search_iterator.get_timestamps()
         self.unique_acquisitions = filter_times(all_timestamps, time_difference)
 
-        if self.recent_date:
-            self.unique_acquisitions = [self.unique_acquisitions[-1]]
+        # if self.recent_date:
+        #     self.unique_acquisitions = [self.unique_acquisitions[-1]]
 
 
         self.all_bands_process_requests = []
@@ -601,6 +605,7 @@ class SentinelRequest():
 
         if self.level == "L2A":
             self.cloud_mask = self.uni_bands_data[self.image_date][:, :, self.universal_bands_dict["CLD"]]/255
+            self.cloud_mask = binary_dilation(self.cloud_mask, iterations=5)
 
     def get_true_color_image(self, size=(12, 5), with_title=True):
 
@@ -630,6 +635,86 @@ class SentinelRequest():
 
         return encoded_image
 
+    def get_last2_true_color_images(self):
+        current_image_id = self.image_date
+        last_2_images = []
+        for _ in range(2):
+            self.image_date -= 1
+            self.prepare_all_bands()
+            last_2_images.append(self.get_true_color_image())
+
+        # Clearing
+        self.image_date = current_image_id
+        self.prepare_all_bands()
+        return last_2_images
+
+
+    def get_last2_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture):
+        current_image_id = self.image_date
+        mask_of_this_day = 1-self.cloud_mask
+
+        last_2_indices = []; last_2_missing_parts = [];
+
+        for _ in range(2):
+            self.image_date -= 1
+            self.prepare_all_bands()
+
+            try:
+                test_index = eval(modify_formula(formula, by_pasture))
+
+                if threshold_check:
+                    test_thresh = float(threshold)
+                    test_filter = eval("test_index" + str(operators) + "test_thresh")
+                else:
+                    test_thresh = test_index.min()
+                    test_filter = test_index >= test_thresh
+
+                test_mask = ~test_filter
+                test_meet = ma.masked_array(test_index, mask=test_mask)
+
+                if relative_radio:
+                    lower_bound = test_meet.min()
+                    upper_bound = test_meet.max()
+                if absolute_radio:
+                    lower_bound = float(lower_bound)
+                    upper_bound = float(upper_bound)
+
+                desired_median = 0.88483
+                current_median = ma.median(test_meet)
+                coefficient = desired_median / current_median
+                test_meet = test_meet * coefficient
+
+                only_cloud_index = ma.masked_array(test_meet, mask=mask_of_this_day)
+                clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
+
+                fig, ax = plt.subplots(figsize=(12, 5))
+                for zagon in range(len(self.pasture_df)):
+
+                    ax.plot(self.pasture_edges[zagon].exterior.xy[1], self.pasture_edges[zagon].exterior.xy[0])
+
+                header = formula
+                self.precision = 4
+
+                ep.plot_bands(test_meet, title=f"{header} {self.general_info}", ax=ax, cmap="bwr", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+                fig.tight_layout()
+
+                image_stream = io.BytesIO()
+                fig.savefig(image_stream, format='png')
+                image_stream.seek(0)
+                encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
+
+                last_2_indices.append(encoded_image); last_2_missing_parts.append(clouds_values_by_zagons)
+
+            except Exception as error:
+                print()
+                print("REASON:")
+                print(error)
+                return None, None
+
+        self.image_date = current_image_id
+        self.prepare_all_bands()
+        return last_2_indices, last_2_missing_parts
+
 
     def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture):
 
@@ -646,17 +731,26 @@ class SentinelRequest():
                 cloud_covered_index = ma.masked_array(test_index, mask=self.cloud_mask)
                 only_cloud_index = ma.masked_array(test_index, mask=1-self.cloud_mask)
 
+                # Calling for last 2 days history here
+                last2_indices, last2_missing_parts = self.get_last2_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
+
                 clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
                 clouds_masks_by_zagons = self.get_zagons_values(self.cloud_mask)
                 test_index_masked_array = self.get_zagons_values(cloud_covered_index)
 
-                for i, (zagon_cloud_mask, zagon_index, cloud_values) in enumerate(zip(clouds_masks_by_zagons, test_index_masked_array, clouds_values_by_zagons), start=1):
+                for i, (zagon_cloud_mask, zagon_index, previous_day, the_day_before_previous) in enumerate(zip(clouds_masks_by_zagons, test_index_masked_array, last2_missing_parts[0], last2_missing_parts[1]), start=1):
 
-                    mean_value = zagon_index.mean()
-                    std_dev_value = zagon_index.std()
+                    # mean_value = zagon_index.mean()
+                    # std_dev_value = zagon_index.std()
+                    # normal_distribution_values = np.random.normal(loc=mean_value, scale=std_dev_value, size=np.sum(zagon_cloud_mask == 1))
 
-                    normal_distribution_values = np.random.normal(loc=mean_value, scale=std_dev_value, size=np.sum(zagon_cloud_mask == 1))
-                    test_index[np.where(zagon_cloud_mask == 1.0, True, False)] = normal_distribution_values
+                    prev_mean = previous_day.mean()
+                    before_prev = the_day_before_previous.mean()
+                    trend = prev_mean - before_prev
+                    updated_part = previous_day + trend
+
+                    mask = zagon_cloud_mask == 1.0
+                    test_index[mask] = updated_part[mask]  # normal_distribution_values
 
 
             if threshold_check:
@@ -761,13 +855,13 @@ class SentinelRequest():
 
             centroid = self.merged_zagons.centroid.x, self.merged_zagons.centroid.y
 
-            return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid
+            return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid, last2_indices
 
         except Exception as error:
             print()
             print("REASON:")
             print(error)
-            return None, None, None, None, None
+            return None, None, None, None, None, None
 
     def get_weather_data(self, date):
         return self.get_weather_parameters(date)
@@ -780,7 +874,7 @@ def dates_request(request):
         if form.is_valid():
             instance = form.save(commit=False)
             if instance.recent_date:
-                instance.start_date = datetime.date.today() - datetime.timedelta(days=5)
+                instance.start_date = datetime.date.today() - datetime.timedelta(days=9)
                 instance.end_date = datetime.date.today()
             form.save()
             return HttpResponseRedirect("/available_dates")
@@ -830,6 +924,7 @@ def date_detail(request, *args, **kwargs):
     HolderClass.sentinel_request.set_choosen_date(pk)
     HolderClass.sentinel_request.prepare_all_bands()
     image_data = HolderClass.sentinel_request.get_true_color_image()
+    previous_2_days = HolderClass.sentinel_request.get_last2_true_color_images()
 
     dict_of_dates = HolderClass.sentinel_request.clear_date_dict
     date_string = next((key for key, value in dict_of_dates.items() if value == int(pk)), None)
@@ -840,7 +935,7 @@ def date_detail(request, *args, **kwargs):
 
     weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id='weather_table')
 
-    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df, "RZA": RZA})
+    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df, "RZA": RZA, "previous_2_days": previous_2_days})
 
 
 def modify_formula(formula, by_pasture):
@@ -1415,9 +1510,9 @@ def ajax_view(request):
             operators = request.GET.get('operators')
             by_pasture = request.GET.get('by_pasture')
 
-            index_image, hist_images, df, geodataframe, centroid = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
+            index_image, hist_images, df, geodataframe, centroid, last2_indices = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
 
-            response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid,}
+            response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices}
 
             return JsonResponse(response_data)
         elif "cattle_tracker" in request.GET:
