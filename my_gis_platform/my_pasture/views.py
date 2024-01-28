@@ -45,6 +45,8 @@ import pandas as pd
 import seaborn as sns
 from functools import reduce
 
+import tensorflow as tf
+
 matplotlib.use('agg')
 
 from sentinelhub import (
@@ -271,8 +273,12 @@ class SentinelRequest():
         self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
-        self.model = load_model('my_model.keras')
-        self.scaler = joblib.load('scaler.joblib')
+        # self.model = load_model('my_model.keras')
+        self.large_model = tf.keras.models.load_model('/large_model/')
+
+        # self.scaler = joblib.load('scaler.joblib')
+        self.saved_mean = pd.read_pickle('saved_mean.pkl')
+        self.saved_std = pd.read_pickle('saved_std.pkl')
 
         self.CLIENT_ID = os.getenv('CLIENT_ID')
         self.CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
@@ -321,9 +327,6 @@ class SentinelRequest():
 
         self.start_date_str = self.start_date.strftime("%Y-%m-%d")
         self.end_date_str = self.end_date.strftime("%Y-%m-%d")
-
-        print()
-        print(self.start_date_str, self.end_date_str)
 
         self.time_interval = self.start_date_str, self.end_date_str
 
@@ -464,6 +467,9 @@ class SentinelRequest():
 
     def set_date(self, date):
         self.image_date = self.clear_date_dict[date[0]]
+
+    def norm(self, x):
+        return (x - self.saved_mean) / self.saved_std
 
     def pasture(self, index):
         only_pasture = ma.masked_array(ma.masked_array((index), mask=np.isinf((index)) | np.isnan((index))), mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
@@ -1482,7 +1488,10 @@ def play_simulation(request):
 #    'wind_speed', 'wind_deg', 'cattle_count', 'daily_intake',
 #    'reserve']
 
-MODEL_COLUMNS = ['resource', 'cattle_count', 'daily_intake', 'reserve']
+# MODEL_COLUMNS = ['resource', 'cattle_count', 'daily_intake', 'reserve']
+
+MODEL_COLUMNS = ["index", "RZM", "temp", "pressure", "humidity", "cattle_count", "daily_intake", "reserve"]
+
 
 @csrf_exempt
 def ajax_view(request):
@@ -1579,32 +1588,44 @@ def ajax_view(request):
             VAM = HolderClass.sentinel_request.VAM
 
             upper_list = []
+            area_list = []
             for paddock_id, load in pasture_load.items():
 
                 mask = HolderClass.sentinel_request.masks[int(paddock_id)-1]
                 area = (mask.size-mask.sum())*(10**2)/10000
+                area_list.append(area)
 
                 if load == 0:
                     load = sum(pasture_load.values())
 
-                p_resource = (float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
+                p_index = resourceValues[int(paddock_id)-1] #(float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
 
                 # inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
-                inner_list = [p_resource] + [load, intake, reserve]
+                temp = current_weather_df["temp"].iloc[0]
+                pressure = current_weather_df["pressure"].iloc[0]
+                humidity = current_weather_df["humidity"].iloc[0]
+
+                inner_list = [float(p_index), SZA+VZM] + [float(temp), float(pressure), float(humidity)] + [int(load), float(intake), int(reserve)]
                 upper_list.append(inner_list)
 
             model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
 
+            # (index, RZM, temp, pressure, humidity, cattle_count, daily_intake, reserve)
+            large_model = HolderClass.sentinel_request.large_model
+            norm_model_df = np.array(HolderClass.sentinel_request.norm(model_df))
+            another_predictions = large_model.predict(norm_model_df)
+            resource_pred = another_predictions[0][:,0]
+            days_left_pred = another_predictions[1][:,0]
 
-            model_deep = HolderClass.sentinel_request.model
-            scaler = HolderClass.sentinel_request.scaler
+            # model_deep = HolderClass.sentinel_request.model
+            # scaler = HolderClass.sentinel_request.scaler
 
-            new_data_scaled = scaler.transform(model_df)
-            predictions = model_deep.predict(new_data_scaled)
-            predictions_flat = predictions.flatten()
-            predictions_df = pd.DataFrame({'Predictions': predictions_flat})
+            # new_data_scaled = scaler.transform(model_df)
+            # predictions = model_deep.predict(new_data_scaled)
+            # predictions_flat = predictions.flatten()
+            # predictions_df = pd.DataFrame({'Predictions': predictions_flat})
 
-            return JsonResponse({'model_prediction': predictions_df["Predictions"].to_list()})
+            return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
         elif "action_on_gate" in request.GET:
             print()
             print("Gates actions: ")

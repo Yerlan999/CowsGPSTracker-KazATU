@@ -668,6 +668,7 @@
     var cattle_count = null;
     var gates_state = {};
     var ajax_request = null;
+    var model_days_left_prediction = [];
     var model_resource_prediction = [];
 
     $(document).ready(function() {
@@ -1150,8 +1151,8 @@ function multiplyValues() {
           var mean_resource = resource.reduce((acc, num) => acc + num, 0) / resource.length;
 
           if (isNaN(mean_resource) || !isFinite(mean_resource)){nanDetected=true;};
-          cells[2].textContent = mean_resource.toFixed(3);
-          paddocks_resources.push(mean_resource.toFixed(3));
+          cells[2].textContent = mean_resource.toFixed(2);
+          paddocks_resources.push(mean_resource.toFixed(2));
       }
     };
   if (!nanDetected){$("#switchToModalB").show();};
@@ -1748,26 +1749,11 @@ function startSimulation() {
 
         resourceValues = getColumnValues(table, intValue);
 
-
         // Update valuesArray in-place
         var temperature = parseFloat(weather_table.rows[1].cells[0].textContent);
         var pressure = parseFloat(weather_table.rows[1].cells[2].textContent);
         var humidity = parseFloat(weather_table.rows[1].cells[3].textContent);
         var RZA = {{ RZA|default:"undefined" }};
-
-        resourceValues.forEach(function (value, index, array) {
-
-          var temp_resource = (8.87 * value) + (0.03 * temperature) -7.91;
-          var press_resource = (9.12 * value) - (0.01 * pressure) + 2.18;
-          var humid_resource = (8.49 * value) - (0.00 * humidity) -6.66;
-          var angle_resource = (8.95 * value) - (0.03 * parseFloat(RZA)) -6.06;
-
-          var resource = [temp_resource, press_resource, humid_resource, angle_resource];
-          var mean_resource = resource.reduce((acc, num) => acc + num, 0) / resource.length;
-
-          array[index] = mean_resource.toFixed(4);
-        });
-
 
 
         if (pasture_load){
@@ -1797,11 +1783,11 @@ function startSimulation() {
             map.removeLayer(geoJsonLayer);
         }
 
-        // Iterate through features and assign values from the array to a new property
-        geoJSONData.features.forEach(function (feature, index) {
-            // Add the new property to the properties of each feature
-            feature.properties.Урож = parseFloat(resourceValues[index]);
-        });
+        // // Iterate through features and assign values from the array to a new property
+        // geoJSONData.features.forEach(function (feature, index) {
+        //     // Add the new property to the properties of each feature
+        //     feature.properties.Урож = parseFloat(resourceValues[index]);
+        // });
 
         // Calling ML model for assessing days left
         if (intake  && reserve){
@@ -1816,9 +1802,20 @@ function startSimulation() {
                   'reserve': reserve,
               },
               success: function(data) {
-                data.model_prediction.forEach(function(value, index) {
-                  model_resource_prediction[index] = value;
+                // data.model_prediction.forEach(function(value, index) {
+                //   model_days_left_prediction[index] = value;
+                // });
+                data.days_left_pred.forEach(function(value, index) {
+                  model_days_left_prediction[index] = value.toFixed(2);
                 });
+                data.resource_pred.forEach(function(value, index) {
+                  var paddock_area = parseFloat(data.area_list[index]).toFixed(2);
+                  model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
+                });
+
+                // resourceValues.forEach(function(value, index, array) {
+                //   array[index] = data.resource_pred[index];
+                // });
             },
             error: function(xhr, status, error) {
               console.error('Ajax request failed', status, error);
@@ -1830,13 +1827,14 @@ function startSimulation() {
         geoJSONData.features.forEach(function (feature, index) {
             // Add the new property to the properties of each feature
 
-            feature.properties.КормоЗапас = model_resource_prediction[index];
+            feature.properties.КормоЗапас = model_days_left_prediction[index];
+            feature.properties.Урож = parseFloat(model_resource_prediction[index]);
 
             // if (parseInt(feature.properties.КолКРС)){
-            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(4);
+            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
             // }
             // else{
-            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(4);
+            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
             // }
 
         });
@@ -1864,7 +1862,7 @@ function startSimulation() {
           onEachFeature: function (feature, layer) {
             // Add mouseover event to highlight the shape and display information
             layer.on('mouseover', function (e) {
-              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(4);
+              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(2);
 
               popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
 
