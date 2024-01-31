@@ -4,3 +4,4 @@
 *.kml
 *.geojson
 Sentinel-2-Shapefile-Index-master/
+random_forest_model.pkl
