@@ -275,6 +275,7 @@ class SentinelRequest():
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
         # self.model = load_model('my_model.keras')
         self.large_model = tf.keras.models.load_model('/large_model/')
+        # self.rf_model = joblib.load('random_forest_model.pkl')
 
         # self.scaler = joblib.load('scaler.joblib')
         self.saved_mean = pd.read_pickle('saved_mean.pkl')
@@ -1611,19 +1612,27 @@ def ajax_view(request):
             model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
 
             # (index, RZM, temp, pressure, humidity, cattle_count, daily_intake, reserve)
+
+
+            # rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
+            # resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
+            # days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
+
+
             large_model = HolderClass.sentinel_request.large_model
             norm_model_df = np.array(HolderClass.sentinel_request.norm(model_df))
             another_predictions = large_model.predict(norm_model_df)
             resource_pred = another_predictions[0][:,0]
             days_left_pred = another_predictions[1][:,0]
 
+
             # model_deep = HolderClass.sentinel_request.model
             # scaler = HolderClass.sentinel_request.scaler
-
             # new_data_scaled = scaler.transform(model_df)
             # predictions = model_deep.predict(new_data_scaled)
             # predictions_flat = predictions.flatten()
             # predictions_df = pd.DataFrame({'Predictions': predictions_flat})
+
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
         elif "action_on_gate" in request.GET:
