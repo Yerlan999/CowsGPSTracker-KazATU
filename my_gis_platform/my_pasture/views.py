@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from pandas import json_normalize
 from IPython.display import display
 
+from twilio.rest import Client
 from sklearn.preprocessing import StandardScaler
 from keras.models import load_model
 from scipy.ndimage import binary_dilation
@@ -275,7 +276,7 @@ class SentinelRequest():
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
         # self.model = load_model('my_model.keras')
         self.large_model = tf.keras.models.load_model('/large_model/')
-        # self.rf_model = joblib.load('random_forest_model.pkl')
+        self.rf_model = joblib.load('random_forest_model.pkl')
 
         # self.scaler = joblib.load('scaler.joblib')
         self.saved_mean = pd.read_pickle('saved_mean.pkl')
@@ -1572,6 +1573,7 @@ def ajax_view(request):
 
             reserve = request.GET.get("reserve")
             intake = request.GET.get("intake")
+            model = str(request.GET.get("model"))
             pasture_load = json.loads(request.GET.get("pasture_load"))
             resourceValues = json.loads(request.GET.get("resourceValues"))
 
@@ -1613,25 +1615,23 @@ def ajax_view(request):
 
             # (index, RZM, temp, pressure, humidity, cattle_count, daily_intake, reserve)
 
-
-            # rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
-            # resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
-            # days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
-
-
-            large_model = HolderClass.sentinel_request.large_model
-            norm_model_df = np.array(HolderClass.sentinel_request.norm(model_df))
-            another_predictions = large_model.predict(norm_model_df)
-            resource_pred = another_predictions[0][:,0]
-            days_left_pred = another_predictions[1][:,0]
-
-
             # model_deep = HolderClass.sentinel_request.model
             # scaler = HolderClass.sentinel_request.scaler
             # new_data_scaled = scaler.transform(model_df)
             # predictions = model_deep.predict(new_data_scaled)
             # predictions_flat = predictions.flatten()
             # predictions_df = pd.DataFrame({'Predictions': predictions_flat})
+
+            if model == "ANN":
+                large_model = HolderClass.sentinel_request.large_model
+                norm_model_df = np.array(HolderClass.sentinel_request.norm(model_df))
+                another_predictions = large_model.predict(norm_model_df)
+                resource_pred = another_predictions[0][:,0]
+                days_left_pred = another_predictions[1][:,0]
+            elif model == "RF":
+                rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
+                resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
+                days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
 
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
@@ -1644,6 +1644,19 @@ def ajax_view(request):
 
             print(f"Gate ID: {gate_id}")
             print(f"Gate action: {gate_action}")
+
+            account_sid = os.environ.get('Twilio_SID')
+            auth_token = os.environ.get('Twilio_Token')
+            client = Client(account_sid, auth_token)
+
+            message = client.messages.create(
+              from_='+12138057473',
+              body='Hello',
+              to='+77089194616'
+            )
+
+            print(message.sid)
+
             return JsonResponse({'message': 'Gate state has been changed'})
         else:
             return JsonResponse({'message': 'Undefined response'})

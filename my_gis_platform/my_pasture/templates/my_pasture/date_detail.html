@@ -490,6 +490,43 @@
         </div>
     </div>
 
+
+<h5 id="prediction_mode_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Выбор модели прогноза</h5>
+
+<div id="prediction_mode" class="row mb-3" style="display: none">
+    <div class="col">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="radioOptions" id="option1" value="Plane" checked>
+            <label class="form-check-label" for="option1">
+                Формулы плоскостей
+            </label>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="radioOptions" id="option2" value="ANN">
+            <label class="form-check-label" for="option2">
+                Модель ИНС
+            </label>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="radioOptions" id="option3" value="RF">
+            <label class="form-check-label" for="option3">
+                Модель СЛ
+            </label>
+        </div>
+    </div>
+    <div class="col">
+    </div>
+</div>
+
+
+
+
     <div class="row">
         <div class="col">
             <select id="fast_methodSelection" class="form-control" aria-label="Default select example" style="display: none">
@@ -642,19 +679,20 @@
           },
           success: function(data) {
             console.log(data);
+
+            if (action_button.value == "close"){
+              gates_state[String(selectedValue)] = "Закрыт";
+            }
+            else{
+              gates_state[String(selectedValue)] = "Открыт";
+            }
+            state_button.innerHTML = gates_state[String(selectedValue)];
+
         },
         error: function(xhr, status, error) {
           console.error('Ajax request failed', status, error);
         }
       });
-
-      if (action_button.value == "close"){
-        gates_state[String(selectedValue)] = "Закрыт";
-      }
-      else{
-        gates_state[String(selectedValue)] = "Открыт";
-      }
-      state_button.innerHTML = gates_state[String(selectedValue)];
     }
 
 
@@ -668,6 +706,7 @@
     var cattle_count = null;
     var gates_state = {};
     var ajax_request = null;
+    var selected_prediction_mode = null;
     var model_days_left_prediction = [];
     var model_resource_prediction = [];
 
@@ -829,6 +868,8 @@
                     $("#map_button").show();
                     $("#map_input").show();
                     $("#fast_description").show();
+                    $("#prediction_mode").show();
+                    $("#prediction_mode_header").show();
                     $("#fast_intake").show();
                     $("#fast_reserve").show();
                     $("#fast_methodSelection").show();
@@ -1737,6 +1778,7 @@ function startSimulation() {
         var table = document.getElementById('data-table');
         var weather_table = document.getElementById('weather_table');
         var selectedValue = document.getElementById("fast_methodSelection").value;
+        selected_prediction_mode = document.querySelector('input[name="radioOptions"]:checked');
 
         var intake = document.getElementById('fast_intake').value;
         var reserve = document.getElementById('fast_reserve').value;
@@ -1783,59 +1825,85 @@ function startSimulation() {
             map.removeLayer(geoJsonLayer);
         }
 
-        // // Iterate through features and assign values from the array to a new property
-        // geoJSONData.features.forEach(function (feature, index) {
-        //     // Add the new property to the properties of each feature
-        //     feature.properties.Урож = parseFloat(resourceValues[index]);
-        // });
+        if (selected_prediction_mode.value == "Plane"){
+          // Iterate through features and assign values from the array to a new property
+          geoJSONData.features.forEach(function (feature, index) {
+              // Add the new property to the properties of each feature
+
+              var temp_resource = 8.87 * parseFloat(resourceValues[index]) + 0.03 * temperature -7.91;
+              var press_resource = 9.12 * parseFloat(resourceValues[index]) -0.01 * pressure + 2.18;
+              var humid_resource = 8.49 * parseFloat(resourceValues[index]) -0.00 * humidity -6.66;
+              var angle_resource = 8.95 * parseFloat(resourceValues[index]) -0.03 * RZA -6.06;
+
+              var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
+
+              feature.properties.Урож = parseFloat(mean).toFixed(2);
+          });
+        }
+
 
         // Calling ML model for assessing days left
-        if (intake  && reserve){
-          $.ajax({
-              type: "GET",
-              url: "/ajax/",
-              data: {
-                  'assessDaysLeft': true,
-                  'resourceValues': JSON.stringify(resourceValues),
-                  'pasture_load': JSON.stringify(pasture_load),
-                  'intake': intake,
-                  'reserve': reserve,
-              },
-              success: function(data) {
-                // data.model_prediction.forEach(function(value, index) {
-                //   model_days_left_prediction[index] = value;
-                // });
-                data.days_left_pred.forEach(function(value, index) {
-                  model_days_left_prediction[index] = value.toFixed(2);
-                });
-                data.resource_pred.forEach(function(value, index) {
-                  var paddock_area = parseFloat(data.area_list[index]).toFixed(2);
-                  model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
-                });
+        // document.querySelector('input[name="radioOptions"]:checked').value
 
-                // resourceValues.forEach(function(value, index, array) {
-                //   array[index] = data.resource_pred[index];
-                // });
-            },
-            error: function(xhr, status, error) {
-              console.error('Ajax request failed', status, error);
-            }
-          });
+        if (intake  && reserve && selected_prediction_mode){
+          if (selected_prediction_mode.value == "Plane"){
+
+          }
+          else{
+
+            $.ajax({
+                type: "GET",
+                url: "/ajax/",
+                data: {
+                    'assessDaysLeft': true,
+                    'resourceValues': JSON.stringify(resourceValues),
+                    'pasture_load': JSON.stringify(pasture_load),
+                    'intake': intake,
+                    'model': String(selected_prediction_mode.value),
+                    'reserve': reserve,
+                },
+                success: function(data) {
+                  // data.model_prediction.forEach(function(value, index) {
+                  //   model_days_left_prediction[index] = value;
+                  // });
+                  data.days_left_pred.forEach(function(value, index) {
+                    model_days_left_prediction[index] = value.toFixed(2);
+                  });
+                  data.resource_pred.forEach(function(value, index) {
+                    var paddock_area = parseFloat(data.area_list[index]).toFixed(2);
+                    model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
+                  });
+
+                  // resourceValues.forEach(function(value, index, array) {
+                  //   array[index] = data.resource_pred[index];
+                  // });
+              },
+              error: function(xhr, status, error) {
+                console.error('Ajax request failed', status, error);
+              }
+            });
+
+          }
+
         }
 
         // Iterate through features and assign values from the array to a new property
         geoJSONData.features.forEach(function (feature, index) {
             // Add the new property to the properties of each feature
 
-            feature.properties.КормоЗапас = model_days_left_prediction[index];
-            feature.properties.Урож = parseFloat(model_resource_prediction[index]);
+            if (selected_prediction_mode.value == "Plane"){
+              if (parseInt(feature.properties.КолКРС)){
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
+              }
+              else{
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
+              }
+            }
+            else{
+              feature.properties.КормоЗапас = model_days_left_prediction[index];
+              feature.properties.Урож = parseFloat(model_resource_prediction[index]);
+            }
 
-            // if (parseInt(feature.properties.КолКРС)){
-            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
-            // }
-            // else{
-            //     feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
-            // }
 
         });
 
