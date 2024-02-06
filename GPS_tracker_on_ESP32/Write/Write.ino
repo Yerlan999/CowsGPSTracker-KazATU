@@ -1,13 +1,27 @@
+// INTERMEDIATE MODULE ESP32 SIM800H
+
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
+#include <LiquidCrystal_I2C.h>
 
+#define BUTTON_PIN 15 // GPIO21 pin connected to button
+
+int lcdColumns = 20;
+int lcdRows = 4;
+
+LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);  
 RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
-//RF24 radio(9,53); // для Меги
 
 byte address[][6] = {"1Node","2Node","3Node","4Node","5Node","6Node"};  //возможные номера труб
+byte data_send;
+int counter = 0;
 
 void setup(){
+  pinMode(BUTTON_PIN, INPUT);
+  lcd.init();
+  lcd.backlight();
+
   Serial.begin(9600); //открываем порт для связи с ПК
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
@@ -28,10 +42,29 @@ void setup(){
 }
 
 void loop() {
-    byte pipeNo, gotByte;                          
+    byte pipeNo, data_got;                          
     while(radio.available(&pipeNo)){    // слушаем эфир со всех труб
-      radio.read( &gotByte, sizeof(gotByte) );         // чиатем входящий сигнал
-
-      Serial.print("Recieved: "); Serial.println(gotByte);
+      radio.read( &data_got, sizeof(data_got) );         // чиатем входящий сигнал
+      
+      displayInfo(data_got, data_send);
+      
+      Serial.print("Recieved: "); Serial.println(data_got);
    }
+
+  int buttonState = digitalRead(BUTTON_PIN);
+  delay(250);
+  if (buttonState){
+    counter++;
+    displayInfo(data_got, counter);
+  }
+
+
+}
+
+void displayInfo(byte data_got, byte data_send){
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Send: " + String(data_send));
+  lcd.setCursor(0, 1);
+  lcd.print("Recieved: " + String(data_got));  
 }

@@ -1,15 +1,25 @@
+// COLLAR MODULE ESP32
+
 #include <SPI.h>          // библиотека для работы с шиной SPI
 #include "nRF24L01.h"     // библиотека радиомодуля
 #include "RF24.h"         // ещё библиотека радиомодуля
+#include <LiquidCrystal_I2C.h>
+
+int lcdColumns = 16;
+int lcdRows = 2;
+
+LiquidCrystal_I2C lcd(0x3F, lcdColumns, lcdRows);  
 
 RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
-//RF24 radio(9,53); // для Меги
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; //возможные номера труб
 
-byte counter;
+byte data_send;
 
 void setup() {
+  lcd.init();
+  lcd.backlight();
+
   Serial.begin(9600); //открываем порт для связи с ПК
 
   radio.begin(); //активировать модуль
@@ -31,8 +41,31 @@ void setup() {
 }
 
 void loop() {
-  Serial.print("Sent: "); Serial.println(counter);
-  radio.write(&counter, sizeof(counter));
-  counter++;
-  delay(5000);
+
+  byte pipeNo, data_got;                          
+  while(radio.available(&pipeNo)){    // слушаем эфир со всех труб
+    radio.read( &data_got, sizeof(data_got) );         // чиатем входящий сигнал
+
+    displayInfo(data_got, data_send);
+    
+    Serial.print("Recieved: "); Serial.println(data_got);
+  }
+  
+
+  Serial.print("Sent: "); Serial.println(data_send);
+
+  displayInfo(data_got, data_send);
+  
+  radio.write(&data_send, sizeof(data_send));
+  data_send++;
+
+  delay(10000);
+}
+
+void displayInfo(byte data_got, byte data_send){
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Send: " + String(data_send));
+  lcd.setCursor(0, 1);
+  lcd.print("Recieved: " + String(data_got));  
 }
