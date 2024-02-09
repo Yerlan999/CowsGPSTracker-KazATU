@@ -94,19 +94,10 @@ void loop() {
 
   updateSerial(); // Чтение входящих данных
 
-  // Отправка сообщения случайным образом
-  int random_number = random(100);
-  if (random_number == 1000) {
-    if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {SerialMon.println("Message from ESP32");}
-    else {SerialMon.println("SMS failed to send");}
-  }
-  delay(1000);
 }
 
 void updateSerial() {
-  // while (SerialMon.available()) {
-  //   SerialAT.write(SerialMon.read());
-  //   }
+
   while (SerialAT.available()) {
     SMS_stream = SerialAT.readStringUntil('\n');
     if (SMS_stream.startsWith("+CMT")) {
@@ -127,6 +118,13 @@ void updateSerial() {
         SerialMon.println("The pump has been turned on");        
       }
     }
-    // SerialMon.write(SerialAT.read());
     }
 }
+
+// Отправка сообщения
+void sendSMSmessage(){
+  if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {SerialMon.println("Message from ESP32");}
+  else {SerialMon.println("SMS failed to send");}
+  delay(1000); 
+  }
+   

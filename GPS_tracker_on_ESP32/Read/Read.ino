@@ -16,20 +16,18 @@ byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; //в
 String data_send; 
 
 void setup() {
+  Serial.begin(9600); //открываем порт для связи с ПК
+
   lcd.init();
   lcd.backlight();
-
-  Serial.begin(9600); //открываем порт для связи с ПК
 
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
   radio.setRetries(0,15);    //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize(32);     //размер пакета, в байтах
-
   radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
   radio.openReadingPipe(1,address[0]);      //хотим слушать трубу 0
-
   radio.setChannel(0x60);  //выбираем канал (в котором нет шумов!)
 
   radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX

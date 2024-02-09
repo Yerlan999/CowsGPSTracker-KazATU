@@ -54,7 +54,7 @@ void loop() {
     Serial.print("Recieved: "); Serial.println(data_got);
 
     if (data_got=="GPS"){
-      data_send = "Hannah";
+      data_send = "1.2,4.4";
   
       delay(50);
       radio.stopListening();
