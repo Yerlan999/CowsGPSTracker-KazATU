@@ -7,7 +7,7 @@
 #define TXD2 17
 
 const char* ssid = "LeChatGarcon";
-const char* password = "LeChatGarcon999";
+const char* password = "";
 const char *host = "192.168.0.12";
 const int port = 8000;
 
