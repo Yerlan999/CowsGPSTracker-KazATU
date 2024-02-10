@@ -8,8 +8,8 @@
 #include <Wire.h>
 #include <TinyGsmClient.h>
 
-#define M0 18       
-#define M1 19
+#define M0 12       
+#define M1 14
 
 // TTGO T-Call распиновка
 #define MODEM_RST            5
