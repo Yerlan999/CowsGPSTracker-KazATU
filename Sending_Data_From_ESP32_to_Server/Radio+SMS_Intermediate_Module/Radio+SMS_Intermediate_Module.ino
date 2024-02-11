@@ -1,3 +1,10 @@
+#include <string.h>
+#include <Arduino.h>
+
+#include <WiFi.h>
+#include <HTTPClient.h> 
+#include <ArduinoJson.h>
+
 #define SMS_TARGET  "+77089194616"
 
 // Configure TinyGSM library
@@ -56,12 +63,33 @@ bool setPowerBoostKeepOn(int en) {
   return Wire.endTransmission() == 0;
 }
 
-void updateSerial();
+void listenSIM800();
 
 
+String GPS_ENABLE_COMMAND = "START GPS";
+String GPS_DISABLE_COMMAND = "STOP GPS";
+String TIME_UPDATE_COMMAND = "TIME_UPDATE";
 
+unsigned long lastTime = 0;
+unsigned long cycle_time = 30000;    // КАЖДЫЕ N секунд
+
+const char* ssid = "";
+const char* password = "";
+const char *host = "192.168.0.12";
+const int port = 8000;
 
 void setup() {
+  
+  WiFi.begin(ssid, password);
+ 
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Monitor.println("Connecting to WiFi..");
+  }
+ 
+  Monitor.println("Connected to the WiFi network");
+
+
   // Serial2.begin(9600);   // lora E32 gắn với cổng TX2 RX2 trên board ESP32
   Monitor.begin(9600);
   LoRa.begin(9600, SERIAL_8N1, 25, 33); 
@@ -94,13 +122,13 @@ void setup() {
 
 
   SIM800.println("AT"); // Рукопожатие устройства ESP32 с модулем SIM800
-  updateSerial();
+  listenSIM800();
   delay(200);
   SIM800.println("AT+CMGF=1"); // Конфигурация режима обработки текста
-  updateSerial();
+  listenSIM800();
   delay(200);
   SIM800.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
-  updateSerial();
+  listenSIM800();
 }
 
 char smsBuffer[250]; // Размер буфера для хранения текста сообщении
@@ -108,25 +136,35 @@ char smsBuffer[250]; // Размер буфера для хранения тек
 
 void loop() {
     
-    updateSerial(); // Чтение входящих данных
+  listenSIM800(); // Чтение входящих данных
 
-    if(Monitor.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
-      String input = Monitor.readStringUntil('\n');
-      LoRa.println(input);
-      LoRa.flush();     
+  if(Monitor.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
+    String input = Monitor.readStringUntil('\n');
+    LoRa.println(input);
+  }
+
+  if(LoRa.available() > 0){
+    String input = LoRa.readStringUntil('\n');
+    Monitor.println(input);    
+  }
+
+  if ((millis() - lastTime) > cycle_time) {
+    
+    if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
+      // sendHttpPostRequest();
+    }else{
+      Monitor.println("Error in WiFi connection");   
     }
-  
-    if(LoRa.available() > 0){
-      String input = LoRa.readStringUntil('\n');
-      Monitor.println(input);    
-    }
-    delay(20);
+  lastTime = millis();
+  }
+
+  delay(20);
 }
 
 
 
 
-void updateSerial() {
+void listenSIM800() {
 
   while (SIM800.available()) {
     SMS_stream = SIM800.readStringUntil('\n');
@@ -143,20 +181,112 @@ void updateSerial() {
       SMS_content = SIM800.readStringUntil('\n');
       SMS_content.trim();
       Monitor.println("Content: " + SMS_content);
-      if (SMS_content == "GET GPS"){
-        LoRa.println("GET GPS");
-      }
       
-      if (SMS_content == "Turn on") {
-        Monitor.println("The pump has been turned on");        
-      }
+      updateTime(SMS_content);
+      
+            
+      LoRa.println(SMS_content);
+
     }
     }
 }
+
+
+void updateTime(String input){
+  String* splitStrings;
+  int splitCount = splitString(input, ':', splitStrings);
+
+  if (splitStrings[0].equals(TIME_UPDATE_COMMAND)){
+    Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
+    cycle_time = splitStrings[1].toInt();  
+  }      
+  delete[] splitStrings;  
+}
+
+
 
 // Отправка сообщения
 void sendSMSmessage(){
   if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {Monitor.println("Message from ESP32");}
   else {Monitor.println("SMS failed to send");}
   delay(1000); 
+}
+
+
+int splitString(const String& input, char delimiter, String*& output) {
+  int arraySize = 1;  // Minimum size is 1 for the original string itself
+  int startIndex = 0;
+  int endIndex = -1;
+
+  // Count the number of occurrences of the delimiter to determine the array size
+  while ((endIndex = input.indexOf(delimiter, startIndex)) != -1) {
+    arraySize++;
+    startIndex = endIndex + 1;
+  }
+
+  // Allocate memory for the dynamic array
+  output = new String[arraySize];
+
+  // Split the string into the dynamic array
+  startIndex = 0;
+  endIndex = -1;
+  for (int i = 0; i < arraySize; i++) {
+    endIndex = input.indexOf(delimiter, startIndex);
+    if (endIndex == -1) {
+      endIndex = input.length();
+    }
+    output[i] = input.substring(startIndex, endIndex);
+    startIndex = endIndex + 1;
+  }
+
+  return arraySize;
+}
+
+
+void sendHttpPostRequest() {
+  HTTPClient http;
+
+  // Create an array of dictionaries
+  DynamicJsonDocument jsonDocument(2048);  // Adjust the size based on your data
+  JsonArray jsonArray = jsonDocument.to<JsonArray>();
+
+  // Example dictionaries
+  JsonObject dict1 = jsonArray.createNestedObject();
+  dict1["latitude"] = 54.214284;
+  dict1["longitude"] = 69.514049;
+  dict1["index"] = "1";
+
+  JsonObject dict2 = jsonArray.createNestedObject();
+  dict2["latitude"] = 54.214440;
+  dict2["longitude"] = 69.511097;
+  dict2["index"] = "2";
+
+  JsonObject dict3 = jsonArray.createNestedObject();
+  dict3["latitude"] = 54.213070;
+  dict3["longitude"] = 69.511260;
+  dict3["index"] = "3";
+
+  // Add more dictionaries as needed...
+
+  // Serialize the JSON object to a string
+  String postData;
+  serializeJson(jsonDocument, postData);
+
+
+
+
+
+  // Make the POST request
+  http.begin("http://" + String(host) + ":" + String(port) + "/ajax/");
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");
+  
+  int httpResponseCode = http.POST(postData);
+
+  if (httpResponseCode > 0) {
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.println("Error on sending POST");
+  }
+
+  http.end();
 }
