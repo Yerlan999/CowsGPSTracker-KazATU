@@ -5,7 +5,7 @@
 #include <HTTPClient.h> 
 #include <ArduinoJson.h>
 
-#define SMS_TARGET  "+77089194616"
+#define SMS_TARGET  "+7"
 
 // Configure TinyGSM library
 #define TINY_GSM_MODEM_SIM800
