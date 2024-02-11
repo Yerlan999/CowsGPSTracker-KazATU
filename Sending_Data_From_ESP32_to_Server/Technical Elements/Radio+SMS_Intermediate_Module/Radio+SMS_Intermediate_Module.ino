@@ -21,9 +21,9 @@
 #define I2C_SCL              22
 
 // Последовательный цифровой порт для вывода текста на экран
-#define SerialMon Serial
+#define Monitor Serial
 // Последовательный цифровой порт для общения с Модулем SIM800H
-#define SerialAT  Serial2
+#define SIM800  Serial2
 
 String SMS_stream;
 String SMS_content;
@@ -33,16 +33,16 @@ String SMS_content;
 
 #ifdef DUMP_AT_COMMANDS
 #include <StreamDebugger.h>
-StreamDebugger debugger(SerialAT, SerialMon); // Оба порта
+StreamDebugger debugger(SIM800, Monitor); // Оба порта
 TinyGsm modem(debugger);
 #else
-TinyGsm modem(SerialAT); // Только один порт (канал устройство-модуль SIM)
+TinyGsm modem(SIM800); // Только один порт (канал устройство-модуль SIM)
 #endif
 
 #define IP5306_ADDR          0x75
 #define IP5306_REG_SYS_CTL0  0x00
 
-HardwareSerial SerialPort(1); // use UART1
+HardwareSerial LoRa(1); // use UART1
 
 
 bool setPowerBoostKeepOn(int en) {
@@ -63,8 +63,8 @@ void updateSerial();
 
 void setup() {
   // Serial2.begin(9600);   // lora E32 gắn với cổng TX2 RX2 trên board ESP32
-  SerialMon.begin(9600);
-  SerialPort.begin(9600, SERIAL_8N1, 25, 33); 
+  Monitor.begin(9600);
+  LoRa.begin(9600, SERIAL_8N1, 25, 33); 
 
   pinMode(M0, OUTPUT);        
   pinMode(M1, OUTPUT);
@@ -75,7 +75,7 @@ void setup() {
   // Keep power when running from battery
   Wire.begin(I2C_SDA, I2C_SCL);
   bool isOk = setPowerBoostKeepOn(1);
-  SerialMon.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));
+  Monitor.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));
   // Set modem reset, enable, power pins
   pinMode(MODEM_PWKEY, OUTPUT);
   pinMode(MODEM_RST, OUTPUT);
@@ -85,21 +85,21 @@ void setup() {
   digitalWrite(MODEM_POWER_ON, HIGH);
 
   // Set GSM module baud rate and UART pins
-  SerialAT.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
+  SIM800.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
   delay(3000);
 
-  SerialMon.println("Initializing modem...");
+  Monitor.println("Initializing modem...");
   // modem.restart();
   modem.init();
 
 
-  SerialAT.println("AT"); // Рукопожатие устройства ESP32 с модулем SIM800
+  SIM800.println("AT"); // Рукопожатие устройства ESP32 с модулем SIM800
   updateSerial();
   delay(200);
-  SerialAT.println("AT+CMGF=1"); // Конфигурация режима обработки текста
+  SIM800.println("AT+CMGF=1"); // Конфигурация режима обработки текста
   updateSerial();
   delay(200);
-  SerialAT.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
+  SIM800.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
   updateSerial();
 }
 
@@ -110,14 +110,15 @@ void loop() {
     
     updateSerial(); // Чтение входящих данных
 
-    if(SerialMon.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
-      String input = SerialMon.readStringUntil('\n');
-      SerialPort.println(input);     
+    if(Monitor.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
+      String input = Monitor.readStringUntil('\n');
+      LoRa.println(input);
+      LoRa.flush();     
     }
   
-    if(SerialPort.available() > 0){
-      String input = SerialPort.readStringUntil('\n');
-      SerialMon.println(input);    
+    if(LoRa.available() > 0){
+      String input = LoRa.readStringUntil('\n');
+      Monitor.println(input);    
     }
     delay(20);
 }
@@ -127,24 +128,27 @@ void loop() {
 
 void updateSerial() {
 
-  while (SerialAT.available()) {
-    SMS_stream = SerialAT.readStringUntil('\n');
+  while (SIM800.available()) {
+    SMS_stream = SIM800.readStringUntil('\n');
     if (SMS_stream.startsWith("+CMT")) {
-      SerialMon.println("Stream: " + SMS_stream);
+      Monitor.println("Stream: " + SMS_stream);
       
       String sender = SMS_stream.substring(7, 19);
       int stream_len = SMS_stream.length();
       String datetime = SMS_stream.substring(stream_len-22, stream_len-2);
 
-      SerialMon.println("Sender: " + sender);
-      SerialMon.println("DateTime: " + datetime);
+      Monitor.println("Sender: " + sender);
+      Monitor.println("DateTime: " + datetime);
 
-      SMS_content = SerialAT.readStringUntil('\n');
+      SMS_content = SIM800.readStringUntil('\n');
       SMS_content.trim();
-      SerialMon.println("Content: " + SMS_content);
+      Monitor.println("Content: " + SMS_content);
+      if (SMS_content == "GET GPS"){
+        LoRa.println("GET GPS");
+      }
       
       if (SMS_content == "Turn on") {
-        SerialMon.println("The pump has been turned on");        
+        Monitor.println("The pump has been turned on");        
       }
     }
     }
@@ -152,7 +156,7 @@ void updateSerial() {
 
 // Отправка сообщения
 void sendSMSmessage(){
-  if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {SerialMon.println("Message from ESP32");}
-  else {SerialMon.println("SMS failed to send");}
+  if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {Monitor.println("Message from ESP32");}
+  else {Monitor.println("SMS failed to send");}
   delay(1000); 
 }
