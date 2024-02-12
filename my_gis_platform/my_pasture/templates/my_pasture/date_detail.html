@@ -904,6 +904,21 @@
                     var isRunning = false;
 
                     function toggleButtonText() {
+
+                      $.ajax({
+                        type: "GET",
+                        url: "/ajax/",
+                        data: {
+                            'ToggleGPS': true,
+                        },
+                        success: function(data) {
+                          console.log('Ajax request Toggle GPS finished');
+                        },
+                        error: function(xhr, status, error) {
+                          console.error('Ajax request Toggle GPS failed ', status, error);
+                        }
+                      });
+
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
                         clearInterval(ajax_request);

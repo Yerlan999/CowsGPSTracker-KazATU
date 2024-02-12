@@ -1,6 +1,8 @@
 #include <string.h>
 #include <Arduino.h>
-
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+#include "GyverEncoder.h"
 #include <WiFi.h>
 #include <HTTPClient.h> 
 #include <ArduinoJson.h>
@@ -17,6 +19,21 @@
 
 #define M0 12       
 #define M1 14
+
+#define CLK 35 // S1
+#define DT 15  // S2
+#define SW 34  // Key
+
+const int DIR = 0;
+const int STEP = 2;
+const int  steps_per_rev = 200;
+
+long unsigned stepper_rotation_count = 1;
+bool stepper_change = false;
+
+String send_text = "";
+String received_text = "";
+String received_SMS_content = "";
 
 // TTGO T-Call распиновка
 #define MODEM_RST            5
@@ -51,6 +68,8 @@ TinyGsm modem(SIM800); // Только один порт (канал устро�
 
 HardwareSerial LoRa(1); // use UART1
 
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+Encoder enc1(CLK, DT, SW, true);
 
 bool setPowerBoostKeepOn(int en) {
   Wire.beginTransmission(IP5306_ADDR);
@@ -70,8 +89,11 @@ String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
 String TIME_UPDATE_COMMAND = "TIME_UPDATE";
 
+String GATE_CLOSE_COMMAND = "CLOSE";
+String GATE_OPEN_COMMAND = "OPEN";
+
 unsigned long lastTime = 0;
-unsigned long cycle_time = 30000;    // КАЖДЫЕ N секунд
+unsigned long cycle_time = 10000;    // КАЖДЫЕ N секунд
 
 const char* ssid = "";
 const char* password = "";
@@ -99,6 +121,14 @@ void setup() {
   digitalWrite(M0, LOW);       // Set 2 chân M0 và M1 xuống LOW 
   digitalWrite(M1, LOW);       // để hoạt động ở chế độ Normal
 
+  pinMode(STEP, OUTPUT);
+  pinMode(DIR, OUTPUT);
+
+  if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3D for 128x64
+    Monitor.println("SSD1306 allocation failed");
+  }
+  delay(2000);
+  displayInfo(send_text, received_text, received_SMS_content);
 
   // Keep power when running from battery
   Wire.begin(I2C_SDA, I2C_SCL);
@@ -135,17 +165,52 @@ char smsBuffer[250]; // Размер буфера для хранения тек
 
 
 void loop() {
+  
+  enc1.tick(); // обязательная функция отработки. Должна постоянно опрашиваться
+
+  if (enc1.isLeft()){ // Monitor.println("Left");
+    if (stepper_change){
+      stepper_rotation_count++;
+      displayStepperInfo(String(stepper_rotation_count)); 
+    }
+  }; // если был поворот направо
+
+  if (enc1.isRight()){ // Monitor.println("Right");
+    if (stepper_change){
+      if (stepper_rotation_count > 1){
+        stepper_rotation_count--; 
+        displayStepperInfo(String(stepper_rotation_count)); 
+      } 
+    }
+  }; // если был поворот налево
+
+  if (enc1.isRelease()){ // Monitor.println("Release");
+    stepper_change = !stepper_change;
+    if (stepper_change){
+      displayStepperInfo(String(stepper_rotation_count)); 
+    }
+    else{
+      displayInfo(send_text, received_text, received_SMS_content);
+    }
     
+  }; // отпускание кнопки (+ дебаунс)
+
+
+
   listenSIM800(); // Чтение входящих данных
 
   if(Monitor.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
     String input = Monitor.readStringUntil('\n');
+    send_text = input;
     LoRa.println(input);
+    displayInfo(send_text, received_text, received_SMS_content);
   }
 
   if(LoRa.available() > 0){
     String input = LoRa.readStringUntil('\n');
-    Monitor.println(input);    
+    received_text = input;
+    Monitor.println(input);
+    displayInfo(send_text, received_text, received_SMS_content);    
   }
 
   if ((millis() - lastTime) > cycle_time) {
@@ -181,28 +246,38 @@ void listenSIM800() {
       SMS_content = SIM800.readStringUntil('\n');
       SMS_content.trim();
       Monitor.println("Content: " + SMS_content);
-      
-      updateTime(SMS_content);
-      
-            
-      LoRa.println(SMS_content);
+      received_SMS_content = SMS_content;
 
+      updateItems(SMS_content);
+      
+      send_text = SMS_content;      
+      LoRa.println(SMS_content);
+      displayInfo(send_text, received_text, received_SMS_content);
     }
     }
 }
 
 
-void updateTime(String input){
+void updateItems(String input){
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
 
   if (splitStrings[0].equals(TIME_UPDATE_COMMAND)){
     Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
     cycle_time = splitStrings[1].toInt();  
-  }      
+  } 
+  
+  if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
+    Monitor.println(input);
+    moveStepper(1, splitStrings[1].toInt());
+  }
+  if (splitStrings[0].equals(GATE_OPEN_COMMAND)){
+    Monitor.println(input);
+    moveStepper(0, splitStrings[1].toInt());
+  }
+
   delete[] splitStrings;  
 }
-
 
 
 // Отправка сообщения
@@ -241,6 +316,54 @@ int splitString(const String& input, char delimiter, String*& output) {
 
   return arraySize;
 }
+
+
+
+void moveStepper(bool direction, int gate_ID){
+  digitalWrite(DIR, direction);
+  if (gate_ID == 1){
+    Monitor.println("Moving Stepper #1");
+    for(int i = 0; i<(steps_per_rev*stepper_rotation_count); i++){
+      digitalWrite(STEP, HIGH);
+      delayMicroseconds(500);
+      digitalWrite(STEP, LOW);
+      delayMicroseconds(500);
+    }
+    delay(1000);    
+  }
+  else{
+    Monitor.println("Missing Stepper Motor");
+  }  
+}
+
+void displayInfo(String send_text, String received_text, String received_SMS_content){
+  display.clearDisplay();
+  
+  display.setTextSize(1);   display.setTextColor(WHITE);
+   
+  display.setCursor(0, 1);  display.println("S| ");
+  display.setCursor(20, 1); display.println(send_text);  
+  
+  display.setCursor(0, 20);  display.println("R| ");
+  display.setCursor(20, 20); display.println(received_text);  
+
+  display.setCursor(0, 40);  display.println("SMS| ");
+  display.setCursor(30, 40); display.println(received_SMS_content);  
+
+  display.display();   
+}
+
+void displayStepperInfo(String text){
+  display.clearDisplay();
+  
+  display.setTextSize(1);   display.setTextColor(WHITE);
+  
+  display.setCursor(10, 1);  display.println("Stepper rotation|");
+  display.setCursor(55, 40); display.println(text);  
+  
+  display.display();   
+}
+
 
 
 void sendHttpPostRequest() {
@@ -290,3 +413,4 @@ void sendHttpPostRequest() {
 
   http.end();
 }
+

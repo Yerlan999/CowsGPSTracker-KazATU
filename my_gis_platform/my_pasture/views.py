@@ -159,6 +159,11 @@ HISTORY_RUSSIAN_PARAMETERS = [
     "эвапотранспирация",]
 
 
+RECIPIENT = '+77086354694'
+SENDER = '+12138057473'
+GPS_TRACKING_STATE = False
+
+
 class HolderClass():
     sentinel_request = None
 
@@ -1495,9 +1500,22 @@ def play_simulation(request):
 MODEL_COLUMNS = ["index", "RZM", "temp", "pressure", "humidity", "cattle_count", "daily_intake", "reserve"]
 
 
+def send_SMS_message(message_content):
+    account_sid = os.environ.get('Twilio_SID')
+    auth_token = os.environ.get('Twilio_Token')
+    client = Client(account_sid, auth_token)
+
+    message = client.messages.create(
+      from_=SENDER,
+      body=message_content,
+      to=RECIPIENT,
+    )
+
+    print(message.sid)
+
 @csrf_exempt
 def ajax_view(request):
-    global list_of_cattles
+    global list_of_cattles, GPS_TRACKING_STATE
 
     # Data from ESP32 module
     if request.method == 'POST':
@@ -1526,6 +1544,15 @@ def ajax_view(request):
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices}
 
             return JsonResponse(response_data)
+        elif "ToggleGPS" in request.GET:
+
+            GPS_TRACKING_STATE = not GPS_TRACKING_STATE
+            if (GPS_TRACKING_STATE):
+                send_SMS_message(f"START GPS")
+            else:
+                send_SMS_message(f"STOP GPS")
+
+            return JsonResponse({'message': 'GPS state has been changed'})
         elif "cattle_tracker" in request.GET:
             # Dummy Example
 
@@ -1637,25 +1664,12 @@ def ajax_view(request):
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
         elif "action_on_gate" in request.GET:
             print()
-            print("Gates actions: ")
 
             gate_id = request.GET.get("gate_id")
             gate_action = request.GET.get("gate_action")
 
-            print(f"Gate ID: {gate_id}")
-            print(f"Gate action: {gate_action}")
-
-            account_sid = os.environ.get('Twilio_SID')
-            auth_token = os.environ.get('Twilio_Token')
-            client = Client(account_sid, auth_token)
-
-            message = client.messages.create(
-              from_='+12138057473',
-              body='Hello',
-              to='+77089194616'
-            )
-
-            print(message.sid)
+            print(f"{gate_action.upper()}:{gate_id}")
+            send_SMS_message(f"{gate_action.upper()}:{gate_id}")
 
             return JsonResponse({'message': 'Gate state has been changed'})
         else:
