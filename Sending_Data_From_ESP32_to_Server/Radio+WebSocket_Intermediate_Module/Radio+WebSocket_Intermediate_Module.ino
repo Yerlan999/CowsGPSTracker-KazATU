@@ -6,26 +6,18 @@
 #include <WiFi.h>
 #include <HTTPClient.h> 
 #include <ArduinoJson.h>
-
-#define SMS_TARGET  "+7"
-
-// Configure TinyGSM library
-#define TINY_GSM_MODEM_SIM800
-#define TINY_GSM_RX_BUFFER   1024  // RX буфер = 1Kb
-
-#include <HardwareSerial.h>
+#include <WebSocketsServer.h>
 #include <Wire.h>
-#include <TinyGsmClient.h>
 
-#define M0 12       
-#define M1 14
+#define M0 4       
+#define M1 2
 
-#define CLK 35 // S1
-#define DT 15  // S2
-#define SW 34  // Key
+#define CLK 5 // S1
+#define DT 18  // S2
+#define SW 19  // Key
 
-const int DIR = 0;
-const int STEP = 2;
+const int DIR = 34;
+const int STEP = 35;
 const int  steps_per_rev = 200;
 
 long unsigned stepper_rotation_count = 1;
@@ -33,56 +25,15 @@ bool stepper_change = false;
 
 String send_text = "";
 String received_text = "";
-String received_SMS_content = "";
-
-// TTGO T-Call распиновка
-#define MODEM_RST            5
-#define MODEM_PWKEY          4
-#define MODEM_POWER_ON       23
-#define MODEM_TX             27
-#define MODEM_RX             26
-#define I2C_SDA              21
-#define I2C_SCL              22
+String received_websocket_content = "";
 
 // Последовательный цифровой порт для вывода текста на экран
 #define Monitor Serial
-// Последовательный цифровой порт для общения с Модулем SIM800H
-#define SIM800  Serial2
-
-String SMS_stream;
-String SMS_content;
-
-// Последовательный цифровой порт для дебаггинга?
-#define DUMP_AT_COMMANDS
-
-#ifdef DUMP_AT_COMMANDS
-#include <StreamDebugger.h>
-StreamDebugger debugger(SIM800, Monitor); // Оба порта
-TinyGsm modem(debugger);
-#else
-TinyGsm modem(SIM800); // Только один порт (канал устройство-модуль SIM)
-#endif
-
-#define IP5306_ADDR          0x75
-#define IP5306_REG_SYS_CTL0  0x00
-
-HardwareSerial LoRa(1); // use UART1
+#define LoRa Serial2
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 Encoder enc1(CLK, DT, SW, true);
-
-bool setPowerBoostKeepOn(int en) {
-  Wire.beginTransmission(IP5306_ADDR);
-  Wire.write(IP5306_REG_SYS_CTL0);
-  if (en) {
-    Wire.write(0x37); // Set bit1: 1 enable 0 disable boost keep on
-  } else {
-    Wire.write(0x35); // 0x37 is default reg value
-  }
-  return Wire.endTransmission() == 0;
-}
-
-void listenSIM800();
+WebSocketsServer webSocket= WebSocketsServer(80);
 
 
 String GPS_ENABLE_COMMAND = "START GPS";
@@ -95,26 +46,29 @@ String GATE_OPEN_COMMAND = "OPEN";
 unsigned long lastTime = 0;
 unsigned long cycle_time = 10000;    // КАЖДЫЕ N секунд
 
-const char* ssid = "";
-const char* password = "";
+const char * ssid = "";  
+const char * password = "";
 const char *host = "192.168.0.12";
 const int port = 8000;
 
+
 void setup() {
-  
+
+  Monitor.begin(9600);
+  LoRa.begin(9600); 
+
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Monitor.println("Connecting to WiFi..");
   }
- 
+
   Monitor.println("Connected to the WiFi network");
+  Monitor.println(WiFi.localIP());
 
-
-  // Serial2.begin(9600);   // lora E32 gắn với cổng TX2 RX2 trên board ESP32
-  Monitor.begin(9600);
-  LoRa.begin(9600, SERIAL_8N1, 25, 33); 
+  webSocket.begin();
+  webSocket.onEvent(onWebSocketEvent);
 
   pinMode(M0, OUTPUT);        
   pinMode(M1, OUTPUT);
@@ -128,89 +82,59 @@ void setup() {
     Monitor.println("SSD1306 allocation failed");
   }
   delay(2000);
-  displayInfo(send_text, received_text, received_SMS_content);
-
-  // Keep power when running from battery
-  Wire.begin(I2C_SDA, I2C_SCL);
-  bool isOk = setPowerBoostKeepOn(1);
-  Monitor.println(String("IP5306 KeepOn ") + (isOk ? "OK" : "FAIL"));
-  // Set modem reset, enable, power pins
-  pinMode(MODEM_PWKEY, OUTPUT);
-  pinMode(MODEM_RST, OUTPUT);
-  pinMode(MODEM_POWER_ON, OUTPUT);
-  digitalWrite(MODEM_PWKEY, LOW);
-  digitalWrite(MODEM_RST, HIGH);
-  digitalWrite(MODEM_POWER_ON, HIGH);
-
-  // Set GSM module baud rate and UART pins
-  SIM800.begin(115200, SERIAL_8N1, MODEM_RX, MODEM_TX);
-  delay(3000);
-
-  Monitor.println("Initializing modem...");
-  // modem.restart();
-  modem.init();
-
-
-  SIM800.println("AT"); // Рукопожатие устройства ESP32 с модулем SIM800
-  listenSIM800();
-  delay(200);
-  SIM800.println("AT+CMGF=1"); // Конфигурация режима обработки текста
-  listenSIM800();
-  delay(200);
-  SIM800.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
-  listenSIM800();
+  displayInfo(send_text, received_text, received_websocket_content);
 }
-
-char smsBuffer[250]; // Размер буфера для хранения текста сообщении
 
 
 void loop() {
+
+  // webSocket.sendTXT(0, inputString);
+  webSocket.loop();
   
   enc1.tick(); // обязательная функция отработки. Должна постоянно опрашиваться
 
-  if (enc1.isLeft()){ // Monitor.println("Left");
+  if (enc1.isLeftH()){ // Monitor.println("Left");
     if (stepper_change){
       stepper_rotation_count++;
       displayStepperInfo(String(stepper_rotation_count)); 
     }
-  }; // если был поворот направо
+  }; // если был поворот направо с удержанием
 
-  if (enc1.isRight()){ // Monitor.println("Right");
+  if (enc1.isRightH()){ // Monitor.println("Right");
     if (stepper_change){
       if (stepper_rotation_count > 1){
         stepper_rotation_count--; 
         displayStepperInfo(String(stepper_rotation_count)); 
       } 
     }
-  }; // если был поворот налево
-
+  }; // если был поворот налево с удержанием
+ 
   if (enc1.isRelease()){ // Monitor.println("Release");
     stepper_change = !stepper_change;
     if (stepper_change){
       displayStepperInfo(String(stepper_rotation_count)); 
     }
     else{
-      displayInfo(send_text, received_text, received_SMS_content);
+      displayInfo(send_text, received_text, received_websocket_content);
     }
     
   }; // отпускание кнопки (+ дебаунс)
 
 
-
-  listenSIM800(); // Чтение входящих данных
-
   if(Monitor.available() > 0){ // nhận dữ liệu từ bàn phím gửi tín hiệu đi
     String input = Monitor.readStringUntil('\n');
     send_text = input;
     LoRa.println(input);
-    displayInfo(send_text, received_text, received_SMS_content);
+    displayInfo(send_text, received_text, received_websocket_content);
   }
 
   if(LoRa.available() > 0){
     String input = LoRa.readStringUntil('\n');
     received_text = input;
+    webSocket.sendTXT(0, input);
+
     Monitor.println(input);
-    displayInfo(send_text, received_text, received_SMS_content);    
+    displayInfo(send_text, received_text, received_websocket_content);    
   }
 
   if ((millis() - lastTime) > cycle_time) {
@@ -228,45 +152,21 @@ void loop() {
 
 
 
-
-void listenSIM800() {
-
-  while (SIM800.available()) {
-    SMS_stream = SIM800.readStringUntil('\n');
-    if (SMS_stream.startsWith("+CMT")) {
-      Monitor.println("Stream: " + SMS_stream);
-      
-      String sender = SMS_stream.substring(7, 19);
-      int stream_len = SMS_stream.length();
-      String datetime = SMS_stream.substring(stream_len-22, stream_len-2);
-
-      Monitor.println("Sender: " + sender);
-      Monitor.println("DateTime: " + datetime);
-
-      SMS_content = SIM800.readStringUntil('\n');
-      SMS_content.trim();
-      Monitor.println("Content: " + SMS_content);
-      received_SMS_content = SMS_content;
-
-      updateItems(SMS_content);
-      
-      send_text = SMS_content;      
-      LoRa.println(SMS_content);
-      displayInfo(send_text, received_text, received_SMS_content);
-    }
-    }
-}
-
-
 void updateItems(String input){
+  
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
 
   if (splitStrings[0].equals(TIME_UPDATE_COMMAND)){
     Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
-    cycle_time = splitStrings[1].toInt();  
+    cycle_time = splitStrings[1].toInt(); 
+    LoRa.println(input); 
   } 
   
+  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ LoRa.println(input); }
+  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ LoRa.println(input); }
+
+    
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
     Monitor.println(input);
     moveStepper(1, splitStrings[1].toInt());
@@ -277,14 +177,6 @@ void updateItems(String input){
   }
 
   delete[] splitStrings;  
-}
-
-
-// Отправка сообщения
-void sendSMSmessage(){
-  if (modem.sendSMS(SMS_TARGET, "Message from ESP32")) {Monitor.println("Message from ESP32");}
-  else {Monitor.println("SMS failed to send");}
-  delay(1000); 
 }
 
 
@@ -336,7 +228,7 @@ void moveStepper(bool direction, int gate_ID){
   }  
 }
 
-void displayInfo(String send_text, String received_text, String received_SMS_content){
+void displayInfo(String send_text, String received_text, String received_websocket_content){
   display.clearDisplay();
   
   display.setTextSize(1);   display.setTextColor(WHITE);
@@ -347,8 +239,8 @@ void displayInfo(String send_text, String received_text, String received_SMS_con
   display.setCursor(0, 20);  display.println("R| ");
   display.setCursor(20, 20); display.println(received_text);  
 
-  display.setCursor(0, 40);  display.println("SMS| ");
-  display.setCursor(30, 40); display.println(received_SMS_content);  
+  display.setCursor(0, 40);  display.println("WSK| ");
+  display.setCursor(30, 40); display.println(received_websocket_content);  
 
   display.display();   
 }
@@ -396,9 +288,6 @@ void sendHttpPostRequest() {
   serializeJson(jsonDocument, postData);
 
 
-
-
-
   // Make the POST request
   http.begin("http://" + String(host) + ":" + String(port) + "/ajax/");
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");
@@ -414,3 +303,49 @@ void sendHttpPostRequest() {
   http.end();
 }
 
+// Called when websocket server receives any messages
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
+//Figure out the type of Websocket Event
+
+char receivedMessage[length + 1];
+
+switch(type) {
+    // Client has disconnected
+    case WStype_DISCONNECTED:
+      Monitor.printf("[%u] Disconnected\n", num);
+      break;
+    
+    //New client has connected to the server
+    case WStype_CONNECTED:
+    {
+      IPAddress ip = webSocket.remoteIP(num);
+      Monitor.printf("[%u] Connected from: \n", num);
+      Monitor.println(ip.toString());
+    }
+    break;
+    //Echo the text messages
+    case WStype_TEXT:
+      // Monitor.printf("[%u] Text %s\n", num, payload);
+      // webSocket.sendTXT(num, "YOu are the best");
+
+      // Convert the payload to a C-string
+      strncpy(receivedMessage, (char*)payload, length);
+      receivedMessage[length] = '\0';
+      // Call updateItems with the C-string
+      updateItems(String(receivedMessage));
+      received_websocket_content = String(receivedMessage);
+
+      displayInfo(send_text, received_text, received_websocket_content);
+      
+      break;
+    // For anything else: do nothing
+    case WStype_BIN:
+    case WStype_ERROR:
+    case WStype_FRAGMENT_TEXT_START:
+    case WStype_FRAGMENT_BIN_START:
+    case WStype_FRAGMENT:
+    case WStype_FRAGMENT_FIN:
+    default:
+    break; 
+  }
+}

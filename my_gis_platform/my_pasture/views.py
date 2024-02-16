@@ -47,6 +47,8 @@ import seaborn as sns
 from functools import reduce
 
 import tensorflow as tf
+import threading
+import websocket
 
 matplotlib.use('agg')
 
@@ -159,8 +161,6 @@ HISTORY_RUSSIAN_PARAMETERS = [
     "эвапотранспирация",]
 
 
-RECIPIENT = '+77086354694'
-SENDER = '+12138057473'
 GPS_TRACKING_STATE = False
 
 
@@ -281,7 +281,7 @@ class SentinelRequest():
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
         # self.model = load_model('my_model.keras')
         self.large_model = tf.keras.models.load_model('/large_model/')
-        self.rf_model = joblib.load('random_forest_model.pkl')
+        # self.rf_model = joblib.load('random_forest_model.pkl')
 
         # self.scaler = joblib.load('scaler.joblib')
         self.saved_mean = pd.read_pickle('saved_mean.pkl')
@@ -1548,9 +1548,9 @@ def ajax_view(request):
 
             GPS_TRACKING_STATE = not GPS_TRACKING_STATE
             if (GPS_TRACKING_STATE):
-                send_SMS_message(f"START GPS")
+                ws_client.send(f"START GPS")
             else:
-                send_SMS_message(f"STOP GPS")
+                ws_client.send(f"STOP GPS")
 
             return JsonResponse({'message': 'GPS state has been changed'})
         elif "cattle_tracker" in request.GET:
@@ -1669,7 +1669,9 @@ def ajax_view(request):
             gate_action = request.GET.get("gate_action")
 
             print(f"{gate_action.upper()}:{gate_id}")
-            send_SMS_message(f"{gate_action.upper()}:{gate_id}")
+
+            ws_client.send(f"{gate_action.upper()}:{gate_id}")
+            # send_SMS_message(f"{gate_action.upper()}:{gate_id}")
 
             return JsonResponse({'message': 'Gate state has been changed'})
         else:
@@ -1677,3 +1679,38 @@ def ajax_view(request):
     else:
         return JsonResponse({'message': 'Ooops response'})
 
+
+def contains_two_pipe_symbols(input_string):
+    return input_string.count(" | ") == 2
+
+def parse_GPS(input_string):
+    return input_string.split(" | ")
+
+def divide_cows(input_string):
+    return input_string.split(",")
+
+
+
+def on_message(ws, message):
+    global list_of_cattles
+
+    cows = str(message)
+    list_of_cattles = []
+
+    for cow in divide_cows(cows):
+        if contains_two_pipe_symbols(cow):
+            cow_id, latitude, longitude = parse_GPS(message)
+            print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
+
+            cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
+
+            list_of_cattles.append(cattle)
+
+
+# Connect to the WebSocket server
+IP = "192.168.54.6:80"
+ws_client = websocket.WebSocketApp("ws://" + IP, on_message=on_message)
+ws_client_thread = threading.Thread(target=ws_client.run_forever)
+ws_client_thread.start()
+# send_thread = threading.Thread(target=send)
+# send_thread.start()
