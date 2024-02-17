@@ -47,8 +47,8 @@ import seaborn as sns
 from functools import reduce
 
 import tensorflow as tf
-import threading
-import websocket
+# import threading
+# import websocket
 
 matplotlib.use('agg')
 
@@ -1544,15 +1544,15 @@ def ajax_view(request):
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices}
 
             return JsonResponse(response_data)
-        elif "ToggleGPS" in request.GET:
+        # elif "ToggleGPS" in request.GET:
 
-            GPS_TRACKING_STATE = not GPS_TRACKING_STATE
-            if (GPS_TRACKING_STATE):
-                ws_client.send(f"START GPS")
-            else:
-                ws_client.send(f"STOP GPS")
+        #     GPS_TRACKING_STATE = not GPS_TRACKING_STATE
+        #     if (GPS_TRACKING_STATE):
+        #         ws_client.send(f"START GPS")
+        #     else:
+        #         ws_client.send(f"STOP GPS")
 
-            return JsonResponse({'message': 'GPS state has been changed'})
+        #     return JsonResponse({'message': 'GPS state has been changed'})
         elif "cattle_tracker" in request.GET:
             # Dummy Example
 
@@ -1571,18 +1571,18 @@ def ajax_view(request):
                             if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
                                 cattle["paddock_number"] = f"{i+1}"
                                 pasture_load[i+1] += 1
-                    else: # Dealing with dummy cattle
+                    # else: # Dealing with dummy cattle
 
-                        # # Randomize coordinates in the list of dictionaries
-                        # for cattle in list_of_dummy_cattles:
-                        #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
+                    #     # # Randomize coordinates in the list of dictionaries
+                    #     # for cattle in list_of_dummy_cattles:
+                    #     #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
 
-                        for cattle in list_of_dummy_cattles:
-                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+                    #     for cattle in list_of_dummy_cattles:
+                    #         point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
 
-                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                                cattle["paddock_number"] = f"{i+1}"
-                                pasture_load[i+1] += 1
+                    #         if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                    #             cattle["paddock_number"] = f"{i+1}"
+                    #             pasture_load[i+1] += 1
 
                 if (list_of_cattles):
                     return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
@@ -1662,18 +1662,32 @@ def ajax_view(request):
 
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
-        elif "action_on_gate" in request.GET:
-            print()
+        elif "GPS_of_cows" in request.GET:
 
-            gate_id = request.GET.get("gate_id")
-            gate_action = request.GET.get("gate_action")
+            message = request.GET.get("GPS_of_cows")
+            cows = str(message)
+            list_of_cattles = []
 
-            print(f"{gate_action.upper()}:{gate_id}")
+            for cow in divide_cows(cows):
+                cow_id, latitude, longitude = parse_GPS(message)
+                print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
 
-            ws_client.send(f"{gate_action.upper()}:{gate_id}")
-            # send_SMS_message(f"{gate_action.upper()}:{gate_id}")
+                cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
 
-            return JsonResponse({'message': 'Gate state has been changed'})
+                list_of_cattles.append(cattle)
+            return JsonResponse({'message': 'GPS of cows are updated'})
+
+        # elif "action_on_gate" in request.GET:
+        #     print()
+
+        #     gate_id = request.GET.get("gate_id")
+        #     gate_action = request.GET.get("gate_action")
+
+        #     print(f"{gate_action.upper()}:{gate_id}")
+
+        #     ws_client.send(f"{gate_action.upper()}:{gate_id}")
+
+        #     return JsonResponse({'message': 'Gate state has been changed'})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
@@ -1684,33 +1698,34 @@ def contains_two_pipe_symbols(input_string):
     return input_string.count(" | ") == 2
 
 def parse_GPS(input_string):
-    return input_string.split(" | ")
+    return [element.strip() for element in input_string.split(" | ")]
 
 def divide_cows(input_string):
     return input_string.split(",")
 
 
 
-def on_message(ws, message):
-    global list_of_cattles
+# def on_message(ws, message):
+#     global list_of_cattles
 
-    cows = str(message)
-    list_of_cattles = []
+#     cows = str(message)
+#     list_of_cattles = []
 
-    for cow in divide_cows(cows):
-        if contains_two_pipe_symbols(cow):
-            cow_id, latitude, longitude = parse_GPS(message)
-            print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
+#     for cow in divide_cows(cows):
+#         if contains_two_pipe_symbols(cow):
+#             cow_id, latitude, longitude = parse_GPS(message)
+#             print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
 
-            cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
+#             cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
 
-            list_of_cattles.append(cattle)
+#             list_of_cattles.append(cattle)
 
 
-# Connect to the WebSocket server
-IP = "192.168.54.6:80"
-ws_client = websocket.WebSocketApp("ws://" + IP, on_message=on_message)
-ws_client_thread = threading.Thread(target=ws_client.run_forever)
-ws_client_thread.start()
+
+# # Connect to the WebSocket server
+# IP = "192.168.54.6:80"
+# ws_client = websocket.WebSocketApp("ws://" + IP, on_message=on_message)
+# ws_client_thread = threading.Thread(target=ws_client.run_forever)
+# ws_client_thread.start()
 # send_thread = threading.Thread(target=send)
 # send_thread.start()

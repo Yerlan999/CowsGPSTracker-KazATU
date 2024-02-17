@@ -553,6 +553,16 @@
         <div class="col">
           <button id="ajaxRunner" class="btn btn-primary btn-block mt-3 mb-3" style="display: none">Начать треккинг</button>
         </div>
+        <div class="col">
+          <label id="integerOptionsLable" for="integerOptions" class="form-label mt-3 mb-3" style="display: none">Интервал обновления опроса GPS треккеров (сек.):</label>
+          <select id="integerOptions" class="form-select mt-3 mb-3" onchange="handleValueChange(this)" style="display: none">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="60">60</option>
+          </select>
+        </div>
     </div>
     <div class="row mb-3">
         <div class="col">
@@ -668,31 +678,42 @@
       var state_button = document.getElementById("gate_state");
       var action_button = document.getElementById("gate_action");
 
-      // Calling Intermediate Module to Open or Close certain gates
-      $.ajax({
-          type: "GET",
-          url: "/ajax/",
-          data: {
-              'action_on_gate': true,
-              'gate_id': selectedValue,
-              'gate_action': action_button.value,
-          },
-          success: function(data) {
-            console.log(data);
+      if (action_button.value == "close"){
+        gates_state[String(selectedValue)] = "Закрыт";
+        sendMessage(`CLOSE:${selectedValue}`);
+      }
+      else {
+        gates_state[String(selectedValue)] = "Открыт";
+        sendMessage(`OPEN:${selectedValue}`);
+      }
+      state_button.innerHTML = gates_state[String(selectedValue)];
 
-            if (action_button.value == "close"){
-              gates_state[String(selectedValue)] = "Закрыт";
-            }
-            else{
-              gates_state[String(selectedValue)] = "Открыт";
-            }
-            state_button.innerHTML = gates_state[String(selectedValue)];
+      // // Calling Intermediate Module to Open or Close certain gates
+      // $.ajax({
+      //     type: "GET",
+      //     url: "/ajax/",
+      //     data: {
+      //         'action_on_gate': true,
+      //         'gate_id': selectedValue,
+      //         'gate_action': action_button.value,
+      //     },
+      //     success: function(data) {
+      //       console.log(data);
 
-        },
-        error: function(xhr, status, error) {
-          console.error('Ajax request failed', status, error);
-        }
-      });
+      //       if (action_button.value == "close"){
+      //         gates_state[String(selectedValue)] = "Закрыт";
+      //       }
+      //       else{
+      //         gates_state[String(selectedValue)] = "Открыт";
+      //       }
+      //       state_button.innerHTML = gates_state[String(selectedValue)];
+
+      //   },
+      //   error: function(xhr, status, error) {
+      //     console.error('Ajax request failed', status, error);
+      //   }
+      // });
+
     }
 
 
@@ -874,6 +895,7 @@
                     $("#fast_reserve").show();
                     $("#fast_methodSelection").show();
 
+
                     var selectElement = document.getElementById("numberSelect");
                     var state_button = document.getElementById("gate_state");
                     var p_count = decodedData.length-1
@@ -905,25 +927,27 @@
 
                     function toggleButtonText() {
 
-                      $.ajax({
-                        type: "GET",
-                        url: "/ajax/",
-                        data: {
-                            'ToggleGPS': true,
-                        },
-                        success: function(data) {
-                          console.log('Ajax request Toggle GPS finished');
-                        },
-                        error: function(xhr, status, error) {
-                          console.error('Ajax request Toggle GPS failed ', status, error);
-                        }
-                      });
+                      // $.ajax({
+                      //   type: "GET",
+                      //   url: "/ajax/",
+                      //   data: {
+                      //       'ToggleGPS': true,
+                      //   },
+                      //   success: function(data) {
+                      //     console.log('Ajax request Toggle GPS finished');
+                      //   },
+                      //   error: function(xhr, status, error) {
+                      //     console.error('Ajax request Toggle GPS failed ', status, error);
+                      //   }
+                      // });
 
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
                         clearInterval(ajax_request);
+                        sendMessage("STOP GPS");
                       } else {
                         toggleButton.textContent = "Остановить треккинг";
+                        sendMessage("START GPS");
 
                         ajax_request = setInterval(sendAjaxRequest, 10000); // milliseconds
 
@@ -942,6 +966,8 @@
                     $("#ajaxRunner").show();
                     $("#gate_state").show();
                     $("#action_button").show();
+                    $("#integerOptions").show();
+                    $("#integerOptionsLable").show();
 
 
                     var existingMap = L.DomUtil.get('map');
@@ -1052,7 +1078,7 @@
                     paddocks_count = geoJSONData.features.length -1;
                     geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
-                        color: "green", // Polygon border color
+                        color: "blue", // Polygon border color
                         weight: 1,      // Polygon border weight
                         fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
                       },
@@ -1104,6 +1130,47 @@
         });
     });
 
+
+
+
+// const DEVICE_IP = "192.168.0.20:80"
+const DEVICE_IP = "192.168.54.6:80"
+
+const chatSocket = new WebSocket('ws://' + DEVICE_IP);
+
+
+chatSocket.onmessage = function(e) {
+  const message = e.data;
+  console.log(message);
+  if (message.length > 16 && message.split("|").length - 1 === 2){
+    $.ajax({ type: "GET", url: "/ajax/", data: { 'GPS_of_cows': message,},
+      success: function(data) { console.log(data); },
+      error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+    });
+  }
+  else if (message == "End Reached"){
+    console.log(message);
+  }
+
+};
+
+chatSocket.onclose = function(e) {
+    console.error('Chat socket closed unexpectedly');
+};
+
+// Send message to server
+function sendMessage(message) {
+    chatSocket.send(message);
+}
+
+
+
+function handleValueChange(selectElement) {
+    // Get the selected value
+    var selectedValue = selectElement.value;
+    // Update the displayed value
+    sendMessage(`TIME_UPDATE:${parseInt(selectedValue)}`);
+}
 
 </script>
 
@@ -1938,7 +2005,7 @@ function startSimulation() {
         paddocks_count = geoJSONData.features.length-1;
         geoJsonLayer = L.geoJSON(geoJSONData, {
           style: {
-            color: "green", // Polygon border color
+            color: "blue", // Polygon border color
             weight: 1,      // Polygon border weight
             fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
           },

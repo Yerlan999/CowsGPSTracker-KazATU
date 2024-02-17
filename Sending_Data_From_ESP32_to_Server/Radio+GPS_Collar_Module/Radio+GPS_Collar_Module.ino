@@ -25,7 +25,7 @@ String send_text = "";
 String received_text = "";
 
 unsigned long lastTime = 0;
-unsigned long cycle_time = 10000;    // КАЖДЫЕ N секунд
+unsigned long cycle_time = 10;    // КАЖДЫЕ N секунд
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
@@ -83,11 +83,19 @@ void loop() {
     }
 
 
-  if ((millis() - lastTime) > cycle_time) { 
+  if ((millis() - lastTime) > cycle_time*1000) { 
     if (deliver_GPS){
       get_GPS_coordinates();
-      LoRa.println(String(COW_ID)+ " | " + String(latitude) + " | " + String(longitude));
-      send_text = String(COW_ID)+ " | " + String(latitude) + " | " + String(longitude);
+ 
+      char latitudeStr[15];  // Adjust the size based on your precision needs
+      char longitudeStr[15];
+
+      // Convert latitude and longitude to strings with 6 decimal places
+      dtostrf(latitude, 6, 6, latitudeStr);
+      dtostrf(longitude, 6, 6, longitudeStr);
+        
+      LoRa.println(String(COW_ID)+ " | " + String(latitudeStr) + " | " + String(longitudeStr));
+      send_text = String(COW_ID)+ " | " + String(latitudeStr) + " | " + String(longitudeStr);
       
       displayInfo(send_text, received_text);
       lastTime = millis();
@@ -147,12 +155,12 @@ void get_GPS_coordinates(){
         longitude = gps.location.lng();
         // Monitor.println(String(latitude) + " | " + String(longitude));
       }
-      else{
-        latitude = 45.54852;
-        longitude = 56.23658;
-        // Monitor.println("Invalid Location");
-        // Monitor.println(String(latitude) + " | " + String(longitude));
-      }
+      // else{
+      //   latitude = 0.0;
+      //   longitude = 0.0;
+      //   // Monitor.println("Invalid Location");
+      //   // Monitor.println(String(latitude) + " | " + String(longitude));
+      // }
     }
   }  
 }
