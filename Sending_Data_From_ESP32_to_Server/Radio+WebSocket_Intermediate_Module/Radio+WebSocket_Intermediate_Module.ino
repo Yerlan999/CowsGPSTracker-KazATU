@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <WebSocketsServer.h>
 #include <Wire.h>
+#include <Preferences.h>
 
 #define M0 4       
 #define M1 2
@@ -26,6 +27,7 @@ String received_websocket_content = "";
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 WebSocketsServer webSocket= WebSocketsServer(80);
+Preferences preferences;
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
@@ -35,20 +37,28 @@ String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
 unsigned long lastTime = 0;
-unsigned long cycle_time = 10;    // КАЖДЫЕ N секунд
+unsigned long cycle_time;    // КАЖДЫЕ N секунд
 
-const char * ssid = "";  
-const char * password = "";
+String ssid;  
+String password;
 const char *host = "192.168.0.12";
 const int port = 8000;
 
 
 void setup() {
 
+  preferences.begin("credentials", false);
+
+  ssid = preferences.getString("ssid", ""); 
+  password = preferences.getString("password", "");
+
+  cycle_time = preferences.getInt("time");
+
+  
   Monitor.begin(9600);
   LoRa.begin(9600); 
 
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid.c_str(), password.c_str());
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -118,7 +128,8 @@ void updateItems(String input){
 
   if (splitStrings[0].equals(TIME_UPDATE_COMMAND)){
     Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
-    cycle_time = splitStrings[1].toInt(); 
+    cycle_time = splitStrings[1].toInt();
+    preferences.putInt("time", cycle_time); 
     LoRa.println(input); 
   } 
   
@@ -128,11 +139,11 @@ void updateItems(String input){
     
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
     Monitor.println(input);
-    moveStepper(1, splitStrings[1].toInt());
+    moveStepper(0, splitStrings[1].toInt());
   }
   if (splitStrings[0].equals(GATE_OPEN_COMMAND)){
     Monitor.println(input);
-    moveStepper(0, splitStrings[1].toInt());
+    moveStepper(1, splitStrings[1].toInt());
   }
 
   delete[] splitStrings;  
@@ -181,7 +192,8 @@ void moveStepper(bool direction, int gate_ID){
       delayMicroseconds(500);
 
       if (digitalRead(contact_button)){
-        Monitor.println("End Reached");    
+        Monitor.println("End Reached");
+        preferences.putBool(("gate" + String(gate_ID)).c_str(), bool(direction));    
         webSocket.sendTXT(0, "End Reached");
         break;
       }      
@@ -230,6 +242,21 @@ switch(type) {
       IPAddress ip = webSocket.remoteIP(num);
       Monitor.printf("[%u] Connected from: \n", num);
       Monitor.println(ip.toString());
+      
+      bool gate1_state = preferences.getBool("gate1");
+      bool gate2_state = preferences.getBool("gate2");
+      bool gate3_state = preferences.getBool("gate3");
+      bool gate4_state = preferences.getBool("gate4");
+      bool gate5_state = preferences.getBool("gate5");
+      bool gate6_state = preferences.getBool("gate6");
+      bool gate7_state = preferences.getBool("gate7");
+
+      int current_timing = preferences.getInt("time");
+
+      String massive_message = String(current_timing) + "|" + String(gate1_state) + "|" + String(gate2_state) + "|" + String(gate3_state) + "|" + String(gate4_state) + "|" + String(gate5_state) + "|" + String(gate6_state) + "|" + String(gate7_state);
+
+      webSocket.sendTXT(0, massive_message);
+
     }
     break;
     //Echo the text messages

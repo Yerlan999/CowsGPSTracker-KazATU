@@ -303,7 +303,7 @@
                   <input type="number" class="form-control" id="lowerAge">
                 </div>
                 <div class="col">
-                  <label for="UpperAge">Верхнее значение:</label>
+                  <label for="upperAge">Верхнее значение:</label>
                   <input type="number" class="form-control" id="upperAge">
                 </div>
                 <div class="col">
@@ -311,7 +311,7 @@
                   <input type="number" class="form-control" id="lowerWeight">
                 </div>
                 <div class="col">
-                  <label for="UpperWeight">Верхнее значение:</label>
+                  <label for="upperWeight">Верхнее значение:</label>
                   <input type="number" class="form-control" id="upperWeight">
                 </div>
               </div>
@@ -548,7 +548,7 @@
           <label id="integerOptionsLable" for="integerOptions" class="form-label mt-3 mb-3" style="display: none">Интервал обновления опроса GPS треккеров (сек.):</label>
           <select id="integerOptions" class="form-select mt-3 mb-3" onchange="handleValueChange(this)" style="display: none">
               <option value="5">5</option>
-              <option value="10" selected>10</option>
+              <option value="10">10</option>
               <option value="20">20</option>
               <option value="30">30</option>
               <option value="60">60</option>
@@ -895,12 +895,12 @@
                     var state_button = document.getElementById("gate_state");
                     var p_count = decodedData.length-1
 
-                    for (var i = 1; i <= p_count; i++) {
-                      var key = i;
-                      var value = 'Закрыт';
-                      gates_state[key] = value;
-                    }
-                    state_button.innerHTML = gates_state["1"];
+                    // for (var i = 1; i <= p_count; i++) {
+                    //   var key = i;
+                    //   var value = 'Закрыт';
+                    //   gates_state[key] = value;
+                    // }
+                    // state_button.innerHTML = gates_state["1"];
 
                     for (var i = 1; i <= p_count; i++) {
                       var optionElement = document.createElement("option");
@@ -1136,7 +1136,8 @@ const chatSocket = new WebSocket('ws://' + DEVICE_IP);
 
 chatSocket.onmessage = function(e) {
   const message = e.data;
-  console.log(message);
+  console.log("WSK: ", message);
+
   if (message.length > 16 && message.split("|").length - 1 === 2){
     $.ajax({ type: "GET", url: "/ajax/", data: { 'GPS_of_cows': message,},
       success: function(data) { console.log(data); },
@@ -1150,7 +1151,25 @@ chatSocket.onmessage = function(e) {
 
     var state_button = document.getElementById("gate_state");
     state_button.innerHTML = gates_state[String(current_working_gate)];
+  }
+  else if (message.split("|").length - 1 === 7){
+    var resultArray = message.split("|");
+    var selectElement = document.getElementById('integerOptions');
+    var state_button = document.getElementById("gate_state");
 
+
+    for (var i = 1; i < resultArray.length; i++) {
+
+      if (resultArray[i]=="0"){
+        gates_state[String(i)] = "Закрыт";
+      }
+      else if (resultArray[i]=="1"){
+        gates_state[String(i)] = "Открыт";
+      }
+    }
+    state_button.innerHTML = gates_state["1"];
+
+    selectElement.value = resultArray[0];
   }
 
 };
