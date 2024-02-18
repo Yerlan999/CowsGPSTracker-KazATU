@@ -481,15 +481,6 @@
     <h5 id="map_header" class="text-center mt-3 bg-secondary text-white" style="display: none">GPS треккинг КРС | Мониторинг ресурса пастбища</h5>
     <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
-    <div id="fast_description" class="row" style="display: none">
-        <div class="col">
-          <p class="font-italic text-center">K = Суточное потребление 1 КРС (кг)</p>
-        </div>
-        <div class="col">
-          <p class="font-italic text-center">P = Резерв кормов (%)</p>
-        </div>
-    </div>
-
 
 <h5 id="prediction_mode_header" class="text-center mt-3 bg-secondary text-white" style="display: none">Выбор модели прогноза</h5>
 
@@ -678,13 +669,16 @@
       var state_button = document.getElementById("gate_state");
       var action_button = document.getElementById("gate_action");
 
+      current_working_action = action_button.value;
+      current_working_gate = selectedValue;
+
       if (action_button.value == "close"){
-        gates_state[String(selectedValue)] = "Закрыт";
-        sendMessage(`CLOSE:${selectedValue}`);
+        gates_state[String(selectedValue)] = "закрывается...";
+        SendWebSocketMessage(`CLOSE:${selectedValue}`);
       }
       else {
-        gates_state[String(selectedValue)] = "Открыт";
-        sendMessage(`OPEN:${selectedValue}`);
+        gates_state[String(selectedValue)] = "открывается...";
+        SendWebSocketMessage(`OPEN:${selectedValue}`);
       }
       state_button.innerHTML = gates_state[String(selectedValue)];
 
@@ -730,6 +724,8 @@
     var selected_prediction_mode = null;
     var model_days_left_prediction = [];
     var model_resource_prediction = [];
+    var current_working_action = null;
+    var current_working_gate = null;
 
     $(document).ready(function() {
         $("#ajax-button").click(function() {
@@ -888,7 +884,6 @@
                     $("#map_header").show();
                     $("#map_button").show();
                     $("#map_input").show();
-                    $("#fast_description").show();
                     $("#prediction_mode").show();
                     $("#prediction_mode_header").show();
                     $("#fast_intake").show();
@@ -944,10 +939,10 @@
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
                         clearInterval(ajax_request);
-                        sendMessage("STOP GPS");
+                        SendWebSocketMessage("STOP GPS");
                       } else {
                         toggleButton.textContent = "Остановить треккинг";
-                        sendMessage("START GPS");
+                        SendWebSocketMessage("START GPS");
 
                         ajax_request = setInterval(sendAjaxRequest, 10000); // milliseconds
 
@@ -1150,6 +1145,12 @@ chatSocket.onmessage = function(e) {
   }
   else if (message == "End Reached"){
     console.log(message);
+    if (current_working_action == "close"){ gates_state[String(current_working_gate)] = "Закрыт"; }
+    else {gates_state[String(current_working_gate)] = "Открыт";}
+
+    var state_button = document.getElementById("gate_state");
+    state_button.innerHTML = gates_state[String(current_working_gate)];
+
   }
 
 };
@@ -1159,7 +1160,7 @@ chatSocket.onclose = function(e) {
 };
 
 // Send message to server
-function sendMessage(message) {
+function SendWebSocketMessage(message) {
     chatSocket.send(message);
 }
 
@@ -1169,7 +1170,7 @@ function handleValueChange(selectElement) {
     // Get the selected value
     var selectedValue = selectElement.value;
     // Update the displayed value
-    sendMessage(`TIME_UPDATE:${parseInt(selectedValue)}`);
+    SendWebSocketMessage(`TIME_UPDATE:${parseInt(selectedValue)}`);
 }
 
 </script>

@@ -37,8 +37,8 @@ String GATE_OPEN_COMMAND = "OPEN";
 unsigned long lastTime = 0;
 unsigned long cycle_time = 10;    // КАЖДЫЕ N секунд
 
-const char * ssid = "Le petit dejeuner 2";  
-const char * password = "DoesGodReallyExist404";
+const char * ssid = "";  
+const char * password = "";
 const char *host = "192.168.0.12";
 const int port = 8000;
 
