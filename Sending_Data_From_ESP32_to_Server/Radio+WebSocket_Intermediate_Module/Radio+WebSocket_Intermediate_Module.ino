@@ -107,13 +107,19 @@ void loop() {
 
   if(LoRa.available() > 0){
     String input = LoRa.readStringUntil('\n');
-    if (input.length() > 16){
-      received_text = input;
+    input.trim();
+
+    received_text = input;
+    displayInfo(send_text, received_text, received_websocket_content);
+    Monitor.println(input);
+
+    int firstPipeIndex = input.indexOf('|');
+    int secondPipeIndex = input.indexOf('|', firstPipeIndex + 1);
+
+    if (firstPipeIndex != -1 && secondPipeIndex != -1 && input.length() > 16) {
+      // Two occurrences of "|" found in the string
       webSocket.sendTXT(0, input);
-      Monitor.println(input);
-      displayInfo(send_text, received_text, received_websocket_content);    
-    }
-    
+    }    
   }
 
   delay(20);
@@ -268,11 +274,12 @@ switch(type) {
       strncpy(receivedMessage, (char*)payload, length);
       receivedMessage[length] = '\0';
       // Call updateItems with the C-string
-      updateItems(String(receivedMessage));
-      received_websocket_content = String(receivedMessage);
 
+      received_websocket_content = String(receivedMessage);
       displayInfo(send_text, received_text, received_websocket_content);
-      
+
+      updateItems(String(receivedMessage));
+
       break;
     // For anything else: do nothing
     case WStype_BIN:

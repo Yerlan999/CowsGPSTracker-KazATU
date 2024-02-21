@@ -13,7 +13,9 @@ HardwareSerial LoRa(1); // use UART1
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
 TinyGPSPlus gps;
 
-#define GPS Serial2
+#define GPS Serial2 // Ublox NEO-M8N
+// GREEN - TX (GPS) --> RX2 (ESP32); 
+// YELLOW - RX (GPS) --> TX2 (ESP32)
 #define Monitor Serial
 
 String COW_ID = "1";
@@ -66,8 +68,10 @@ void loop() {
     if(LoRa.available() > 0){
       String input = LoRa.readStringUntil('\n');
       input.trim();
-      Monitor.println(input);
       received_text = input;
+
+      Monitor.println(input);
+      displayInfo(send_text, received_text); 
 
       if (input.equals(GPS_ENABLE_COMMAND)){
         deliver_GPS = true;  
@@ -77,9 +81,6 @@ void loop() {
       }
 
       updateTime(input);
-      Monitor.println("");
-      
-      displayInfo(send_text, received_text); 
     }
 
 
