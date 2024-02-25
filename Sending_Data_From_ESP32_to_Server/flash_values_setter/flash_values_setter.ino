@@ -5,8 +5,8 @@ Preferences preferences;
 void setup() {
   preferences.begin("credentials", false);
 
-  preferences.putString("ssid", "Le petit dejeuner 2");
-  preferences.putString("password", "DoesGodReallyExist404");
+  preferences.putString("ssid", "");
+  preferences.putString("password", "");
 
   preferences.putBool("gate1", false);
   preferences.putBool("gate2", false);
