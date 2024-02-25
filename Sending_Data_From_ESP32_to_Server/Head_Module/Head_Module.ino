@@ -1,16 +1,12 @@
-#include <string.h>
-#include <Arduino.h>
-#include <WiFi.h>
-#include <HTTPClient.h> 
-#include <ArduinoJson.h>
+#include <WiFi.h> 
 #include <WebSocketsServer.h>
-#include <Wire.h>
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
 #include <Preferences.h>
 #include <HardwareSerial.h>
 
+bool enable_SIM800L = false;
 
 #define Monitor Serial
 #define SIM800L Serial2
@@ -88,29 +84,32 @@ void setup(){
   digitalWrite(M0, LOW);       
   digitalWrite(M1, LOW);       
   
+  if (enable_SIM800L){
+    //Begin serial communication with Arduino and SIM800L
+    SIM800L.begin(9600);
 
-  // //Begin serial communication with Arduino and SIM800L
-  // SIM800L.begin(9600);
+    Monitor.println("Initializing...");
+    delay(1000);
 
-  // Monitor.println("Initializing...");
-  // delay(1000);
+    // Handshake test
+    SIM800L.println("AT");
+    listenSIM800L();
 
-  // // Handshake test
-  // SIM800L.println("AT");
-  // listenSIM800L();
+    // Configuring TEXT mode
+    SIM800L.println("AT+CMGF=1");
+    listenSIM800L();
 
-  // // Configuring TEXT mode
-  // SIM800L.println("AT+CMGF=1");
-  // listenSIM800L();
-
-  // SIM800L.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
-  // listenSIM800L();
-  
+    SIM800L.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
+    listenSIM800L();
+  }
 }
 
 void loop() {
 
-  // listenSIM800L();
+  if (enable_SIM800L){
+    listenSIM800L();
+  }
+  
   webSocket.loop();
 
   radio.openReadingPipe(0,address[0]);      //хотим слушать трубу 0          
@@ -128,9 +127,11 @@ void loop() {
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
 
     if (String(message_send).startsWith("LoRa:")){
+      Monitor.println("Check LoRa!");
       LoRa.println(message_send);
     }
     else if (String(message_send).startsWith("RF:")){
+      Monitor.println("Check RF!");
       radio.stopListening();  //не слушаем радиоэфир, мы передатчик
       radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
