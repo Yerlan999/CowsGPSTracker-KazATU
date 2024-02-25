@@ -92,6 +92,9 @@ void moveStepper(bool direction, int gate_ID){
       if (digitalRead(end_contact1)){
         Monitor.println("End Reached");
    
+        radio.stopListening();  //не слушаем радиоэфир, мы передатчик
+        radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
+      
         const char message_send[32] = "End Reached"; // Adjust the size based on your maximum message size
         radio.write(&message_send, sizeof(message_send));
             

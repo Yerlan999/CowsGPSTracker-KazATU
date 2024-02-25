@@ -88,7 +88,6 @@ void setup(){
     //Begin serial communication with Arduino and SIM800L
     SIM800L.begin(9600);
 
-    Monitor.println("Initializing...");
     delay(1000);
 
     // Handshake test
@@ -127,11 +126,9 @@ void loop() {
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
 
     if (String(message_send).startsWith("LoRa:")){
-      Monitor.println("Check LoRa!");
       LoRa.println(message_send);
     }
     else if (String(message_send).startsWith("RF:")){
-      Monitor.println("Check RF!");
       radio.stopListening();  //не слушаем радиоэфир, мы передатчик
       radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
