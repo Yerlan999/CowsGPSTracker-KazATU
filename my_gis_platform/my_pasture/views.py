@@ -948,6 +948,8 @@ def date_detail(request, *args, **kwargs):
 
     weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id='weather_table')
 
+    weather_html_df = weather_html_df.replace('<thead>', '<thead class="thead-dark">')
+
     return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df, "RZA": RZA, "previous_2_days": previous_2_days})
 
 

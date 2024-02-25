@@ -1,3 +1,69 @@
+#include <Preferences.h>
+
+String ssid;
+String password;
+unsigned long cycle_time;    // КАЖДЫЕ N секунд
+
+
+preferences.begin("credentials", false);
+
+preferences.putString("ssid", "Le petit dejeuner 2");
+preferences.putString("password", "DoesGodReallyExist404");
+
+preferences.putBool("gate1", false);
+preferences.putBool("gate2", false);
+preferences.putBool("gate3", false);
+preferences.putBool("gate4", false);
+preferences.putBool("gate5", false);
+preferences.putBool("gate6", false);
+preferences.putBool("gate7", false);
+
+preferences.putInt("time", 10);
+
+
+ssid = preferences.getString("ssid", "");
+password = preferences.getString("password", "");
+
+
+bool gate1_state = preferences.getBool("gate1");
+bool gate2_state = preferences.getBool("gate2");
+bool gate3_state = preferences.getBool("gate3");
+bool gate4_state = preferences.getBool("gate4");
+bool gate5_state = preferences.getBool("gate5");
+bool gate6_state = preferences.getBool("gate6");
+bool gate7_state = preferences.getBool("gate7");
+
+cycle_time = preferences.getInt("time");
+int current_timing = preferences.getInt("time");
+
+
+
+void moveStepper(bool direction, int gate_ID){
+  digitalWrite(DIR, direction);
+  if (gate_ID == 1){
+    Monitor.println("Moving Stepper #1");
+    for(;;){
+      digitalWrite(STEP, HIGH);
+      delayMicroseconds(500);
+      digitalWrite(STEP, LOW);
+      delayMicroseconds(500);
+
+      if (digitalRead(contact_button)){
+        Monitor.println("End Reached");
+        preferences.putBool(("gate" + String(gate_ID)).c_str(), bool(direction));
+        webSocket.sendTXT(0, "End Reached");
+        break;
+      }
+    }
+    delay(1000);
+  }
+  else{
+    Monitor.println("Missing Stepper Motor");
+  }
+}
+
+
+
 void sendHttpPostRequest() {
   HTTPClient http;
 
