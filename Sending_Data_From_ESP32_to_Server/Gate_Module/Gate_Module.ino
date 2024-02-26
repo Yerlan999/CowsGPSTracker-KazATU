@@ -4,15 +4,16 @@
 
 #define Monitor Serial
 
-const int DIR = 1;
-const int STEP = 3;
+const int DIR = 2;
+const int STEP = 15;
 const int  steps_per_rev = 200;
-const int end_contact1 = 0;
+const int close_contact = 13;
+const int open_contact = 14;
 
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
-RF24 radio(2, 4); // "создать" модуль на пинах 9 и 10 Для Уно
+RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; //возможные номера труб
 
@@ -21,7 +22,8 @@ void setup() {
 
   pinMode(STEP, OUTPUT);
   pinMode(DIR, OUTPUT);
-  pinMode(end_contact1, INPUT);
+  pinMode(close_contact, INPUT);
+  pinMode(open_contact, INPUT);
   
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
@@ -89,7 +91,7 @@ void moveStepper(bool direction, int gate_ID){
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (digitalRead(end_contact1)){
+      if (digitalRead(close_contact)){
         Monitor.println("End Reached");
    
         radio.stopListening();  //не слушаем радиоэфир, мы передатчик
