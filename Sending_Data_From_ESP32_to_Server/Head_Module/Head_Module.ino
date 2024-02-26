@@ -6,33 +6,27 @@
 #include <Preferences.h>
 #include <HardwareSerial.h>
 
-bool enable_SIM800L = false;
-
 #define Monitor Serial
-#define SIM800L Serial2
+#define LoRa Serial2
 
 #define M0 22       
 #define M1 21
 
-HardwareSerial LoRa(1); // use UART1
 RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
 WebSocketsServer webSocket= WebSocketsServer(80);
 Preferences preferences;
-
 
 byte address[][6] = {"1Node","2Node","3Node","4Node","5Node","6Node"};  //возможные номера труб
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
 String TIME_UPDATE_COMMAND = "TIME_UPDATE";
-
+ 
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
 String ssid;  
 String password;
-String SMS_stream;
-String SMS_content;
 
 unsigned long cycle_time;    // КАЖДЫЕ N секунд
 
@@ -47,7 +41,7 @@ void setup(){
 
   Monitor.begin(9600); //открываем порт для связи с ПК
   
-  LoRa.begin(9600, SERIAL_8N1, 15, 2);
+  LoRa.begin(9600);
 
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
@@ -84,30 +78,9 @@ void setup(){
   digitalWrite(M0, LOW);       
   digitalWrite(M1, LOW);       
   
-  if (enable_SIM800L){
-    //Begin serial communication with Arduino and SIM800L
-    SIM800L.begin(9600);
-
-    delay(1000);
-
-    // Handshake test
-    SIM800L.println("AT");
-    listenSIM800L();
-
-    // Configuring TEXT mode
-    SIM800L.println("AT+CMGF=1");
-    listenSIM800L();
-
-    SIM800L.println("AT+CNMI=2,2,0,0,0"); // Назначение очереди обработки входящих сообщении (СМС)
-    listenSIM800L();
-  }
 }
 
 void loop() {
-
-  if (enable_SIM800L){
-    listenSIM800L();
-  }
   
   webSocket.loop();
 
@@ -134,9 +107,6 @@ void loop() {
 
       radio.write(&message_send, sizeof(message_send));      
     }
-    else if(String(message_send).startsWith("SMS:")){
-      sendSMS("+77089194616", message_send);
-    }
   }
 
   if(LoRa.available() > 0){
@@ -154,47 +124,6 @@ void loop() {
     }    
   }
 
-}
-
-void sendSMS(const char* phoneNumber, const char* messageContent) {
-  SIM800L.println("AT"); // Once the handshake test is successful, it will back to OK
-  listenSIM800L();
-
-  SIM800L.println("AT+CMGF=1"); // Configuring TEXT mode
-  listenSIM800L();
-
-  SIM800L.print("AT+CMGS=\"");
-  SIM800L.print(phoneNumber);
-  SIM800L.println("\""); // Change ZZ with country code and xxxxxxxxxxx with phone number to SMS
-  listenSIM800L();
-
-  SIM800L.print(messageContent); // Text content
-  listenSIM800L();
-  
-  SIM800L.write(26);  
-}
-
-void listenSIM800L(){
-  delay(500);
-
-  while(SIM800L.available()) {
-    SMS_stream = SIM800L.readStringUntil('\n');
-    if (SMS_stream.startsWith("+CMT")) {
-      Monitor.println("Stream: " + SMS_stream);
-      
-      String sender = SMS_stream.substring(7, 19);
-      int stream_len = SMS_stream.length();
-      String datetime = SMS_stream.substring(stream_len-22, stream_len-2);
-
-      Monitor.println("Sender: " + sender);
-      Monitor.println("DateTime: " + datetime);
-
-      SMS_content = SIM800L.readStringUntil('\n');
-      SMS_content.trim();
-      Monitor.println("Content: " + SMS_content);
-
-    }
-  }
 }
 
 

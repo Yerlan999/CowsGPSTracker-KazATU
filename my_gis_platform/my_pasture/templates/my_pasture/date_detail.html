@@ -591,7 +591,7 @@
     <div class="card-header" id="headingOne">
       <h5 class="mb-0">
         <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
-          Контроль в ручном режиме
+          Контроль ворот в ручном режиме
         </button>
       </h5>
     </div>
@@ -599,7 +599,7 @@
       <div class="card-body">
 
 
-      <h5 class="card-header text-center">Раздел контроля воротами пастбища</h5>
+      <h5 class="card-header text-center">Раздел контроля ворот пастбища</h5>
       <div class="card-body">
 
 
@@ -634,7 +634,7 @@
     <div class="card-header" id="headingTwo">
       <h5 class="mb-0">
         <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
-          Режим автоматического контроля
+          Контроль процесса перегона
         </button>
       </h5>
     </div>
@@ -647,12 +647,12 @@
 
             <div class="row">
                 <div class="col">
-                    <h6 class="font-italic text-center">Из загона №</h6>
+                    <h5 class="font-italic text-center">Из загона №</h5>
                 </div>
                 <div class="col">
                 </div>
                 <div class="col">
-                    <h6 class="font-italic text-center">В загон №</h6>
+                    <h5 class="font-italic text-center">В загон №</h5>
                 </div>
             </div>
 
@@ -676,7 +676,7 @@
 
             <div class="row">
                 <div class="col">
-                    <button id="action_button" type="button" onclick="applyChanges()" class="btn btn-primary btn-block">Произвести перегон</button>
+                    <button id="transer_action" type="button" onclick="StartTransfer()" class="btn btn-primary btn-block">Произвести перегон</button>
                 </div>
             </div>
 
@@ -805,14 +805,26 @@
 
 <script>
 
+    function StartTransfer(){
+
+        if (pasture_load){
+
+            var transfer_button = document.getElementById("transer_action");
+            var paddock_from = document.getElementById("numberSelect_from").value;
+            var paddock_to = document.getElementById("numberSelect_to").value;
+
+            transfer_button.innerHTML = "Производится...";
+
+            console.log(paddock_from, paddock_to);
+            console.log(update_interval);
+        }
+        else{ alert("Начните треккинг и дождитесь определения координат КРС"); return; }
+    }
+
     function applyChanges(){
       var selectElement = document.getElementById("numberSelect");
       var selectedValue = selectElement.value;
-
       var state_button = document.getElementById("gate_state");
-      var state_button_to = document.getElementById("gate_state_to");
-      var state_button_from = document.getElementById("gate_state_from");
-
       var action_button = document.getElementById("gate_action");
 
       current_working_action = action_button.value;
@@ -827,35 +839,6 @@
         SendWebSocketMessage(`OPEN:${selectedValue}`);
       }
       state_button.innerHTML = gates_state[String(selectedValue)];
-      state_button_from.innerHTML = gates_state[String(selectedValue)];
-      state_button_to.innerHTML = gates_state[String(selectedValue)];
-
-      // // Calling Intermediate Module to Open or Close certain gates
-      // $.ajax({
-      //     type: "GET",
-      //     url: "/ajax/",
-      //     data: {
-      //         'action_on_gate': true,
-      //         'gate_id': selectedValue,
-      //         'gate_action': action_button.value,
-      //     },
-      //     success: function(data) {
-      //       console.log(data);
-
-      //       if (action_button.value == "close"){
-      //         gates_state[String(selectedValue)] = "Закрыт";
-      //       }
-      //       else{
-      //         gates_state[String(selectedValue)] = "Открыт";
-      //       }
-      //       state_button.innerHTML = gates_state[String(selectedValue)];
-
-      //   },
-      //   error: function(xhr, status, error) {
-      //     console.error('Ajax request failed', status, error);
-      //   }
-      // });
-
     }
 
 
@@ -1071,13 +1054,19 @@
                     selectElement.addEventListener("change", function() {
                       var selectedValue = selectElement.value;
                       var state_button = document.getElementById("gate_state");
-                      var state_button_from = document.getElementById("gate_state_from");
-                      var state_button_to = document.getElementById("gate_state_to");
-
                       state_button.innerHTML = gates_state[String(selectedValue)];
-                      state_button_from.innerHTML = gates_state[String(selectedValue)];
-                      state_button_to.innerHTML = gates_state[String(selectedValue)];
+                    });
 
+                    selectElement_from.addEventListener("change", function() {
+                      var selectedValue = selectElement_from.value;
+                      var state_button_from = document.getElementById("gate_state_from");
+                      state_button_from.innerHTML = gates_state[String(selectedValue)];
+                    });
+
+                    selectElement_to.addEventListener("change", function() {
+                      var selectedValue = selectElement_to.value;
+                      var state_button_to = document.getElementById("gate_state_to");
+                      state_button_to.innerHTML = gates_state[String(selectedValue)];
                     });
 
 
@@ -1314,12 +1303,9 @@ chatSocket.onmessage = function(e) {
     else {gates_state[String(current_working_gate)] = "Открыт";}
 
     var state_button = document.getElementById("gate_state");
-    var state_button_from = document.getElementById("gate_state_from");
-    var state_button_to = document.getElementById("gate_state_to");
 
     state_button.innerHTML = gates_state[String(current_working_gate)];
-    state_button_to.innerHTML = gates_state[String(current_working_gate)];
-    state_button_from.innerHTML = gates_state[String(current_working_gate)];
+
   }
   else if (message.split("|").length - 1 === 7){
     var resultArray = message.split("|");
