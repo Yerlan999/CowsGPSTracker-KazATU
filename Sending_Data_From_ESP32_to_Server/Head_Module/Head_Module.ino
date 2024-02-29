@@ -59,9 +59,7 @@ void setup(){
   radio.powerUp(); //начать работу
 
 
-
-  // WiFi.begin(ssid.c_str(), password.c_str());
-  WiFi.begin("LeChatGarcon", "LeChatGarcon999");
+  WiFi.begin(ssid.c_str(), password.c_str());
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
