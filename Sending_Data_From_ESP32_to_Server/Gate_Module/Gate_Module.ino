@@ -4,11 +4,13 @@
 
 #define Monitor Serial
 
-const int DIR = 2;
-const int STEP = 15;
+const int DIR = 32;
+const int STEP = 33;
 const int  steps_per_rev = 200;
-const int close_contact = 13;
-const int open_contact = 14;
+const int close_contact = 25; // PINK
+const int open_contact = 26; // GREEN
+
+const int motor_id = 1;
 
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
@@ -42,15 +44,16 @@ void setup() {
 }
 
 void loop() {
-    radio.openReadingPipe(0,address[1]);      //хотим слушать трубу 0          
-    radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
+  
+  radio.openReadingPipe(0,address[1]);      //хотим слушать трубу 0          
+  radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
 
-    if( radio.available()){    // слушаем эфир со всех труб
-      char message_from[32];
-      radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
-      Monitor.print("Recieved: "); Monitor.println(message_from);
-      updateItems(String(message_from));
-   }
+  if( radio.available()){    // слушаем эфир со всех труб
+    char message_from[32];
+    radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
+    Monitor.print("Recieved: "); Monitor.println(message_from);
+    updateItems(String(message_from));
+  }
 
   if (Monitor.available()){
     
@@ -59,8 +62,21 @@ void loop() {
 
     char message_send[32]; // Adjust the size based on your maximum message size
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
+    
+    Monitor.println(message_send);
+
     radio.write(&message_send, sizeof(message_send));  
   }
+}
+
+void clearInComingBuffer(HardwareSerial& serialObject) {
+  while (serialObject.available()) {
+    serialObject.read();  
+  }
+}
+
+void clearOutComingBuffer(HardwareSerial& serialObject) {
+  serialObject.flush();    
 }
 
 void updateItems(String input){
@@ -83,31 +99,60 @@ void updateItems(String input){
 
 void moveStepper(bool direction, int gate_ID){
   digitalWrite(DIR, direction);
-  if (gate_ID == 1){
-    Monitor.println("Moving Stepper #1");
+  if (gate_ID == motor_id){
+    Monitor.println("Moving Stepper #" + String(motor_id));
     for(;;){
       digitalWrite(STEP, HIGH);
       delayMicroseconds(500);
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (digitalRead(close_contact)){
-        Monitor.println("End Reached");
-   
+      if (direction==0 && digitalRead(close_contact)){
+        
         radio.stopListening();  //не слушаем радиоэфир, мы передатчик
         radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
       
-        const char message_send[32] = "End Reached"; // Adjust the size based on your maximum message size
-        radio.write(&message_send, sizeof(message_send));
+        String formattedMessage = createMessage(gate_ID, "CLOSED");
+        
+        Monitor.println(formattedMessage);
+        radio.write(&formattedMessage, sizeof(formattedMessage));
             
         break;
-      }      
+      }
+
+      if (direction==1 && digitalRead(open_contact)){
+        
+        radio.stopListening();  //не слушаем радиоэфир, мы передатчик
+        radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
+      
+        String formattedMessage = createMessage(gate_ID, "OPENED");
+        
+        Monitor.println(formattedMessage);
+        radio.write(&formattedMessage, sizeof(formattedMessage));
+            
+        break;
+      }
+
     }
     delay(1000);    
   }
   else{
     Monitor.println("Missing Stepper Motor");
   }  
+}
+
+String createMessage(int gate_ID, const char* status) {
+  // Create a String and convert it to a C-style string
+  String messageString = String(gate_ID) + "|" + status;
+  const char* message_cstr = messageString.c_str();
+
+  // Copy the C-style string to a char array
+  char message_send[32];
+  strncpy(message_send, message_cstr, sizeof(message_send) - 1);
+  message_send[sizeof(message_send) - 1] = '\0';  // Ensure null-termination
+
+  // Return the formatted message
+  return String(message_send);
 }
 
 
@@ -139,3 +184,4 @@ int splitString(const String& input, char delimiter, String*& output) {
 
   return arraySize;
 }
+

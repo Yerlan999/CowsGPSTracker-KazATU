@@ -60,7 +60,8 @@ void setup(){
 
 
 
-  WiFi.begin(ssid.c_str(), password.c_str());
+  // WiFi.begin(ssid.c_str(), password.c_str());
+  WiFi.begin("LeChatGarcon", "LeChatGarcon999");
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -91,6 +92,7 @@ void loop() {
     char message_from[32];
     radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
     Monitor.print("Recieved: "); Monitor.println(message_from);
+    webSocket.sendTXT(0, message_from);
   }
 
   if (Monitor.available()){
@@ -102,6 +104,7 @@ void loop() {
       LoRa.println(message_send);
     }
     else if (String(message_send).startsWith("RF:")){
+      Monitor.println(message_send);
       radio.stopListening();  //не слушаем радиоэфир, мы передатчик
       radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
@@ -126,6 +129,16 @@ void loop() {
 
 }
 
+
+void clearInComingBuffer(HardwareSerial& serialObject) {
+  while (serialObject.available()) {
+    serialObject.read();  
+  }
+}
+
+void clearOutComingBuffer(HardwareSerial& serialObject) {
+  serialObject.flush();    
+}
 
 
 // Called when websocket server receives any messages
@@ -179,6 +192,8 @@ switch(type) {
     // For anything else: do nothing
     case WStype_BIN:
     case WStype_ERROR:
+      Monitor.println("Error with WebSocket");
+      break;
     case WStype_FRAGMENT_TEXT_START:
     case WStype_FRAGMENT_BIN_START:
     case WStype_FRAGMENT:

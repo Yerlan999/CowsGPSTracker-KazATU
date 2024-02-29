@@ -424,7 +424,7 @@
 
 
     <div class="card">
-      <h5 class="card-header text-center">Информация по выбранной дате</h5>
+      <h5 class="card-header text-center">Реальное RGB изображение по выбранной дате</h5>
       <div class="card-body">
 
         <div id="imageCarousel" class="carousel slide" data-interval="false">
@@ -792,6 +792,15 @@
           </div>
         </div>
 
+        <div class="row mt-3">
+          <div class="col">
+            <input type="checkbox" id="correction_coeff_able" onclick="toggleCoeffInput()" class="mt-2 mr-2" checked>
+            <label for="correction_coeff_able">Корректировочный коэффициент</label>
+          </div>
+          <div class="col">
+            <input type="number" id="correction_coeff" class="form-control"  value="0.88483">
+          </div>
+        </div>
 
         <button class="btn btn-primary btn-lg btn-block mt-5 mb-5" id="ajax-button">Запрос</button>
 
@@ -805,6 +814,32 @@
 
 <script>
 
+    function lookForCattleMovement() {
+      console.log("This function is running at a certain interval.");
+
+      var transfer_button = document.getElementById("transer_action");
+      var paddock_from = document.getElementById("numberSelect_from").value;
+      var paddock_to = document.getElementById("numberSelect_to").value;
+
+      var state_button_from = document.getElementById("gate_state_from");
+      var state_button_to = document.getElementById("gate_state_to");
+
+
+      if (pasture_load[paddock_from] == 0){
+        SendWebSocketMessage(`CLOSE:${paddock_from}`);
+        gates_state[String(paddock_from)] = "закрывается...";
+        state_button_from.innerHTML = gates_state[String(paddock_from)]
+      }
+      if (pasture_load[paddock_to] == cattle_count){
+        SendWebSocketMessage(`CLOSE:${paddock_to}`);
+        gates_state[String(paddock_to)] = "закрывается...";
+        state_button_to.innerHTML = gates_state[String(paddock_to)]
+      }
+    }
+
+    var intervalId = null;
+    var started_transfer = false;
+
     function StartTransfer(){
 
         if (pasture_load){
@@ -813,10 +848,26 @@
             var paddock_from = document.getElementById("numberSelect_from").value;
             var paddock_to = document.getElementById("numberSelect_to").value;
 
+            var state_button_from = document.getElementById("gate_state_from");
+            var state_button_to = document.getElementById("gate_state_to");
+
             transfer_button.innerHTML = "Производится...";
 
-            console.log(paddock_from, paddock_to);
-            console.log(update_interval);
+            if (gates_state[String(paddock_from)] == "Закрыт"){
+                SendWebSocketMessage(`OPEN:${paddock_from}`);
+                gates_state[String(paddock_from)] = "открывается...";
+                state_button_from.innerHTML = gates_state[String(paddock_from)]
+            }
+            if (gates_state[String(paddock_to)] == "Закрыт"){
+                SendWebSocketMessage(`OPEN:${paddock_to}`);
+                gates_state[String(paddock_to)] = "открывается...";
+                state_button_to.innerHTML = gates_state[String(paddock_to)]
+            }
+
+            intervalId = setInterval(lookForCattleMovement, update_interval);
+            started_transfer = true;
+
+
         }
         else{ alert("Начните треккинг и дождитесь определения координат КРС"); return; }
     }
@@ -874,6 +925,9 @@
             var relative_radio = document.getElementById("relative_radio").checked;
             var absolute_radio = document.getElementById("absolute_radio").checked;
 
+            var correction_coeff_able = document.getElementById("correction_coeff_able").checked;
+            var correction_coeff = document.getElementById("correction_coeff").value;
+
             var upper_bound = document.getElementById("upper_bound").value;
             var lower_bound = document.getElementById("lower_bound").value;
 
@@ -896,6 +950,8 @@
                     'threshold': threshold,
                     'operators': operators,
                     'by_pasture': by_pasture,
+                    'correction_coeff_able': correction_coeff_able,
+                    'correction_coeff': correction_coeff,
                 },
                 success: function(data) {
 
@@ -1281,8 +1337,8 @@
 
 
 
-// const DEVICE_IP = "192.168.0.20:80"
-const DEVICE_IP = "192.168.54.6:80"
+const DEVICE_IP = "192.168.0.18:80"
+// const DEVICE_IP = "192.168.54.6:80"
 
 const chatSocket = new WebSocket('ws://' + DEVICE_IP);
 
@@ -1297,16 +1353,36 @@ chatSocket.onmessage = function(e) {
       error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
     });
   }
-  else if (message == "End Reached"){
-    console.log(message);
-    if (current_working_action == "close"){ gates_state[String(current_working_gate)] = "Закрыт"; }
-    else {gates_state[String(current_working_gate)] = "Открыт";}
 
-    var state_button = document.getElementById("gate_state");
+  // Signals from Transfer Process
+  if (message.length < 16 && message.split("|").length - 1 === 1){ // N|<CLOSED><OPENED>
+    var resultArray = message.split("|");
 
-    state_button.innerHTML = gates_state[String(current_working_gate)];
+    var transfer_button = document.getElementById("transer_action");
+    var paddock_from = document.getElementById("numberSelect_from").value;
+    var paddock_to = document.getElementById("numberSelect_to").value;
 
+    var state_button_from = document.getElementById("gate_state_from");
+    var state_button_to = document.getElementById("gate_state_to");
+
+
+    if (resultArray[1] === "CLOSED"){
+        gates_state[String(resultArray[0])] = "Закрыт";
+    }
+    else if (resultArray[1] === "OPENED") {
+        gates_state[String(resultArray[0])] = "Открыт";
+    }
+
+    state_button_from.innerHTML = gates_state[paddock_from]
+    state_button_to.innerHTML = gates_state[paddock_to]
+
+    if (started_transfer && gates_state[paddock_to] == "Закрыт" && gates_state[paddock_from] == "Закрыт"){
+        transfer_button.innerHTML = "Произвести перегон";
+        clearInterval(intervalId);
+        started_transfer = false;
+    }
   }
+
   else if (message.split("|").length - 1 === 7){
     var resultArray = message.split("|");
     var selectElement = document.getElementById('integerOptions');
@@ -1337,6 +1413,10 @@ chatSocket.onmessage = function(e) {
 chatSocket.onclose = function(e) {
     console.error('Chat socket closed unexpectedly');
 };
+
+// chatSocket.onopen = function(e) {
+//     console.log('Chat socket opened successfully');
+// };
 
 // Send message to server
 function SendWebSocketMessage(message) {
@@ -1467,6 +1547,10 @@ function multiplyValues() {
     $('[data-toggle="tooltip"]').tooltip();
   });
 
+  function toggleCoeffInput() {
+    var correction_coeff = document.getElementById("correction_coeff");
+    correction_coeff.disabled = !correction_coeff.disabled;
+  }
 
   function enableBoundInputs() {
     var upper_bound = document.getElementById("upper_bound");

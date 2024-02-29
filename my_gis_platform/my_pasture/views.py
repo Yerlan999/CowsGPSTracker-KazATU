@@ -662,7 +662,7 @@ class SentinelRequest():
         return last_2_images
 
 
-    def get_last2_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture):
+    def get_last2_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff):
         current_image_id = self.image_date
         mask_of_this_day = 1-self.cloud_mask
 
@@ -692,10 +692,11 @@ class SentinelRequest():
                     lower_bound = float(lower_bound)
                     upper_bound = float(upper_bound)
 
-                desired_median = 0.88483
-                current_median = ma.median(test_meet)
-                coefficient = desired_median / current_median
-                test_meet = test_meet * coefficient
+                if bool(correction_coeff_able):
+                    desired_median = float(correction_coeff)
+                    current_median = ma.median(test_meet)
+                    coefficient = desired_median / current_median
+                    test_meet = test_meet * coefficient
 
                 only_cloud_index = ma.masked_array(test_meet, mask=mask_of_this_day)
                 clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
@@ -729,7 +730,7 @@ class SentinelRequest():
         return last_2_indices, last_2_missing_parts
 
 
-    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture):
+    def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff):
 
         relative_radio = bool_converter(relative_radio)
         absolute_radio = bool_converter(absolute_radio)
@@ -745,7 +746,7 @@ class SentinelRequest():
                 only_cloud_index = ma.masked_array(test_index, mask=1-self.cloud_mask)
 
                 # Calling for last 2 days history here
-                last2_indices, last2_missing_parts = self.get_last2_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
+                last2_indices, last2_missing_parts = self.get_last2_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
 
                 clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
                 clouds_masks_by_zagons = self.get_zagons_values(self.cloud_mask)
@@ -784,10 +785,11 @@ class SentinelRequest():
                 upper_bound = float(upper_bound)
 
 
-            desired_median = 0.88483
-            current_median = ma.median(test_meet)
-            coefficient = desired_median / current_median
-            test_meet = test_meet * coefficient
+            if bool(correction_coeff_able):
+                desired_median = float(correction_coeff)
+                current_median = ma.median(test_meet)
+                coefficient = desired_median / current_median
+                test_meet = test_meet * coefficient
 
             fig, ax = plt.subplots(figsize=(12, 5))
             for zagon in range(len(self.pasture_df)):
@@ -1360,6 +1362,34 @@ list_of_dummy_cattles = [
 
 ]
 
+def cyclic_coordinates_generator(coordinates):
+    length = len(coordinates)
+    index = 0
+
+    while True:
+        yield coordinates[index]
+        index = (index + 1) % length
+
+dummy_coordinates = [
+  {"index": 1, "longitude": 54.214802, "latitude": 69.511022, },
+  {"index": 1, "longitude": 54.214422, "latitude": 69.510974, },
+  {"index": 1, "longitude": 54.214013, "latitude": 69.511046, },
+  {"index": 1, "longitude": 54.213562, "latitude": 69.511287, },
+  {"index": 1, "longitude": 54.213224, "latitude": 69.511335, },
+  {"index": 1, "longitude": 54.212604, "latitude": 69.511408, },
+  {"index": 1, "longitude": 54.212067, "latitude": 69.511659, },
+  {"index": 1, "longitude": 54.211783, "latitude": 69.512166, },
+  {"index": 1, "longitude": 54.211891, "latitude": 69.512238, },
+  {"index": 1, "longitude": 54.212285, "latitude": 69.512249, },
+  {"index": 1, "longitude": 54.212515, "latitude": 69.512424, },
+  {"index": 1, "longitude": 54.212793, "latitude": 69.512559, },
+  {"index": 1, "longitude": 54.213234, "latitude": 69.513128, }
+];
+
+coordinates_gen = cyclic_coordinates_generator(dummy_coordinates)
+
+
+
 # Function to randomize latitude and longitude
 def randomize_coordinates(lat, lon, max_offset=0.000100):
     offset = random.uniform(-max_offset, max_offset)
@@ -1541,7 +1571,12 @@ def ajax_view(request):
             operators = request.GET.get('operators')
             by_pasture = request.GET.get('by_pasture')
 
-            index_image, hist_images, df, geodataframe, centroid, last2_indices = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture)
+            correction_coeff_able = request.GET.get('correction_coeff_able')
+            correction_coeff_able = correction_coeff_able.lower() == 'true'
+
+            correction_coeff = request.GET.get('correction_coeff')
+
+            index_image, hist_images, df, geodataframe, centroid, last2_indices = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
 
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices}
 
@@ -1573,18 +1608,19 @@ def ajax_view(request):
                             if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
                                 cattle["paddock_number"] = f"{i+1}"
                                 pasture_load[i+1] += 1
-                    # else: # Dealing with dummy cattle
+                    else: # Dealing with dummy cattle
 
-                    #     # # Randomize coordinates in the list of dictionaries
-                    #     # for cattle in list_of_dummy_cattles:
-                    #     #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
+                        # # Randomize coordinates in the list of dictionaries
+                        # for cattle in list_of_dummy_cattles:
+                        #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
 
-                    #     for cattle in list_of_dummy_cattles:
-                    #         point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+                        current_coordinate = next(coordinates_gen)
+                        for cattle in [current_coordinate]:
+                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
 
-                    #         if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                    #             cattle["paddock_number"] = f"{i+1}"
-                    #             pasture_load[i+1] += 1
+                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+                                cattle["paddock_number"] = f"{i+1}"
+                                pasture_load[i+1] += 1
 
                 if (list_of_cattles):
                     return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
