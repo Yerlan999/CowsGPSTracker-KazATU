@@ -17,7 +17,10 @@ String GATE_OPEN_COMMAND = "OPEN";
 
 RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
 
-byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; //возможные номера труб
+const byte address[2][6] = {"00001", "00002"};
+
+const int listen_to = 1;
+const int write_into = 0;
 
 void setup() {
   Monitor.begin(9600); //открываем порт для связи с ПК
@@ -41,13 +44,15 @@ void setup() {
   //при самой низкой скорости имеем самую высокую чувствительность и дальность!!
 
   radio.powerUp(); //начать работу
+
+	radio.openReadingPipe(0, address[listen_to]);
+  radio.openWritingPipe(address[write_into]); 
+   
+  radio.startListening();
 }
 
 void loop() {
   
-  radio.openReadingPipe(0,address[1]);      //хотим слушать трубу 0          
-  radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
-
   if( radio.available()){    // слушаем эфир со всех труб
     char message_from[32];
     radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
@@ -57,15 +62,12 @@ void loop() {
 
   if (Monitor.available()){
     
-    radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-    radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
-
     char message_send[32]; // Adjust the size based on your maximum message size
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
     
-    Monitor.println(message_send);
-
-    radio.write(&message_send, sizeof(message_send));  
+    radio.stopListening(); 
+    radio.write(&message_send, sizeof(message_send)); 
+    radio.startListening();
   }
 }
 
@@ -108,28 +110,26 @@ void moveStepper(bool direction, int gate_ID){
       delayMicroseconds(500);
 
       if (direction==0 && digitalRead(close_contact)){
-        
-        radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-        radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
       
         String formattedMessage = createMessage(gate_ID, "CLOSED");
         
         Monitor.println(formattedMessage);
-        radio.write(&formattedMessage, sizeof(formattedMessage));
+        radio.stopListening(); 
+        radio.write(&formattedMessage, sizeof(formattedMessage)); 
+        radio.startListening();
             
         break;
       }
 
       if (direction==1 && digitalRead(open_contact)){
         
-        radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-        radio.openWritingPipe(address[0]);   //мы - труба 0, открываем канал для передачи данных
-      
         String formattedMessage = createMessage(gate_ID, "OPENED");
         
         Monitor.println(formattedMessage);
-        radio.write(&formattedMessage, sizeof(formattedMessage));
-            
+        radio.stopListening(); 
+        radio.write(&formattedMessage, sizeof(formattedMessage)); 
+        radio.startListening();
+
         break;
       }
 

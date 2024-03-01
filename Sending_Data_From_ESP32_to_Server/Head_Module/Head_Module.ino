@@ -16,7 +16,10 @@ RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Дл�
 WebSocketsServer webSocket= WebSocketsServer(80);
 Preferences preferences;
 
-byte address[][6] = {"1Node","2Node","3Node","4Node","5Node","6Node"};  //возможные номера труб
+const byte address[2][6] = {"00001", "00002"};
+
+const int listen_to = 0;
+const int write_into = 1;
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
@@ -45,7 +48,7 @@ void setup(){
 
   radio.begin(); //активировать модуль
   radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(0,15);     //(время между попыткой достучаться, число попыток)
+  radio.setRetries(0, 15);     //(время между попыткой достучаться, число попыток)
   radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
   radio.setPayloadSize(32);     //размер пакета, в байтах
   
@@ -58,6 +61,10 @@ void setup(){
   
   radio.powerUp(); //начать работу
 
+	radio.openReadingPipe(0, address[listen_to]);
+  radio.openWritingPipe(address[write_into]); 
+   
+  radio.startListening();
 
   WiFi.begin(ssid.c_str(), password.c_str());
  
@@ -83,9 +90,6 @@ void loop() {
   
   webSocket.loop();
 
-  radio.openReadingPipe(0,address[0]);      //хотим слушать трубу 0          
-  radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
-
   if( radio.available()){    // слушаем эфир со всех труб
     char message_from[32];
     radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
@@ -102,11 +106,9 @@ void loop() {
       LoRa.println(message_send);
     }
     else if (String(message_send).startsWith("RF:")){
-      Monitor.println(message_send);
-      radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-      radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
-
-      radio.write(&message_send, sizeof(message_send));      
+      radio.stopListening(); 
+      radio.write(&message_send, sizeof(message_send)); 
+      radio.startListening();     
     }
   }
 
