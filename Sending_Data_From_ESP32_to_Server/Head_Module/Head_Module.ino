@@ -94,6 +94,7 @@ void loop() {
   if( radio.available()){    // слушаем эфир со всех труб
     char message_from[32];
     radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
+    delay(100);
     Monitor.print("Recieved: "); Monitor.println(message_from);
     webSocket.sendTXT(0, message_from);
   }
@@ -109,7 +110,8 @@ void loop() {
     else if (String(message_send).startsWith("RF:")){
       radio.stopListening(); 
       radio.write(&message_send, sizeof(message_send)); 
-      radio.startListening();     
+      radio.startListening();
+      delay(100);     
     }
   }
 

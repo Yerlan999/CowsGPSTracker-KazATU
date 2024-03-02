@@ -56,6 +56,7 @@ void loop() {
   if( radio.available()){    // слушаем эфир со всех труб
     char message_from[32];
     radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
+    delay(100);
     Monitor.print("Recieved: "); Monitor.println(message_from);
     updateItems(String(message_from));
   }
@@ -68,6 +69,8 @@ void loop() {
     radio.stopListening(); 
     radio.write(&message_send, sizeof(message_send)); 
     radio.startListening();
+    delay(100);
+    
   }
 }
 
@@ -80,6 +83,7 @@ void clearInComingBuffer(HardwareSerial& serialObject) {
 void clearOutComingBuffer(HardwareSerial& serialObject) {
   serialObject.flush();    
 }
+
 
 void updateItems(String input){
   
@@ -100,32 +104,41 @@ void updateItems(String input){
 
 
 void moveStepper(bool direction, int gate_ID){
+  int current_direction = direction;
+
   digitalWrite(DIR, direction);
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
+
+    radio.stopListening(); 
+    radio.write(&message_send, sizeof(message_send)); 
+    radio.startListening();
+    delay(100);
+
     for(;;){
       digitalWrite(STEP, HIGH);
       delayMicroseconds(500);
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (direction==0 && digitalRead(close_contact)){
+      if (current_direction==0 && digitalRead(close_contact)){
       
+        char message_send[32];
         String formattedMessage = createMessage(gate_ID, "CLOSED");
+        formattedMessage.toCharArray(message_send, sizeof(message_send));
         
-        Monitor.println(formattedMessage);
         radio.stopListening(); 
-        radio.write(&formattedMessage, sizeof(formattedMessage)); 
+        radio.write(&message_send, sizeof(message_send)); 
         radio.startListening();
+        delay(100);
             
         break;
       }
 
-      if (direction==1 && digitalRead(open_contact)){
+      if (current_direction==1 && digitalRead(open_contact)){
         
         String formattedMessage = createMessage(gate_ID, "OPENED");
         
-        Monitor.println(formattedMessage);
         radio.stopListening(); 
         radio.write(&formattedMessage, sizeof(formattedMessage)); 
         radio.startListening();
