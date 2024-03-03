@@ -3,16 +3,15 @@
 #include <string.h>
 #include <Arduino.h>
 #include <Wire.h>
+#include "LoRa_E32.h"
 
-#define M0 18
-#define M1 19
+LoRa_E32 LoRa(&Serial2, 15, 22, 21); //  Serial Pins, AUX, M0, M1
 
-HardwareSerial LoRa(1);  // use UART1
+HardwareSerial GPS(1);  // use UART1
+// GREEN wire - TX (GPS) --> RX (ESP32) (pin 4)
+// YELLOW wire - RX (GPS) --> TX (ESP32) (pin 2)
 TinyGPSPlus gps;
 
-#define GPS Serial2  // Ublox NEO-M8N
-// GREEN - TX (GPS) --> RX2 (ESP32);
-// YELLOW - RX (GPS) --> TX2 (ESP32)
 #define Monitor Serial
 
 String COW_ID = "1";
@@ -51,38 +50,18 @@ int currentCoordinateIndex = 0;  // Initialize the index counter
 
 
 void setup() {
-
-  LoRa.begin(9600, SERIAL_8N1, 4, 2);
-  GPS.begin(9600);  // lora E32 gắn với cổng TX2 RX2 trên board ESP32
   Monitor.begin(9600);
-
-  pinMode(M0, OUTPUT);
-  pinMode(M1, OUTPUT);
-  digitalWrite(M0, LOW);  // Set 2 chân M0 và M1 xuống LOW
-  digitalWrite(M1, LOW);  // để hoạt động ở chế độ Normal
+  GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
+  LoRa.begin();
 }
 
 void loop() {
 
+  listenToLoRa();
+
   if (Monitor.available() > 0) {  // nhận dữ liệu từ bàn phím gửi tín hiệu đi
     String input = Monitor.readStringUntil('\n');
-    LoRa.println(input);
-  }
-
-  if (LoRa.available() > 0) {
-    String input = LoRa.readStringUntil('\n');
-    input.trim();
-
-    Monitor.println(input);
-
-    if (input.equals(GPS_ENABLE_COMMAND)) {
-      deliver_GPS = true;
-    }
-    if (input.equals(GPS_DISABLE_COMMAND)) {
-      deliver_GPS = false;
-    }
-
-    updateTime(input);
+    ResponseStatus responce = writeToLoRa(input);
   }
 
 
@@ -102,7 +81,7 @@ void loop() {
       dtostrf(latitude, 6, 6, latitudeStr);
       dtostrf(longitude, 6, 6, longitudeStr);
 
-      LoRa.println(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
+      ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
 
       lastTime = millis();
     }
@@ -110,6 +89,41 @@ void loop() {
 
   delay(20);
 }
+
+
+
+void listenToLoRa(){
+  if (LoRa.available()>1) {
+    String input = readFromLoRa();
+    
+    input.trim();
+    Monitor.println(input);
+
+    if (input.equals(GPS_ENABLE_COMMAND)) {
+      deliver_GPS = true;
+    }
+    if (input.equals(GPS_DISABLE_COMMAND)) {
+      deliver_GPS = false;
+    }
+
+    updateTime(input);
+  }  
+}
+
+String readFromLoRa(){
+  ResponseContainer rc = LoRa.receiveMessage();
+  if (rc.status.code!=1){
+      rc.status.getResponseDescription();
+  }else{  
+      return rc.data;
+  }  
+}
+
+ResponseStatus writeToLoRa(String input){
+  ResponseStatus rs = LoRa.sendMessage(input);
+  return rs;
+}
+
 
 
 void updateTime(String input) {

@@ -15,7 +15,7 @@ const int motor_id = 1;
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
-RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
+RF24 nRF24(4, 5); // CE, CSN
 
 const byte address[2][6] = {"00001", "00002"};
 
@@ -30,48 +30,58 @@ void setup() {
   pinMode(close_contact, INPUT);
   pinMode(open_contact, INPUT);
   
-  radio.begin(); //активировать модуль
-  radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(0, 15);    //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setPayloadSize(32);     //размер пакета, в байтах
-
-  radio.setChannel(0x60);  //выбираем канал (в котором нет шумов!)
-
-  radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
-  radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
-  //должна быть одинакова на приёмнике и передатчике!
-  //при самой низкой скорости имеем самую высокую чувствительность и дальность!!
-
-  radio.powerUp(); //начать работу
-
-	radio.openReadingPipe(0, address[listen_to]);
-  radio.openWritingPipe(address[write_into]); 
-   
-  radio.startListening();
+  nRF24.begin(); 
+  //Append ACK packet from the receiving nRF24 back to the transmitting nRF24 
+  nRF24.setAutoAck(true); //(true|false) 
+  //Set the transmission datarate 
+  nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
+  //Greater level = more consumption = longer distance 
+  nRF24.setPALevel(RF24_PA_MIN); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
+  //Default value is the maximum 32 bytes1 
+  nRF24.setRetries(0, 15);
+  nRF24.enableDynamicPayloads();
+  nRF24.enableAckPayload();
+  nRF24.setPayloadSize(32);
+  //Act as receiver 
+  nRF24.openReadingPipe(1, address[listen_to]);
+  nRF24.openWritingPipe(address[write_into]); 
+  
+  nRF24.startListening();
 }
 
 void loop() {
   
-  if( radio.available()){    // слушаем эфир со всех труб
-    char message_from[32];
-    radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
-    delay(100);
-    Monitor.print("Recieved: "); Monitor.println(message_from);
-    updateItems(String(message_from));
-  }
+  listenToNRF24();
 
   if (Monitor.available()){
-    
-    char message_send[32]; // Adjust the size based on your maximum message size
-    Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
-    
-    radio.stopListening(); 
-    radio.write(&message_send, sizeof(message_send)); 
-    radio.startListening();
-    delay(100);
-    
+    String input = Monitor.readStringUntil('\n');
+    writeIntoNRF24(input);    
   }
+}
+
+void writeIntoNRF24(String inputString){
+  nRF24.stopListening();
+  char input[32];
+  inputString.trim();  // Remove leading and trailing whitespaces, if needed
+  inputString.toCharArray(input, sizeof(input));
+
+  bool report = nRF24.write(input, sizeof(input));
+  nRF24.startListening();   
+}
+
+void listenToNRF24(){
+  if (nRF24.available()) { 
+    readFromNRF24();
+  }  
+}
+
+String readFromNRF24(){
+  char message_from[32];
+  nRF24.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
+  delay(100);
+  Monitor.print("Recieved: "); Monitor.println(message_from);
+  updateItems(String(message_from));
+  return String(message_from);   
 }
 
 void clearInComingBuffer(HardwareSerial& serialObject) {
@@ -110,11 +120,6 @@ void moveStepper(bool direction, int gate_ID){
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
 
-    radio.stopListening(); 
-    radio.write(&message_send, sizeof(message_send)); 
-    radio.startListening();
-    delay(100);
-
     for(;;){
       digitalWrite(STEP, HIGH);
       delayMicroseconds(500);
@@ -123,25 +128,16 @@ void moveStepper(bool direction, int gate_ID){
 
       if (current_direction==0 && digitalRead(close_contact)){
       
-        char message_send[32];
-        String formattedMessage = createMessage(gate_ID, "CLOSED");
-        formattedMessage.toCharArray(message_send, sizeof(message_send));
-        
-        radio.stopListening(); 
-        radio.write(&message_send, sizeof(message_send)); 
-        radio.startListening();
-        delay(100);
+        String formattedMessage = createMessage(gate_ID, "CLOSED");      
+        writeIntoNRF24(String(formattedMessage));
             
         break;
       }
 
       if (current_direction==1 && digitalRead(open_contact)){
         
-        String formattedMessage = createMessage(gate_ID, "OPENED");
-        
-        radio.stopListening(); 
-        radio.write(&formattedMessage, sizeof(formattedMessage)); 
-        radio.startListening();
+        String formattedMessage = createMessage(gate_ID, "OPENED");  
+        writeIntoNRF24(String(formattedMessage));
 
         break;
       }

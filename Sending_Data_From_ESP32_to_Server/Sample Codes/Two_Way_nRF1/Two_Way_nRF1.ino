@@ -39,18 +39,21 @@ void loop() {
   listenToNRF24();
 
   if (Serial.available()){
-    nRF24.stopListening();
-    char input[32];
-    String inputString = Serial.readStringUntil('\n');
-    inputString.trim();  // Remove leading and trailing whitespaces, if needed
-    inputString.toCharArray(input, sizeof(input));
-
-    bool report = nRF24.write(input, sizeof(input));
-    nRF24.startListening(); 
+    String input = Serial.readStringUntil('\n');
+    writeIntoNRF24(input);
   }
 
 }
 
+void writeIntoNRF24(String inputString){
+  nRF24.stopListening();
+  char input[32];
+  inputString.trim();  // Remove leading and trailing whitespaces, if needed
+  inputString.toCharArray(input, sizeof(input));
+
+  bool report = nRF24.write(input, sizeof(input));
+  nRF24.startListening();   
+}
 void listenToNRF24(){
   if (nRF24.available()) { 
     readFromNRF24();

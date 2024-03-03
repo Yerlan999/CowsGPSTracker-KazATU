@@ -2,10 +2,7 @@
 #include "RF24.h" 
 #include "nRF24L01.h" 
 
-#define CE_PIN 4 
-#define CSN_PIN 5 
-
-RF24 nRF24(CE_PIN, CSN_PIN); 
+RF24 nRF24(4, 5); // CE, CSN
 
 const byte address[2][6] = {"00001", "00002"};
 const int listen_to = 0;
@@ -39,18 +36,21 @@ void loop() {
   listenToNRF24();
 
   if (Serial.available()){
-    nRF24.stopListening();
-    char input[32];
-    String inputString = Serial.readStringUntil('\n');
-    inputString.trim();  // Remove leading and trailing whitespaces, if needed
-    inputString.toCharArray(input, sizeof(input));
-
-    bool report = nRF24.write(input, sizeof(input));
-    nRF24.startListening(); 
+    String input = Serial.readStringUntil('\n');
+    writeIntoNRF24(input);
   }
 
 }
 
+void writeIntoNRF24(String inputString){
+  nRF24.stopListening();
+  char input[32];
+  inputString.trim();  // Remove leading and trailing whitespaces, if needed
+  inputString.toCharArray(input, sizeof(input));
+
+  bool report = nRF24.write(input, sizeof(input));
+  nRF24.startListening();   
+}
 void listenToNRF24(){
   if (nRF24.available()) { 
     readFromNRF24();

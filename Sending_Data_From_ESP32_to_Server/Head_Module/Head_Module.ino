@@ -5,14 +5,13 @@
 #include "RF24.h"
 #include <Preferences.h>
 #include <HardwareSerial.h>
+#include "Arduino.h"
+#include "LoRa_E32.h"
 
-#define Monitor Serial
-#define LoRa Serial2
+#define Monitor Serial 
 
-#define M0 22       
-#define M1 21
-
-RF24 radio(4, 5); // "создать" модуль на пинах 9 и 10 Для Уно
+LoRa_E32 LoRa(&Serial2, 15, 22, 21); //  Serial Pins,  AUX, M0, M1
+RF24 nRF24(4, 5); // CE, CSN
 WebSocketsServer webSocket= WebSocketsServer(80);
 Preferences preferences;
 
@@ -44,27 +43,25 @@ void setup(){
 
   Monitor.begin(9600); //открываем порт для связи с ПК
   
-  LoRa.begin(9600);
+  LoRa.begin();
 
-  radio.begin(); //активировать модуль
-  radio.setAutoAck(1);         //режим подтверждения приёма, 1 вкл 0 выкл
-  radio.setRetries(0, 15);     //(время между попыткой достучаться, число попыток)
-  radio.enableAckPayload();    //разрешить отсылку данных в ответ на входящий сигнал
-  radio.setPayloadSize(32);     //размер пакета, в байтах
+  nRF24.begin(); 
+  //Append ACK packet from the receiving nRF24 back to the transmitting nRF24 
+  nRF24.setAutoAck(true); //(true|false) 
+  //Set the transmission datarate 
+  nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
+  //Greater level = more consumption = longer distance 
+  nRF24.setPALevel(RF24_PA_MIN); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
+  //Default value is the maximum 32 bytes1 
+  nRF24.setRetries(0, 15);
+  nRF24.enableDynamicPayloads();
+  nRF24.enableAckPayload();
+  nRF24.setPayloadSize(32);
+  //Act as receiver 
+  nRF24.openReadingPipe(1, address[listen_to]);
+  nRF24.openWritingPipe(address[write_into]); 
   
-  radio.setChannel(0x60);  //выбираем канал (в котором нет шумов!)
-
-  radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
-  radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
-  //должна быть одинакова на приёмнике и передатчике!
-  //при самой низкой скорости имеем самую высокую чувствительность и дальность!!
-  
-  radio.powerUp(); //начать работу
-
-	radio.openReadingPipe(0, address[listen_to]);
-  radio.openWritingPipe(address[write_into]); 
-   
-  radio.startListening();
+  nRF24.startListening();
 
   WiFi.begin(ssid.c_str(), password.c_str());
   // WiFi.begin("LeChatGarcon", "LeChatGarcon999");
@@ -79,25 +76,13 @@ void setup(){
 
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
-
-  pinMode(M0, OUTPUT);        
-  pinMode(M1, OUTPUT);
-  digitalWrite(M0, LOW);       
-  digitalWrite(M1, LOW);       
-  
 }
 
 void loop() {
   
   webSocket.loop();
 
-  if( radio.available()){    // слушаем эфир со всех труб
-    char message_from[32];
-    radio.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
-    delay(100);
-    Monitor.print("Recieved: "); Monitor.println(message_from);
-    webSocket.sendTXT(0, message_from);
-  }
+  listenToNRF24();
 
   if (Monitor.available()){
     
@@ -105,18 +90,46 @@ void loop() {
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
 
     if (String(message_send).startsWith("LoRa:")){
-      LoRa.println(message_send);
+      ResponseStatus responce = writeToLoRa(String(message_send));
     }
     else if (String(message_send).startsWith("RF:")){
-      radio.stopListening(); 
-      radio.write(&message_send, sizeof(message_send)); 
-      radio.startListening();
-      delay(100);     
+      writeIntoNRF24(String(message_send));     
     }
   }
 
-  if(LoRa.available() > 0){
-    String input = LoRa.readStringUntil('\n');
+  listenToLoRa();
+
+}
+
+void writeIntoNRF24(String inputString){
+  nRF24.stopListening();
+  char input[32];
+  inputString.trim();  // Remove leading and trailing whitespaces, if needed
+  inputString.toCharArray(input, sizeof(input));
+
+  bool report = nRF24.write(input, sizeof(input));
+  nRF24.startListening();   
+}
+
+void listenToNRF24(){
+  if (nRF24.available()) { 
+    readFromNRF24();
+  }  
+}
+
+String readFromNRF24(){
+  char input[32];
+  nRF24.read(&input, sizeof(input)); 
+  Monitor.print("Received: "); 
+  Monitor.println(input);
+  return String(input);   
+}
+
+
+
+void listenToLoRa(){
+  if (LoRa.available()>1) {
+    String input = readFromLoRa();
     input.trim();
 
     Monitor.println(input);
@@ -128,8 +141,21 @@ void loop() {
       // Two occurrences of "|" found in the string
       webSocket.sendTXT(0, input);
     }    
-  }
+  }  
+}
 
+String readFromLoRa(){
+  ResponseContainer rc = LoRa.receiveMessage();
+  if (rc.status.code!=1){
+      rc.status.getResponseDescription();
+  }else{  
+      return rc.data;
+  }  
+}
+
+ResponseStatus writeToLoRa(String input){
+  ResponseStatus rs = LoRa.sendMessage(input);
+  return rs;
 }
 
 
@@ -216,26 +242,26 @@ void updateItems(String input){
     Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
     cycle_time = splitStrings[1].toInt();
     preferences.putInt("time", cycle_time); 
-    LoRa.println(input); 
+    ResponseStatus responce = writeToLoRa(input);
   } 
   
-  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ LoRa.println(input); }
-  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ LoRa.println(input); }
+  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input);; }
+  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input);; }
 
     
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
     Monitor.println(input);
-    radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-    radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
+    nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
+    nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
-    radio.write(&input, sizeof(input));
+    writeIntoNRF24(input);
   }
   if (splitStrings[0].equals(GATE_OPEN_COMMAND)){
     Monitor.println(input);
-    radio.stopListening();  //не слушаем радиоэфир, мы передатчик
-    radio.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
+    nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
+    nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
-    radio.write(&input, sizeof(input));
+    writeIntoNRF24(input);
   }
 
   delete[] splitStrings;  
