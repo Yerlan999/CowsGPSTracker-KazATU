@@ -116,7 +116,7 @@ void listenToNRF24(){
   }  
 }
 
-String readFromNRF24(){
+void readFromNRF24(){
   char input[32];
   nRF24.read(&input, sizeof(input)); 
   Monitor.print("Received: "); 
@@ -125,13 +125,14 @@ String readFromNRF24(){
   String* splitStrings;
   int splitCount = splitString(String(input), '|', splitStrings);
   
-  if (splitStrings[1].equals("OPENED") || splitStrings[1].equals("CLOSED")){
-    webSocket.sendTXT(0, input);
-    String key = "gate" + String(splitStrings[0].c_str());
-    preferences.putBool(key.c_str(), String("OPENED") == splitStrings[1]);
+  if (splitCount == 2){
+    if (splitStrings[1].equals("OPENED") || splitStrings[1].equals("CLOSED")){
+      webSocket.sendTXT(0, input);
+      String key = "gate" + String(splitStrings[0].c_str());
+      preferences.putBool(key.c_str(), String("OPENED") == splitStrings[1]);
+    }
   }
-  
-  return String(input);   
+   
 }
 
 
