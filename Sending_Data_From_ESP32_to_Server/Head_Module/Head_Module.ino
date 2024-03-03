@@ -64,7 +64,6 @@ void setup(){
   nRF24.startListening();
 
   WiFi.begin(ssid.c_str(), password.c_str());
-  // WiFi.begin("LeChatGarcon", "LeChatGarcon999");
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -122,6 +121,16 @@ String readFromNRF24(){
   nRF24.read(&input, sizeof(input)); 
   Monitor.print("Received: "); 
   Monitor.println(input);
+
+  String* splitStrings;
+  int splitCount = splitString(String(input), '|', splitStrings);
+  
+  if (splitStrings[1].equals("OPENED") || splitStrings[1].equals("CLOSED")){
+    webSocket.sendTXT(0, input);
+    String key = "gate" + String(splitStrings[0].c_str());
+    preferences.putBool(key.c_str(), String("OPENED") == splitStrings[1]);
+  }
+  
   return String(input);   
 }
 

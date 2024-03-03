@@ -1,3 +1,5 @@
+// GATE #1
+
 #include <SPI.h>          // библиотека для работы с шиной SPI
 #include "nRF24L01.h"     // библиотека радиомодуля
 #include "RF24.h"         // ещё библиотека радиомодуля
@@ -112,6 +114,15 @@ void updateItems(String input){
   delete[] splitStrings;  
 }
 
+bool readLimitSwitch(String mode) {
+  int totalSwitchState = 0;
+  for (int i = 0; i < 100; i++) {
+    if (mode == "CLOSED?"){ totalSwitchState += digitalRead(close_contact); };
+    if (mode == "OPENED?"){ totalSwitchState += digitalRead(open_contact); }; 
+    delay(10); // Add a small delay between readings
+  }
+  return totalSwitchState == 100;
+}
 
 void moveStepper(bool direction, int gate_ID){
   int current_direction = direction;
@@ -126,7 +137,7 @@ void moveStepper(bool direction, int gate_ID){
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (current_direction==0 && digitalRead(close_contact)){
+      if (current_direction==0 && readLimitSwitch("CLOSED?")){
       
         String formattedMessage = createMessage(gate_ID, "CLOSED");      
         writeIntoNRF24(String(formattedMessage));
@@ -134,7 +145,7 @@ void moveStepper(bool direction, int gate_ID){
         break;
       }
 
-      if (current_direction==1 && digitalRead(open_contact)){
+      if (current_direction==1 && readLimitSwitch("OPENED?")){
         
         String formattedMessage = createMessage(gate_ID, "OPENED");  
         writeIntoNRF24(String(formattedMessage));

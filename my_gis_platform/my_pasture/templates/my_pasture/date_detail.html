@@ -1356,12 +1356,16 @@ chatSocket.onmessage = function(e) {
 
   // Signals from Transfer Process
   if (message.length < 16 && message.split("|").length - 1 === 1){ // N|<CLOSED><OPENED>
+
     var resultArray = message.split("|");
 
     var transfer_button = document.getElementById("transer_action");
+
+    var paddock_manual = document.getElementById("numberSelect").value;
     var paddock_from = document.getElementById("numberSelect_from").value;
     var paddock_to = document.getElementById("numberSelect_to").value;
 
+    var state_button_manual = document.getElementById("gate_state");
     var state_button_from = document.getElementById("gate_state_from");
     var state_button_to = document.getElementById("gate_state_to");
 
@@ -1373,8 +1377,10 @@ chatSocket.onmessage = function(e) {
         gates_state[String(resultArray[0])] = "Открыт";
     }
 
-    state_button_from.innerHTML = gates_state[paddock_from]
-    state_button_to.innerHTML = gates_state[paddock_to]
+    if (String(resultArray[0]) === String(paddock_manual)){ state_button_manual.innerHTML = gates_state[paddock_manual]; }
+    if (String(resultArray[0]) === String(paddock_from)){ state_button_from.innerHTML = gates_state[paddock_from]; }
+    if (String(resultArray[0]) === String(paddock_to)){ state_button_to.innerHTML = gates_state[paddock_to]; }
+
 
     if (started_transfer && gates_state[paddock_to] == "Закрыт" && gates_state[paddock_from] == "Закрыт"){
         transfer_button.innerHTML = "Произвести перегон";
@@ -1383,6 +1389,7 @@ chatSocket.onmessage = function(e) {
     }
   }
 
+  // Getting the STARTING parameters (states) from HEAD module
   else if (message.split("|").length - 1 === 7){
     var resultArray = message.split("|");
     var selectElement = document.getElementById('integerOptions');
