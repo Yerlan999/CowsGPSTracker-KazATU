@@ -825,12 +825,12 @@
       var state_button_to = document.getElementById("gate_state_to");
 
 
-      if (pasture_load[paddock_from] == 0){
+      if (pasture_load[paddock_from] == 0 && gates_state[String(paddock_from)] == "Открыт"){
         SendWebSocketMessage(`CLOSE:${paddock_from}`);
         gates_state[String(paddock_from)] = "закрывается...";
         state_button_from.innerHTML = gates_state[String(paddock_from)]
       }
-      if (pasture_load[paddock_to] == cattle_count){
+      if (pasture_load[paddock_to] == cattle_count_mov && gates_state[String(paddock_to)] == "Открыт"){
         SendWebSocketMessage(`CLOSE:${paddock_to}`);
         gates_state[String(paddock_to)] = "закрывается...";
         state_button_to.innerHTML = gates_state[String(paddock_to)]
@@ -843,6 +843,8 @@
     function StartTransfer(){
 
         if (pasture_load){
+
+            cattle_count_mov = pasture_load[paddock_from];
 
             var transfer_button = document.getElementById("transer_action");
             var paddock_from = document.getElementById("numberSelect_from").value;
@@ -864,7 +866,7 @@
                 state_button_to.innerHTML = gates_state[String(paddock_to)]
             }
 
-            intervalId = setInterval(lookForCattleMovement, update_interval);
+            intervalId = setInterval(lookForCattleMovement, update_interval*1000);
             started_transfer = true;
 
 
@@ -901,6 +903,7 @@
     var pasture_load = null;
     var resourceValues = null;
     var cattle_count = null;
+    var cattle_count_mov = null;
     var gates_state = {};
     var ajax_request = null;
     var selected_prediction_mode = null;
@@ -1148,6 +1151,7 @@
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
                         clearInterval(ajax_request);
+                        clearInterval(intervalId);
                         SendWebSocketMessage("STOP GPS");
                       } else {
                         toggleButton.textContent = "Остановить треккинг";

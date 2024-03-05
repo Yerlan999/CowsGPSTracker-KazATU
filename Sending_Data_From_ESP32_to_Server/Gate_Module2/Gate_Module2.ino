@@ -38,9 +38,9 @@ void setup() {
   //Set the transmission datarate 
   nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
   //Greater level = more consumption = longer distance 
-  nRF24.setPALevel(RF24_PA_MIN); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
+  nRF24.setPALevel(RF24_PA_LOW); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
   //Default value is the maximum 32 bytes1 
-  nRF24.setRetries(0, 15);
+  nRF24.setRetries(0, 0);
   nRF24.enableDynamicPayloads();
   nRF24.enableAckPayload();
   nRF24.setPayloadSize(32);
@@ -116,12 +116,12 @@ void updateItems(String input){
 
 bool readLimitSwitch(String mode) {
   int totalSwitchState = 0;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 20; i++) {
     if (mode == "CLOSED?"){ totalSwitchState += digitalRead(close_contact); };
     if (mode == "OPENED?"){ totalSwitchState += digitalRead(open_contact); }; 
     delay(10); // Add a small delay between readings
   }
-  return totalSwitchState == 100;
+  return totalSwitchState == 20;
 }
 
 void moveStepper(bool direction, int gate_ID){
@@ -130,6 +130,8 @@ void moveStepper(bool direction, int gate_ID){
   digitalWrite(DIR, direction);
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
+    
+    writeIntoNRF24("Moving Stepper #" + String(motor_id));
 
     for(;;){
       digitalWrite(STEP, HIGH);

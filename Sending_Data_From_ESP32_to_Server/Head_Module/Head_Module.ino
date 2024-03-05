@@ -51,9 +51,9 @@ void setup(){
   //Set the transmission datarate 
   nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
   //Greater level = more consumption = longer distance 
-  nRF24.setPALevel(RF24_PA_MIN); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
+  nRF24.setPALevel(RF24_PA_LOW); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
   //Default value is the maximum 32 bytes1 
-  nRF24.setRetries(0, 15);
+  nRF24.setRetries(0, 0);
   nRF24.enableDynamicPayloads();
   nRF24.enableAckPayload();
   nRF24.setPayloadSize(32);
@@ -89,10 +89,12 @@ void loop() {
     Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
 
     if (String(message_send).startsWith("LoRa:")){
-      ResponseStatus responce = writeToLoRa(String(message_send));
+      String messageWithoutPrefix = String(String(message_send).substring(5));
+      ResponseStatus responce = writeToLoRa(String(messageWithoutPrefix));
     }
     else if (String(message_send).startsWith("RF:")){
-      writeIntoNRF24(String(message_send));     
+      String messageWithoutPrefix = String(String(message_send).substring(3));
+      writeIntoNRF24(String(messageWithoutPrefix));     
     }
   }
 
@@ -110,14 +112,16 @@ void writeIntoNRF24(String inputString){
   nRF24.startListening();   
 }
 
-void listenToNRF24(){
+String listenToNRF24(){
+  String message_from;
   if (nRF24.available()) { 
-    readFromNRF24();
-  }  
+    message_from = readFromNRF24();
+  }
+  return message_from;  
 }
 
-void readFromNRF24(){
-  char input[32];
+String readFromNRF24(){
+  char input[32]; 
   nRF24.read(&input, sizeof(input)); 
   Monitor.print("Received: "); 
   Monitor.println(input);
@@ -132,6 +136,11 @@ void readFromNRF24(){
       preferences.putBool(key.c_str(), String("OPENED") == splitStrings[1]);
     }
   }
+  if (String(input).startsWith("Moving Stepper #")){
+    webSocket.sendTXT(0, input);
+  }
+
+  return String(String(input));
    
 }
 
@@ -255,28 +264,52 @@ void updateItems(String input){
     ResponseStatus responce = writeToLoRa(input);
   } 
   
-  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input);; }
-  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input);; }
+  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input); }
+  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input); }
 
     
-  if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
+  String key = "gate" + String(splitStrings[1].c_str());
+    
+  if (splitStrings[0].equals(GATE_CLOSE_COMMAND) && preferences.getBool(key.c_str())){
     Monitor.println(input);
     nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
     nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
-    writeIntoNRF24(input);
+    sendAndReceive(input, "Moving Stepper #" + String(splitStrings[1]));
+    sendAndReceive("GREAT!", String(splitStrings[1])+"|CLOSED");
+    finishConversation(); 
   }
-  if (splitStrings[0].equals(GATE_OPEN_COMMAND)){
+  if (splitStrings[0].equals(GATE_OPEN_COMMAND) && !preferences.getBool(key.c_str())){
     Monitor.println(input);
     nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
     nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
 
-    writeIntoNRF24(input);
+    sendAndReceive(input, "Moving Stepper #" + String(splitStrings[1]));
+    sendAndReceive("GREAT!", String(splitStrings[1])+"|OPENED");
+    finishConversation();
   }
 
   delete[] splitStrings;  
 }
 
+void finishConversation(){
+  writeIntoNRF24("OK!"); delay(1000);
+  writeIntoNRF24("OK!"); delay(1000);
+  writeIntoNRF24("OK!"); delay(1000);
+  writeIntoNRF24("OK!"); delay(1000);
+  writeIntoNRF24("OK!"); delay(1000);  
+}
+
+void sendAndReceive(String messageToSend, String expectedResponse) {
+  while (true) {
+    delay(2000);
+    String messageFrom = listenToNRF24();
+    if (messageFrom.equals(expectedResponse)) {
+      break;
+    }
+    writeIntoNRF24(messageToSend);
+  }
+}
 
 int splitString(const String& input, char delimiter, String*& output) {
   int arraySize = 1;  // Minimum size is 1 for the original string itself

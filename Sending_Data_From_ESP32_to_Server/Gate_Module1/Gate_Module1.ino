@@ -38,9 +38,9 @@ void setup() {
   //Set the transmission datarate 
   nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
   //Greater level = more consumption = longer distance 
-  nRF24.setPALevel(RF24_PA_MIN); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
+  nRF24.setPALevel(RF24_PA_LOW); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
   //Default value is the maximum 32 bytes1 
-  nRF24.setRetries(0, 15);
+  nRF24.setRetries(0, 0);
   nRF24.enableDynamicPayloads();
   nRF24.enableAckPayload();
   nRF24.setPayloadSize(32);
@@ -71,10 +71,12 @@ void writeIntoNRF24(String inputString){
   nRF24.startListening();   
 }
 
-void listenToNRF24(){
+String listenToNRF24(){
+  String message_from;
   if (nRF24.available()) { 
-    readFromNRF24();
-  }  
+    message_from = readFromNRF24();
+  }
+  return message_from;  
 }
 
 String readFromNRF24(){
@@ -116,13 +118,26 @@ void updateItems(String input){
 
 bool readLimitSwitch(String mode) {
   int totalSwitchState = 0;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 20; i++) {
     if (mode == "CLOSED?"){ totalSwitchState += digitalRead(close_contact); };
     if (mode == "OPENED?"){ totalSwitchState += digitalRead(open_contact); }; 
     delay(10); // Add a small delay between readings
   }
-  return totalSwitchState == 100;
+  return totalSwitchState == 20;
 }
+
+
+void sendAndReceive(String messageToSend, String expectedResponse) {
+  while (true) {
+    delay(2000);
+    String messageFrom = listenToNRF24();
+    if (messageFrom.equals(expectedResponse)) {
+      break;
+    }
+    writeIntoNRF24(messageToSend);
+  }
+}
+
 
 void moveStepper(bool direction, int gate_ID){
   int current_direction = direction;
@@ -130,6 +145,8 @@ void moveStepper(bool direction, int gate_ID){
   digitalWrite(DIR, direction);
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
+    
+    sendAndReceive("Moving Stepper #" + String(motor_id), "GREAT!");
 
     for(;;){
       digitalWrite(STEP, HIGH);
@@ -140,7 +157,7 @@ void moveStepper(bool direction, int gate_ID){
       if (current_direction==0 && readLimitSwitch("CLOSED?")){
       
         String formattedMessage = createMessage(gate_ID, "CLOSED");      
-        writeIntoNRF24(String(formattedMessage));
+        sendAndReceive(formattedMessage, "OK!");
             
         break;
       }
@@ -148,7 +165,7 @@ void moveStepper(bool direction, int gate_ID){
       if (current_direction==1 && readLimitSwitch("OPENED?")){
         
         String formattedMessage = createMessage(gate_ID, "OPENED");  
-        writeIntoNRF24(String(formattedMessage));
+        sendAndReceive(formattedMessage, "OK!");
 
         break;
       }
