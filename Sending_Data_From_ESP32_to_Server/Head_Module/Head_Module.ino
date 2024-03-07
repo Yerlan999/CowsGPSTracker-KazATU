@@ -1,70 +1,78 @@
-#include <WiFi.h> 
+#include <WiFi.h>
+#include <esp_wifi.h>
 #include <WebSocketsServer.h>
-#include <SPI.h>
-#include "nRF24L01.h"
-#include "RF24.h"
+#include <esp_now.h>
 #include <Preferences.h>
 #include <HardwareSerial.h>
 #include "Arduino.h"
 #include "LoRa_E32.h"
+#include <map>
 
-#define Monitor Serial 
+#define Monitor Serial
 
-LoRa_E32 LoRa(&Serial2, 15, 22, 21); //  Serial Pins,  AUX, M0, M1
-RF24 nRF24(4, 5); // CE, CSN
-WebSocketsServer webSocket= WebSocketsServer(80);
+LoRa_E32 LoRa(&Serial2, 15, 22, 21);  //  Serial Pins,  AUX, M0, M1
+WebSocketsServer webSocket = WebSocketsServer(80);
+std::map<String, uint8_t*> addressDictionary;
 Preferences preferences;
 
-const byte address[2][6] = {"00001", "00002"};
-
-const int listen_to = 0;
-const int write_into = 1;
+uint8_t Gate1Address[] = {0xA0, 0xA3, 0xB3, 0x2C, 0x0E, 0x50};
+uint8_t Gate2Address[] = {0x24, 0x6F, 0x28, 0xB2, 0x27, 0x64};
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
 String TIME_UPDATE_COMMAND = "TIME_UPDATE";
- 
+
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
-String ssid;  
+String ssid;
 String password;
 
-unsigned long cycle_time;    // КАЖДЫЕ N секунд
+unsigned long cycle_time;  // КАЖДЫЕ N секунд
 
-void setup(){
-  
+typedef struct struct_message {
+  char message[50];
+} struct_message;
+
+struct_message outgoingMessage;
+struct_message incomingMessage;
+
+esp_now_peer_info_t peerInfoSlave1;
+esp_now_peer_info_t peerInfoSlave2;
+
+// Callback when data is sent
+void OnDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
+  Monitor.print("\r\nLast Packet Send Status:\t");
+  Monitor.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+// Callback when data is received
+void OnDataRecv(const uint8_t* mac, const uint8_t* incomingData, int len) {
+  memcpy(&incomingMessage, incomingData, sizeof(incomingMessage));
+  Monitor.print("Received message from slave: ");
+  Monitor.println(incomingMessage.message);
+}
+
+void setup() {
+
+  addressDictionary["1"] = Gate1Address;
+  addressDictionary["2"] = Gate2Address;
+
+
   preferences.begin("credentials", false);
 
-  ssid = preferences.getString("ssid", ""); 
+  ssid = preferences.getString("ssid", "");
   password = preferences.getString("password", "");
 
   cycle_time = preferences.getInt("time");
 
-  Monitor.begin(9600); //открываем порт для связи с ПК
-  
+  Monitor.begin(9600);  //открываем порт для связи с ПК
+
   LoRa.begin();
 
-  nRF24.begin(); 
-  //Append ACK packet from the receiving nRF24 back to the transmitting nRF24 
-  nRF24.setAutoAck(true); //(true|false) 
-  //Set the transmission datarate 
-  nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
-  //Greater level = more consumption = longer distance 
-  nRF24.setPALevel(RF24_PA_LOW); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
-  //Default value is the maximum 32 bytes1 
-  nRF24.setRetries(0, 0);
-  nRF24.enableDynamicPayloads();
-  nRF24.enableAckPayload();
-  nRF24.setPayloadSize(32);
-  //Act as receiver 
-  nRF24.openReadingPipe(1, address[listen_to]);
-  nRF24.openWritingPipe(address[write_into]); 
-  
-  nRF24.startListening();
-
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
- 
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Monitor.println("Connecting to WiFi..");
@@ -73,81 +81,80 @@ void setup(){
   Monitor.println("Connected to the WiFi network");
   Monitor.println(WiFi.localIP());
 
+  esp_wifi_set_channel(11, WIFI_SECOND_CHAN_NONE);
+
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) {
+    Monitor.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  // Register for a callback function that will be called when data is sent
+  esp_now_register_send_cb(OnDataSent);
+  // Register for a callback function that will be called when data is received
+  esp_now_register_recv_cb(OnDataRecv);
+  // Register peers (slaves)
+  memcpy(peerInfoSlave1.peer_addr, addressDictionary["1"], 6);
+  peerInfoSlave1.channel = 0;
+  peerInfoSlave1.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfoSlave1) != ESP_OK) {
+    Monitor.println("Failed to add slave1");
+    return;
+  }
+
+  memcpy(peerInfoSlave2.peer_addr, addressDictionary["2"], 6);
+  peerInfoSlave2.channel = 0;
+  peerInfoSlave2.encrypt = false;
+
+  if (esp_now_add_peer(&peerInfoSlave2) != ESP_OK) {
+    Monitor.println("Failed to add slave2");
+    return;
+  }
+  
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
+
 }
 
+
 void loop() {
-  
+
   webSocket.loop();
 
-  listenToNRF24();
+  if (Monitor.available()) {
 
-  if (Monitor.available()){
-    
-    char message_send[32]; // Adjust the size based on your maximum message size
-    Monitor.readStringUntil('\n').toCharArray(message_send, sizeof(message_send));
+    String userMessage = Monitor.readStringUntil('\n');
+    userMessage.trim();
 
-    if (String(message_send).startsWith("LoRa:")){
-      String messageWithoutPrefix = String(String(message_send).substring(5));
-      ResponseStatus responce = writeToLoRa(String(messageWithoutPrefix));
+    if (userMessage.startsWith("LoRa:")) {
+      ResponseStatus responce = writeToLoRa(userMessage.substring(5));
     }
-    else if (String(message_send).startsWith("RF:")){
-      String messageWithoutPrefix = String(String(message_send).substring(3));
-      writeIntoNRF24(String(messageWithoutPrefix));     
-    }
+
+    if (userMessage.startsWith("GATE1:")) { sendMessageToSlave(Gate1Address, userMessage.substring(6)); }
+    if (userMessage.startsWith("GATE2:")) { sendMessageToSlave(Gate2Address, userMessage.substring(6)); }
   }
 
   listenToLoRa();
-
 }
 
-void writeIntoNRF24(String inputString){
-  nRF24.stopListening();
-  char input[32];
-  inputString.trim();  // Remove leading and trailing whitespaces, if needed
-  inputString.toCharArray(input, sizeof(input));
 
-  bool report = nRF24.write(input, sizeof(input));
-  nRF24.startListening();   
-}
+void sendMessageToSlave(uint8_t* slaveAddress, String message) {
+  strncpy(outgoingMessage.message, message.c_str(), sizeof(outgoingMessage.message));
+  esp_err_t result = esp_now_send(slaveAddress, (uint8_t*)&outgoingMessage, sizeof(outgoingMessage));
 
-String listenToNRF24(){
-  String message_from;
-  if (nRF24.available()) { 
-    message_from = readFromNRF24();
+  if (result == ESP_OK) {
+    Monitor.println("Message sent with success");
+  } else {
+    Monitor.println("Error sending message");
   }
-  return message_from;  
-}
-
-String readFromNRF24(){
-  char input[32]; 
-  nRF24.read(&input, sizeof(input)); 
-  Monitor.print("Received: "); 
-  Monitor.println(input);
-
-  String* splitStrings;
-  int splitCount = splitString(String(input), '|', splitStrings);
-  
-  if (splitCount == 2){
-    if (splitStrings[1].equals("OPENED") || splitStrings[1].equals("CLOSED")){
-      webSocket.sendTXT(0, input);
-      String key = "gate" + String(splitStrings[0].c_str());
-      preferences.putBool(key.c_str(), String("OPENED") == splitStrings[1]);
-    }
-  }
-  if (String(input).startsWith("Moving Stepper #")){
-    webSocket.sendTXT(0, input);
-  }
-
-  return String(String(input));
-   
 }
 
 
 
-void listenToLoRa(){
-  if (LoRa.available()>1) {
+
+void listenToLoRa() {
+  if (LoRa.available() > 1) {
     String input = readFromLoRa();
     input.trim();
 
@@ -159,20 +166,20 @@ void listenToLoRa(){
     if (firstPipeIndex != -1 && secondPipeIndex != -1 && input.length() > 16) {
       // Two occurrences of "|" found in the string
       webSocket.sendTXT(0, input);
-    }    
-  }  
+    }
+  }
 }
 
-String readFromLoRa(){
+String readFromLoRa() {
   ResponseContainer rc = LoRa.receiveMessage();
-  if (rc.status.code!=1){
-      rc.status.getResponseDescription();
-  }else{  
-      return rc.data;
-  }  
+  if (rc.status.code != 1) {
+    rc.status.getResponseDescription();
+  } else {
+    return rc.data;
+  }
 }
 
-ResponseStatus writeToLoRa(String input){
+ResponseStatus writeToLoRa(String input) {
   ResponseStatus rs = LoRa.sendMessage(input);
   return rs;
 }
@@ -180,50 +187,49 @@ ResponseStatus writeToLoRa(String input){
 
 void clearInComingBuffer(HardwareSerial& serialObject) {
   while (serialObject.available()) {
-    serialObject.read();  
+    serialObject.read();
   }
 }
 
 void clearOutComingBuffer(HardwareSerial& serialObject) {
-  serialObject.flush();    
+  serialObject.flush();
 }
 
 
 // Called when websocket server receives any messages
-void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
-//Figure out the type of Websocket Event
+void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t length) {
+  //Figure out the type of Websocket Event
 
-char receivedMessage[length + 1];
+  char receivedMessage[length + 1];
 
-switch(type) {
+  switch (type) {
     // Client has disconnected
     case WStype_DISCONNECTED:
       Monitor.printf("[%u] Disconnected\n", num);
       break;
-    
+
     //New client has connected to the server
     case WStype_CONNECTED:
-    {
-      IPAddress ip = webSocket.remoteIP(num);
-      Monitor.printf("[%u] Connected from: \n", num);
-      Monitor.println(ip.toString());
-      
-      bool gate1_state = preferences.getBool("gate1");
-      bool gate2_state = preferences.getBool("gate2");
-      bool gate3_state = preferences.getBool("gate3");
-      bool gate4_state = preferences.getBool("gate4");
-      bool gate5_state = preferences.getBool("gate5");
-      bool gate6_state = preferences.getBool("gate6");
-      bool gate7_state = preferences.getBool("gate7");
+      {
+        IPAddress ip = webSocket.remoteIP(num);
+        Monitor.printf("[%u] Connected from: \n", num);
+        Monitor.println(ip.toString());
 
-      int current_timing = preferences.getInt("time");
+        bool gate1_state = preferences.getBool("gate1");
+        bool gate2_state = preferences.getBool("gate2");
+        bool gate3_state = preferences.getBool("gate3");
+        bool gate4_state = preferences.getBool("gate4");
+        bool gate5_state = preferences.getBool("gate5");
+        bool gate6_state = preferences.getBool("gate6");
+        bool gate7_state = preferences.getBool("gate7");
 
-      String massive_message = String(current_timing) + "|" + String(gate1_state) + "|" + String(gate2_state) + "|" + String(gate3_state) + "|" + String(gate4_state) + "|" + String(gate5_state) + "|" + String(gate6_state) + "|" + String(gate7_state);
+        int current_timing = preferences.getInt("time");
 
-      webSocket.sendTXT(0, massive_message);
+        String massive_message = String(current_timing) + "|" + String(gate1_state) + "|" + String(gate2_state) + "|" + String(gate3_state) + "|" + String(gate4_state) + "|" + String(gate5_state) + "|" + String(gate6_state) + "|" + String(gate7_state);
 
-    }
-    break;
+        webSocket.sendTXT(0, massive_message);
+      }
+      break;
     //Echo the text messages
     case WStype_TEXT:
       // Monitor.printf("[%u] Text %s\n", num, payload);
@@ -247,69 +253,41 @@ switch(type) {
     case WStype_FRAGMENT:
     case WStype_FRAGMENT_FIN:
     default:
-    break; 
+      break;
   }
 }
 
 
-void updateItems(String input){
-  
+void updateItems(String input) {
+
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
 
-  if (splitStrings[0].equals(TIME_UPDATE_COMMAND)){
+  if (splitStrings[0].equals(TIME_UPDATE_COMMAND)) {
     Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
     cycle_time = splitStrings[1].toInt();
-    preferences.putInt("time", cycle_time); 
+    preferences.putInt("time", cycle_time);
     ResponseStatus responce = writeToLoRa(input);
-  } 
-  
-  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input); }
-  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)){ ResponseStatus responce = writeToLoRa(input); }
+  }
 
-    
-  String key = "gate" + String(splitStrings[1].c_str());
-    
-  if (splitStrings[0].equals(GATE_CLOSE_COMMAND) && preferences.getBool(key.c_str())){
+  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); }
+  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); }
+
+
+  String key = "gate" + splitStrings[1];
+
+  if (splitStrings[0].equals(GATE_CLOSE_COMMAND) && preferences.getBool(key.c_str())) {
     Monitor.println(input);
-    nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
-    nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
-
-    sendAndReceive(input, "Moving Stepper #" + String(splitStrings[1]));
-    sendAndReceive("GREAT!", String(splitStrings[1])+"|CLOSED");
-    finishConversation(); 
+    sendMessageToSlave(addressDictionary[splitStrings[1]], input);
   }
-  if (splitStrings[0].equals(GATE_OPEN_COMMAND) && !preferences.getBool(key.c_str())){
+  if (splitStrings[0].equals(GATE_OPEN_COMMAND) && !preferences.getBool(key.c_str())) {
     Monitor.println(input);
-    nRF24.stopListening();  //не слушаем радиоэфир, мы передатчик
-    nRF24.openWritingPipe(address[1]);   //мы - труба 0, открываем канал для передачи данных
-
-    sendAndReceive(input, "Moving Stepper #" + String(splitStrings[1]));
-    sendAndReceive("GREAT!", String(splitStrings[1])+"|OPENED");
-    finishConversation();
+    sendMessageToSlave(addressDictionary[splitStrings[1]], input);
   }
 
-  delete[] splitStrings;  
+  delete[] splitStrings;
 }
 
-void finishConversation(){
-  writeIntoNRF24("OK!"); delay(1000);
-  writeIntoNRF24("OK!"); delay(1000);
-  writeIntoNRF24("OK!"); delay(1000);
-  writeIntoNRF24("OK!"); delay(1000);
-  writeIntoNRF24("OK!"); delay(1000);  
-}
-
-void sendAndReceive(String messageToSend, String expectedResponse) {
-  while (true) {
-    delay(2000);
-    String messageFrom = listenToNRF24();
-    if (messageFrom.equals(expectedResponse)) {
-      break;
-    }
-    writeIntoNRF24(messageToSend);
-  }
-}
 
 int splitString(const String& input, char delimiter, String*& output) {
   int arraySize = 1;  // Minimum size is 1 for the original string itself

@@ -1,28 +1,45 @@
 // GATE #1
 
-#include <SPI.h>          // библиотека для работы с шиной SPI
-#include "nRF24L01.h"     // библиотека радиомодуля
-#include "RF24.h"         // ещё библиотека радиомодуля
+#include <esp_now.h>
+#include <WiFi.h>
 
 #define Monitor Serial
 
-const int DIR = 32;
-const int STEP = 33;
+const int DIR = 23;
+const int STEP = 21;
 const int  steps_per_rev = 200;
-const int close_contact = 25; // PINK
-const int open_contact = 26; // GREEN
+const int close_contact = 5; // PINK
+const int open_contact = 4; // GREEN
 
 const int motor_id = 1;
 
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
 
-RF24 nRF24(4, 5); // CE, CSN
+uint8_t HeadAddress[] = {0x78, 0xE3, 0x6D, 0x12, 0x00, 0x2C};
 
-const byte address[2][6] = {"00001", "00002"};
+typedef struct struct_message {
+    char message[50];
+} struct_message;
 
-const int listen_to = 1;
-const int write_into = 0;
+struct_message outgoingMessage;
+struct_message incomingMessage;
+
+esp_now_peer_info_t peerInfo;
+
+// Callback when data is sent
+void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  Monitor.print("\r\nLast Packet Send Status:\t");
+  Monitor.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+}
+
+// Callback when data is received
+void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  memcpy(&incomingMessage, incomingData, sizeof(incomingMessage));
+  Monitor.print("Received message: ");
+  Monitor.println(incomingMessage.message);
+  updateItems(String(incomingMessage.message));
+}
 
 void setup() {
   Monitor.begin(9600); //открываем порт для связи с ПК
@@ -32,72 +49,36 @@ void setup() {
   pinMode(close_contact, INPUT);
   pinMode(open_contact, INPUT);
   
-  nRF24.begin(); 
-  //Append ACK packet from the receiving nRF24 back to the transmitting nRF24 
-  nRF24.setAutoAck(true); //(true|false) 
-  //Set the transmission datarate 
-  nRF24.setDataRate(RF24_250KBPS); //(RF24_250KBPS|RF24_1MBPS|RF24_2MBPS) 
-  //Greater level = more consumption = longer distance 
-  nRF24.setPALevel(RF24_PA_LOW); //(RF24_PA_MIN|RF24_PA_LOW|RF24_PA_HIGH|RF24_PA_MAX) 
-  //Default value is the maximum 32 bytes1 
-  nRF24.setRetries(0, 0);
-  nRF24.enableDynamicPayloads();
-  nRF24.enableAckPayload();
-  nRF24.setPayloadSize(32);
-  //Act as receiver 
-  nRF24.openReadingPipe(1, address[listen_to]);
-  nRF24.openWritingPipe(address[write_into]); 
-  
-  nRF24.startListening();
+  WiFi.mode(WIFI_STA);
+
+  // Init ESP-NOW
+  if (esp_now_init() != ESP_OK) { Monitor.println("Error initializing ESP-NOW"); return; }
+  // Register for a callback function that will be called when data is sent
+  esp_now_register_send_cb(OnDataSent);
+  // Register for a callback function that will be called when data is received
+  esp_now_register_recv_cb(OnDataRecv);
+  // Register peer
+  memcpy(peerInfo.peer_addr, HeadAddress, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  // Add peer
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) { Monitor.println("Failed to add peer"); return; }
 }
 
 void loop() {
   
-  listenToNRF24();
-
   if (Monitor.available()){
     String input = Monitor.readStringUntil('\n');
-    writeIntoNRF24(input);    
+    sendToHeader(input);
   }
 }
 
-void writeIntoNRF24(String inputString){
-  nRF24.stopListening();
-  char input[32];
-  inputString.trim();  // Remove leading and trailing whitespaces, if needed
-  inputString.toCharArray(input, sizeof(input));
-
-  bool report = nRF24.write(input, sizeof(input));
-  nRF24.startListening();   
+void sendToHeader(String userMessage){
+  strncpy(outgoingMessage.message, userMessage.c_str(), sizeof(outgoingMessage.message));
+  esp_err_t result = esp_now_send(HeadAddress, (uint8_t *)&outgoingMessage, sizeof(outgoingMessage));
+  if (result == ESP_OK) { Monitor.println("Sent with success"); } 
+  else { Monitor.println("Error sending the data"); }  
 }
-
-String listenToNRF24(){
-  String message_from;
-  if (nRF24.available()) { 
-    message_from = readFromNRF24();
-  }
-  return message_from;  
-}
-
-String readFromNRF24(){
-  char message_from[32];
-  nRF24.read( &message_from, sizeof(message_from) );         // чиатем входящий сигнал
-  delay(100);
-  Monitor.print("Recieved: "); Monitor.println(message_from);
-  updateItems(String(message_from));
-  return String(message_from);   
-}
-
-void clearInComingBuffer(HardwareSerial& serialObject) {
-  while (serialObject.available()) {
-    serialObject.read();  
-  }
-}
-
-void clearOutComingBuffer(HardwareSerial& serialObject) {
-  serialObject.flush();    
-}
-
 
 void updateItems(String input){
   
@@ -127,18 +108,6 @@ bool readLimitSwitch(String mode) {
 }
 
 
-void sendAndReceive(String messageToSend, String expectedResponse) {
-  while (true) {
-    delay(2000);
-    String messageFrom = listenToNRF24();
-    if (messageFrom.equals(expectedResponse)) {
-      break;
-    }
-    writeIntoNRF24(messageToSend);
-  }
-}
-
-
 void moveStepper(bool direction, int gate_ID){
   int current_direction = direction;
 
@@ -146,7 +115,7 @@ void moveStepper(bool direction, int gate_ID){
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
     
-    sendAndReceive("Moving Stepper #" + String(motor_id), "GREAT!");
+    sendToHeader("Moving Stepper #" + String(motor_id));
 
     for(;;){
       digitalWrite(STEP, HIGH);
@@ -157,7 +126,7 @@ void moveStepper(bool direction, int gate_ID){
       if (current_direction==0 && readLimitSwitch("CLOSED?")){
       
         String formattedMessage = createMessage(gate_ID, "CLOSED");      
-        sendAndReceive(formattedMessage, "OK!");
+        sendToHeader(formattedMessage);
             
         break;
       }
@@ -165,7 +134,7 @@ void moveStepper(bool direction, int gate_ID){
       if (current_direction==1 && readLimitSwitch("OPENED?")){
         
         String formattedMessage = createMessage(gate_ID, "OPENED");  
-        sendAndReceive(formattedMessage, "OK!");
+        sendToHeader(formattedMessage);
 
         break;
       }
@@ -222,3 +191,12 @@ int splitString(const String& input, char delimiter, String*& output) {
   return arraySize;
 }
 
+void clearInComingBuffer(HardwareSerial& serialObject) {
+  while (serialObject.available()) {
+    serialObject.read();  
+  }
+}
+
+void clearOutComingBuffer(HardwareSerial& serialObject) {
+  serialObject.flush();    
+}
