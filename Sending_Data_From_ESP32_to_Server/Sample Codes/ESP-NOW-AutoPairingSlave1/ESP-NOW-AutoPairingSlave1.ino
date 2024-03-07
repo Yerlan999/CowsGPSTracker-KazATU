@@ -61,7 +61,7 @@ void addPeer(const uint8_t * mac_addr, uint8_t chan){
   peer.encrypt = false;
   memcpy(peer.peer_addr, mac_addr, sizeof(uint8_t[6]));
   if (esp_now_add_peer(&peer) != ESP_OK){
-    Serial.println("Failed to add peer");
+    Monitor.println("Failed to add peer");
     return;
   }
   memcpy(serverAddress, mac_addr, sizeof(uint8_t[6]));
@@ -71,42 +71,42 @@ void printMAC(const uint8_t * mac_addr){
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  Serial.print(macStr);
+  Monitor.print(macStr);
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Monitor.print("\r\nLast Packet Send Status:\t");
+  Monitor.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) { 
-  Serial.print("Packet received from: ");
+  Monitor.print("Packet received from: ");
   printMAC(mac_addr);
-  Serial.println();
-  Serial.print("data size = ");
-  Serial.println(sizeof(incomingData));
+  Monitor.println();
+  Monitor.print("data size = ");
+  Monitor.println(sizeof(incomingData));
   uint8_t type = incomingData[0];
   switch (type) {
   case DATA :      // we received data from server
     byteArrayToStruct(incomingData, incomingMessage);  // the message is data type
     // memcpy(&incomingMessage, incomingData, sizeof(incomingMessage));
-    Serial.print("ID  = ");
-    Serial.println(incomingMessage.id);
-    Serial.print("Command = ");
-    Serial.println(incomingMessage.command);
+    Monitor.print("ID  = ");
+    Monitor.println(incomingMessage.id);
+    Monitor.print("Command = ");
+    Monitor.println(incomingMessage.command);
     break;
 
   case PAIRING:    // we received pairing data from server
     memcpy(&pairingData, incomingData, sizeof(pairingData));
     if (pairingData.id == 0) {              // the message comes from server
       printMAC(mac_addr);
-      Serial.print("Pairing done for ");
+      Monitor.print("Pairing done for ");
       printMAC(pairingData.macAddr);
-      Serial.print(" on channel " );
-      Serial.print(pairingData.channel);    // channel used by the server
-      Serial.print(" in ");
-      Serial.print(millis()-start);
-      Serial.println("ms");
+      Monitor.print(" on channel " );
+      Monitor.print(pairingData.channel);    // channel used by the server
+      Monitor.print(" in ");
+      Monitor.print(millis()-start);
+      Monitor.println("ms");
       addPeer(pairingData.macAddr, pairingData.channel); // add the server  to the peer list 
       #ifdef SAVE_CHANNEL
         lastChannel = pairingData.channel;
@@ -122,13 +122,13 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
 PairingStatus autoPairing(){
   switch(pairingStatus) {
     case PAIR_REQUEST:
-    Serial.print("Pairing request on channel "  );
-    Serial.println(channel);
+    Monitor.print("Pairing request on channel "  );
+    Monitor.println(channel);
 
     // set WiFi channel   
     ESP_ERROR_CHECK(esp_wifi_set_channel(channel,  WIFI_SECOND_CHAN_NONE));
     if (esp_now_init() != ESP_OK) {
-      Serial.println("Error initializing ESP-NOW");
+      Monitor.println("Error initializing ESP-NOW");
     }
 
     // set callback routines
@@ -169,11 +169,10 @@ PairingStatus autoPairing(){
 }  
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
-  pinMode(LED_BUILTIN, OUTPUT);
-  Serial.print("Client Board MAC Address:  ");
-  Serial.println(WiFi.macAddress());
+  Monitor.begin(115200);
+  Monitor.println();
+  Monitor.print("Client Board MAC Address:  ");
+  Monitor.println(WiFi.macAddress());
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   start = millis();
@@ -181,11 +180,11 @@ void setup() {
   #ifdef SAVE_CHANNEL 
     EEPROM.begin(10);
     lastChannel = EEPROM.read(0);
-    Serial.println(lastChannel);
+    Monitor.println(lastChannel);
     if (lastChannel >= 1 && lastChannel <= MAX_CHANNEL) {
       channel = lastChannel; 
     }
-    Serial.println(channel);
+    Monitor.println(channel);
   #endif  
   pairingStatus = PAIR_REQUEST;
 }  
@@ -209,8 +208,8 @@ void setCommand(struct_message& message, const char* command) {
 void loop() {
   if (autoPairing() == PAIR_PAIRED) {
 
-    if (Serial.available()) {
-      String userMessage = Serial.readString();
+    if (Monitor.available()) {
+      String userMessage = Monitor.readString();
       userMessage.trim();
 
       outgoingMessage.msgType = DATA;

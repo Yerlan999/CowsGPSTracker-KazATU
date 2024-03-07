@@ -4,6 +4,8 @@
 #include "AsyncTCP.h"
 #include <ArduinoJson.h>
 
+#define Monitor Serial
+
 // Replace with your network credentials (STATION)
 const char* ssid = "Le petit dejeuner 2";
 const char* password = "DoesGodReallyExist404";
@@ -43,6 +45,16 @@ void setCommand(struct_message& message, const char* command) {
   message.command[sizeof(message.command) - 1] = '\0';  // Ensure null-termination
 }
 
+// Function to convert struct_message to a byte array
+void structToByteArray(const struct_message& input, uint8_t* output) {
+  memcpy(output, &input, sizeof(input));
+}
+
+// Function to convert byte array to struct_message
+void byteArrayToStruct(const uint8_t* input, struct_message& output) {
+  memcpy(&output, input, sizeof(output));
+}
+
 void readDataToSend() {
   outgoingMessage.msgType = DATA;
   outgoingMessage.id = 0;
@@ -55,7 +67,7 @@ void printMAC(const uint8_t * mac_addr){
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  Serial.print(macStr);
+  Monitor.print(macStr);
 }
 
 bool addPeer(const uint8_t *peer_addr) {      // add pairing
@@ -69,19 +81,19 @@ bool addPeer(const uint8_t *peer_addr) {      // add pairing
   bool exists = esp_now_is_peer_exist(slave.peer_addr);
   if (exists) {
     // Slave already paired.
-    Serial.println("Already Paired");
+    Monitor.println("Already Paired");
     return true;
   }
   else {
     esp_err_t addStatus = esp_now_add_peer(peer);
     if (addStatus == ESP_OK) {
       // Pair success
-      Serial.println("Pair success");
+      Monitor.println("Pair success");
       return true;
     }
     else 
     {
-      Serial.println("Pair failed");
+      Monitor.println("Pair failed");
       return false;
     }
   }
@@ -89,17 +101,17 @@ bool addPeer(const uint8_t *peer_addr) {      // add pairing
 
 // callback when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("Last Packet Send Status: ");
-  Serial.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success to " : "Delivery Fail to ");
+  Monitor.print("Last Packet Send Status: ");
+  Monitor.print(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success to " : "Delivery Fail to ");
   printMAC(mac_addr);
-  Serial.println();
+  Monitor.println();
 }
 
 void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) { 
-  Serial.print(len);
-  Serial.print(" bytes of data received from : ");
+  Monitor.print(len);
+  Monitor.print(" bytes of data received from : ");
   printMAC(mac_addr);
-  Serial.println();
+  Monitor.println();
   StaticJsonDocument<1000> root;
   String payload;
   uint8_t type = incomingData[0];       // first message byte is the type of message 
@@ -111,26 +123,26 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     root["id"] = incomingMessage.id;
     root["command"] = incomingMessage.command;
     serializeJson(root, payload);
-    Serial.print("event send :");
-    serializeJson(root, Serial);
-    Serial.println();
+    Monitor.print("event send :");
+    serializeJson(root, Monitor);
+    Monitor.println();
     break;
   
   case PAIRING:                            // the message is a pairing request 
     memcpy(&pairingData, incomingData, sizeof(pairingData));
-    Serial.println(pairingData.msgType);
-    Serial.println(pairingData.id);
-    Serial.print("Pairing request from: ");
+    Monitor.println(pairingData.msgType);
+    Monitor.println(pairingData.id);
+    Monitor.print("Pairing request from: ");
     printMAC(mac_addr);
-    Serial.println();
-    Serial.println(pairingData.channel);
+    Monitor.println();
+    Monitor.println(pairingData.channel);
     if (pairingData.id > 0) {     // do not replay to server itself
       if (pairingData.msgType == PAIRING) { 
         pairingData.id = 0;       // 0 is server
         // Server is in AP_STA mode: peers need to send data to server soft AP MAC address 
         WiFi.softAPmacAddress(pairingData.macAddr);   
         pairingData.channel = chan;
-        Serial.println("send response");
+        Monitor.println("send response");
         esp_err_t result = esp_now_send(mac_addr, (uint8_t *) &pairingData, sizeof(pairingData));
         addPeer(mac_addr);
       }  
@@ -142,7 +154,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
 void initESP_NOW(){
     // Init ESP-NOW
     if (esp_now_init() != ESP_OK) {
-      Serial.println("Error initializing ESP-NOW");
+      Monitor.println("Error initializing ESP-NOW");
       return;
     }
     esp_now_register_send_cb(OnDataSent);
@@ -150,12 +162,12 @@ void initESP_NOW(){
 } 
 
 void setup() {
-  // Initialize Serial Monitor
-  Serial.begin(115200);
+  // Initialize Monitor Monitor
+  Monitor.begin(115200);
 
-  Serial.println();
-  Serial.print("Server MAC Address:  ");
-  Serial.println(WiFi.macAddress());
+  Monitor.println();
+  Monitor.print("Server MAC Address:  ");
+  Monitor.println(WiFi.macAddress());
 
   // Set the device as a Station and Soft Access Point simultaneously
   WiFi.mode(WIFI_AP_STA);
@@ -163,36 +175,26 @@ void setup() {
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Setting as a Wi-Fi Station..");
+    Monitor.println("Setting as a Wi-Fi Station..");
   }
 
-  Serial.print("Server SOFT AP MAC Address:  ");
-  Serial.println(WiFi.softAPmacAddress());
+  Monitor.print("Server SOFT AP MAC Address:  ");
+  Monitor.println(WiFi.softAPmacAddress());
 
   chan = WiFi.channel();
-  Serial.print("Station IP Address: ");
-  Serial.println(WiFi.localIP());
-  Serial.print("Wi-Fi Channel: ");
-  Serial.println(WiFi.channel());
+  Monitor.print("Station IP Address: ");
+  Monitor.println(WiFi.localIP());
+  Monitor.print("Wi-Fi Channel: ");
+  Monitor.println(WiFi.channel());
 
   initESP_NOW();
 
 }
 
-// Function to convert struct_message to a byte array
-void structToByteArray(const struct_message& input, uint8_t* output) {
-  memcpy(output, &input, sizeof(input));
-}
-
-// Function to convert byte array to struct_message
-void byteArrayToStruct(const uint8_t* input, struct_message& output) {
-  memcpy(&output, input, sizeof(output));
-}
-
 void loop() {
 
-  if (Serial.available()) {
-    String userMessage = Serial.readString();
+  if (Monitor.available()) {
+    String userMessage = Monitor.readString();
     userMessage.trim();
     readDataToSend();
 
