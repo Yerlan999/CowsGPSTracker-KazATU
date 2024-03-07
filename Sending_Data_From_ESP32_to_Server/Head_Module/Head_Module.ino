@@ -75,10 +75,18 @@ void byteArrayToStruct(const uint8_t* input, struct_message& output) {
   memcpy(&output, input, sizeof(output));
 }
 
-void readDataToSend() {
+void sendData(const char* gate_address, const char* customCommand) {
+  // Prepare the data
   outgoingMessage.msgType = DATA;
   outgoingMessage.id = 0;
-  setCommand(outgoingMessage, "Command from Server");
+  setCommand(outgoingMessage, customCommand);
+
+  // Convert struct_message to byte array
+  uint8_t byteArray[sizeof(outgoingMessage)];
+  structToByteArray(outgoingMessage, byteArray);
+
+  // Send the data using ESP-NOW
+  esp_err_t result = esp_now_send(addressDictionary[gate_address], byteArray, sizeof(outgoingMessage));
 }
 
 
@@ -132,20 +140,30 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
   Monitor.print(" bytes of data received from : ");
   printMAC(mac_addr);
   Monitor.println();
-  StaticJsonDocument<1000> root;
-  String payload;
   uint8_t type = incomingData[0];       // first message byte is the type of message 
   switch (type) {
+  
+  int splitCount;
+
   case DATA :
     byteArrayToStruct(incomingData, incomingMessage);  // the message is data type
     // memcpy(&incomingMessage, incomingData, sizeof(incomingMessage));
     // create a JSON document with received data and send it by event to the web page
-    root["id"] = incomingMessage.id;
-    root["command"] = incomingMessage.command;
-    serializeJson(root, payload);
-    Monitor.print("event send :");
-    serializeJson(root, Monitor);
+    Monitor.print("Recieved content: ");
+    Monitor.print(incomingMessage.command);
     Monitor.println();
+    
+    String* splitStrings;
+    splitCount = splitString(String(incomingMessage.command), '|', splitStrings);
+    
+    if (splitCount == 2) {
+      String key = "gate" + String(splitStrings[0]);
+      preferences.putBool(key.c_str(), splitStrings[1].equals("OPENED"));
+    };
+
+    webSocket.sendTXT(0, incomingMessage.command);
+    delete[] splitStrings;
+    
     break;
   
   case PAIRING:                            // the message is a pairing request 
@@ -235,25 +253,9 @@ void loop() {
     String userMessage = Monitor.readStringUntil('\n');
     userMessage.trim();
 
-    if (userMessage.startsWith("LoRa:")) {
-      ResponseStatus responce = writeToLoRa(userMessage.substring(5));
-    }
-    if (userMessage.startsWith("GATE1:")) { 
-
-      readDataToSend();
-      uint8_t byteArray[sizeof(outgoingMessage)];
-      structToByteArray(outgoingMessage, byteArray);
-      esp_err_t result = esp_now_send(NULL, byteArray, sizeof(outgoingMessage));
-
-    }
-    if (userMessage.startsWith("GATE2:")) { 
-      
-      readDataToSend();
-      uint8_t byteArray[sizeof(outgoingMessage)];
-      structToByteArray(outgoingMessage, byteArray);
-      esp_err_t result = esp_now_send(NULL, byteArray, sizeof(outgoingMessage));
-
-    }
+    if (userMessage.startsWith("LoRa:")) { ResponseStatus responce = writeToLoRa(userMessage.substring(5)); }
+    if (userMessage.startsWith("GATE1:")) { sendData("1", userMessage.substring(6).c_str()); }
+    if (userMessage.startsWith("GATE2:")) { sendData("2", userMessage.substring(6).c_str()); }
   }
 
   listenToLoRa();
@@ -385,11 +387,11 @@ void updateItems(String input) {
 
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND) && preferences.getBool(key.c_str())) {
     Monitor.println(input);
-    // !!! sendMessageToSlave(addressDictionary[splitStrings[1]], input);
+    sendData(splitStrings[1].c_str(), input.c_str());
   }
   if (splitStrings[0].equals(GATE_OPEN_COMMAND) && !preferences.getBool(key.c_str())) {
     Monitor.println(input);
-    // !!! sendMessageToSlave(addressDictionary[splitStrings[1]], input);
+    sendData(splitStrings[1].c_str(), input.c_str());
   }
 
   delete[] splitStrings;

@@ -16,7 +16,7 @@ const int DIR = 23;
 const int STEP = 21;
 const int  steps_per_rev = 200;
 const int close_contact = 5; // PINK
-const int open_contact = 4; // GREEN
+const int open_contact = 15; // GREEN
 
 const int motor_id = 1;
 
@@ -109,6 +109,9 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
     Monitor.println(incomingMessage.id);
     Monitor.print("Command = ");
     Monitor.println(incomingMessage.command);
+    
+    updateItems(String(incomingMessage.command));
+    
     break;
 
   case PAIRING:    // we received pairing data from server
@@ -205,8 +208,8 @@ void setup() {
 
   pinMode(STEP, OUTPUT);
   pinMode(DIR, OUTPUT);
-  pinMode(close_contact, INPUT);
-  pinMode(open_contact, INPUT);
+  pinMode(close_contact, INPUT_PULLUP);
+  pinMode(open_contact, INPUT_PULLUP);
   Monitor.println();
   Monitor.print("Client Board MAC Address:  ");
   Monitor.println(WiFi.macAddress());
@@ -226,23 +229,29 @@ void setup() {
   pairingStatus = PAIR_REQUEST;
 }
 
+
+void SendToServer(const char* response){
+  outgoingMessage.msgType = DATA;
+  outgoingMessage.id = BOARD_ID;
+  setCommand(outgoingMessage, response);
+
+  uint8_t byteArray[sizeof(outgoingMessage)];
+  structToByteArray(outgoingMessage, byteArray);
+
+  esp_err_t result = esp_now_send(serverAddress, byteArray, sizeof(outgoingMessage));
+}
+
+
 void loop() {
   
   if (autoPairing() == PAIR_PAIRED) {
 
     if (Monitor.available()) {
+      
       String userMessage = Monitor.readString();
       userMessage.trim();
-
-      outgoingMessage.msgType = DATA;
-      outgoingMessage.id = BOARD_ID;
-      setCommand(outgoingMessage, "Command from Gate 1");
-
-
-      uint8_t byteArray[sizeof(outgoingMessage)];
-      structToByteArray(outgoingMessage, byteArray);
-
-      esp_err_t result = esp_now_send(serverAddress, byteArray, sizeof(outgoingMessage));
+      SendToServer(userMessage.c_str());
+    
     }
       
   }
@@ -252,13 +261,12 @@ void updateItems(String input){
   
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
+  Monitor.println(input);
     
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND)){
-    Monitor.println(input);
     moveStepper(0, splitStrings[1].toInt());
   }
   if (splitStrings[0].equals(GATE_OPEN_COMMAND)){
-    Monitor.println(input);
     moveStepper(1, splitStrings[1].toInt());
   }
 
@@ -272,7 +280,7 @@ bool readLimitSwitch(String mode) {
     if (mode == "OPENED?"){ totalSwitchState += digitalRead(open_contact); }; 
     delay(10); // Add a small delay between readings
   }
-  return totalSwitchState == 20;
+  return totalSwitchState == 0;
 }
 
 
@@ -283,7 +291,7 @@ void moveStepper(bool direction, int gate_ID){
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
     
-    // !!! sendToHeader("Moving Stepper #" + String(motor_id));
+    SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
 
     for(;;){
       digitalWrite(STEP, HIGH);
@@ -291,18 +299,18 @@ void moveStepper(bool direction, int gate_ID){
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (current_direction==0 && readLimitSwitch("CLOSED?")){
+      if (current_direction==0 && !digitalRead(close_contact)){
       
         String formattedMessage = createMessage(gate_ID, "CLOSED");      
-        // !!! sendToHeader(formattedMessage);
+        SendToServer(formattedMessage.c_str());
             
         break;
       }
 
-      if (current_direction==1 && readLimitSwitch("OPENED?")){
+      if (current_direction==1 && !digitalRead(open_contact)){
         
         String formattedMessage = createMessage(gate_ID, "OPENED");  
-        // !!! sendToHeader(formattedMessage);
+        SendToServer(formattedMessage.c_str());
 
         break;
       }
@@ -357,14 +365,4 @@ int splitString(const String& input, char delimiter, String*& output) {
   }
 
   return arraySize;
-}
-
-void clearInComingBuffer(HardwareSerial& serialObject) {
-  while (serialObject.available()) {
-    serialObject.read();  
-  }
-}
-
-void clearOutComingBuffer(HardwareSerial& serialObject) {
-  serialObject.flush();    
 }
