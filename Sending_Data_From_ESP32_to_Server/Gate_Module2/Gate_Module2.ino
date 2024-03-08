@@ -291,7 +291,7 @@ void moveStepper(bool direction, int gate_ID){
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
     
-    SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
+    // SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
 
     for(;;){
       digitalWrite(STEP, HIGH);

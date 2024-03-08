@@ -40,7 +40,7 @@ typedef struct struct_message {
 typedef struct struct_pairing {       // new structure for pairing
     uint8_t msgType;
     uint8_t id;
-    uint8_t macAddr[6];
+    uint8_t macAddr[6]; 
     uint8_t channel;
 } struct_pairing;
 
@@ -291,7 +291,7 @@ void moveStepper(bool direction, int gate_ID){
   if (gate_ID == motor_id){
     Monitor.println("Moving Stepper #" + String(motor_id));
     
-    SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
+    // SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
 
     for(;;){
       digitalWrite(STEP, HIGH);

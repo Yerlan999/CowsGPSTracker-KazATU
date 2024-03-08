@@ -8,13 +8,22 @@
 #include "LoRa_E32.h"
 #include <map>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 #define Monitor Serial
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET    -1
+#define SCREEN_ADDRESS 0x3C // I2C address
 
-LoRa_E32 LoRa(&Serial2, 15, 22, 21);  //  Serial Pins,  AUX, M0, M1
+LoRa_E32 LoRa(&Serial2, 15, 19, 18);  //  Serial Pins,  AUX, M0, M1
 WebSocketsServer webSocket = WebSocketsServer(80);
 std::map<String, uint8_t*> addressDictionary;
 Preferences preferences;
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
 
 uint8_t Gate1Address[] = {0xA0, 0xA3, 0xB3, 0x2C, 0x0E, 0x50};
 uint8_t Gate2Address[] = {0x24, 0x6F, 0x28, 0xB2, 0x27, 0x64};
@@ -29,6 +38,9 @@ String GATE_OPEN_COMMAND = "OPEN";
 String ssid;
 String password;
 
+String ipAddressString;
+String ServerIPAddressString;
+
 unsigned long cycle_time;  // КАЖДЫЕ N секунд
 esp_now_peer_info_t slave;
 int chan; 
@@ -36,7 +48,7 @@ int chan;
 enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
-int counter = 0;
+int pairCount = 0;
 
 // Structure example to receive data
 // Must match the sender structure
@@ -117,6 +129,9 @@ bool addPeer(const uint8_t *peer_addr) {      // add pairing
     if (addStatus == ESP_OK) {
       // Pair success
       Monitor.println("Pair success");
+  
+      pairCount++;      
+      
       return true;
     }
     else 
@@ -181,7 +196,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
         WiFi.softAPmacAddress(pairingData.macAddr);   
         pairingData.channel = chan;
         Monitor.println("send response");
-        esp_err_t result = esp_now_send(mac_addr, (uint8_t *) &pairingData, sizeof(pairingData));
+        esp_err_t result = esp_now_send(mac_addr, (uint8_t *) &pairingData, sizeof(pairingData));        
         addPeer(mac_addr);
       }  
     }  
@@ -197,6 +212,28 @@ void initESP_NOW(){
     }
     esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
+}
+
+
+void displayOLED(String IPaddress, String ServerIP, int pairCount){
+  display.clearDisplay(); display.clearDisplay(); delay(1000);
+
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+
+  display.setCursor(0, 0);
+  display.print("IP: ");
+  display.println(IPaddress);
+
+  display.setCursor(0, 10);
+  display.print("SIP: ");
+  display.println(ServerIP);
+
+  display.setCursor(0, 20);
+  display.print("Pairs Count: ");
+  display.println(String(pairCount));
+  
+  display.display();
 }
 
 void setup() {
@@ -215,6 +252,12 @@ void setup() {
   Monitor.begin(9600);  //открываем порт для связи с ПК
 
   LoRa.begin();
+
+  // Initialize the OLED display
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    Serial.println(F("SSD1306 allocation failed"));
+    for(;;); // Don't proceed, loop forever
+  }
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid.c_str(), password.c_str());
@@ -235,11 +278,15 @@ void setup() {
   Monitor.println(WiFi.localIP());
   Monitor.print("Wi-Fi Channel: ");
   Monitor.println(WiFi.channel());
+  
+  ipAddressString = WiFi.localIP().toString();
 
   initESP_NOW();
   
   webSocket.begin();
   webSocket.onEvent(onWebSocketEvent);
+  
+  displayOLED(ipAddressString, ServerIPAddressString, pairCount);
 
 }
 
@@ -322,7 +369,10 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
       {
         IPAddress ip = webSocket.remoteIP(num);
         Monitor.printf("[%u] Connected from: \n", num);
+        ServerIPAddressString = ip.toString();
         Monitor.println(ip.toString());
+
+        displayOLED(ipAddressString, ServerIPAddressString, pairCount);
 
         bool gate1_state = preferences.getBool("gate1");
         bool gate2_state = preferences.getBool("gate2");
@@ -368,6 +418,11 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
 
 
 void updateItems(String input) {
+  
+  Monitor.println(input);
+
+  if (input.equals(GPS_ENABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); return; }
+  if (input.equals(GPS_DISABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); return; }
 
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
@@ -379,18 +434,12 @@ void updateItems(String input) {
     ResponseStatus responce = writeToLoRa(input);
   }
 
-  if (splitStrings[0].equals(GPS_ENABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); }
-  if (splitStrings[0].equals(GPS_DISABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); }
-
-
   String key = "gate" + splitStrings[1];
 
   if (splitStrings[0].equals(GATE_CLOSE_COMMAND) && preferences.getBool(key.c_str())) {
-    Monitor.println(input);
     sendData(splitStrings[1].c_str(), input.c_str());
   }
   if (splitStrings[0].equals(GATE_OPEN_COMMAND) && !preferences.getBool(key.c_str())) {
-    Monitor.println(input);
     sendData(splitStrings[1].c_str(), input.c_str());
   }
 

@@ -19,6 +19,8 @@ String COW_ID = "1";
 float latitude;
 float longitude;
 
+bool DUMMY_MODE = true;
+
 unsigned long lastTime = 0;
 unsigned long cycle_time = 10;  // КАЖДЫЕ N секунд
 
@@ -68,12 +70,11 @@ void loop() {
   if ((millis() - lastTime) > cycle_time * 1000) {
     if (deliver_GPS) {
       get_GPS_coordinates();
-
-      // GETTING DUMMY COORDINATES FOR A WHILE
+      
       latitude = dummy_coordinates[currentCoordinateIndex][0];
       longitude = dummy_coordinates[currentCoordinateIndex][1];
       currentCoordinateIndex = (currentCoordinateIndex + 1) % numCoordinates;
-      
+
       char latitudeStr[15];  // Adjust the size based on your precision needs
       char longitudeStr[15];
 
