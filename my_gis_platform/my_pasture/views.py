@@ -1591,7 +1591,7 @@ def ajax_view(request):
 
         #     return JsonResponse({'message': 'GPS state has been changed'})
         elif "cattle_tracker" in request.GET:
-            # Dummy Example
+            # Just gets elements from 'list_of_cattles' list and determines the pasture load, cattle's current paddock # !!!
 
             if HolderClass.sentinel_request:
 
@@ -1701,6 +1701,7 @@ def ajax_view(request):
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
         elif "GPS_of_cows" in request.GET:
+            # Just updates 'list_of_cattles' list !!!
 
             message = request.GET.get("GPS_of_cows")
             cows = str(message)

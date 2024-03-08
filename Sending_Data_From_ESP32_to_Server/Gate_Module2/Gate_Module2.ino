@@ -293,7 +293,7 @@ void moveStepper(bool direction, int gate_ID){
     
     // SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
 
-    for(;;){
+    for(int step = 0; step < 200*50; step++){
       digitalWrite(STEP, HIGH);
       delayMicroseconds(500);
       digitalWrite(STEP, LOW);

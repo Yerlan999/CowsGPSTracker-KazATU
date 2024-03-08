@@ -825,12 +825,18 @@
       var state_button_to = document.getElementById("gate_state_to");
 
 
+      console.log();
+      console.log("Departure Paddock: ", pasture_load[paddock_from]);
+      console.log("Destination Paddock: ", pasture_load[paddock_to]);
+      console.log("Overall Cattle: ", cattle_count);
+      console.log();
+
       if (pasture_load[paddock_from] == 0 && gates_state[String(paddock_from)] == "Открыт"){
         SendWebSocketMessage(`CLOSE:${paddock_from}`);
         gates_state[String(paddock_from)] = "закрывается...";
         state_button_from.innerHTML = gates_state[String(paddock_from)]
       }
-      if (pasture_load[paddock_to] == cattle_count_mov && gates_state[String(paddock_to)] == "Открыт"){
+      if (pasture_load[paddock_to] == cattle_count && gates_state[String(paddock_to)] == "Открыт"){
         SendWebSocketMessage(`CLOSE:${paddock_to}`);
         gates_state[String(paddock_to)] = "закрывается...";
         state_button_to.innerHTML = gates_state[String(paddock_to)]
@@ -842,9 +848,7 @@
 
     function StartTransfer(){
 
-        if (pasture_load){
-
-            cattle_count_mov = pasture_load[paddock_from];
+        if (pasture_load && cattle_count > 0){
 
             var transfer_button = document.getElementById("transer_action");
             var paddock_from = document.getElementById("numberSelect_from").value;
@@ -903,7 +907,6 @@
     var pasture_load = null;
     var resourceValues = null;
     var cattle_count = null;
-    var cattle_count_mov = null;
     var gates_state = {};
     var ajax_request = null;
     var selected_prediction_mode = null;
@@ -1157,7 +1160,8 @@
                         toggleButton.textContent = "Остановить треккинг";
                         SendWebSocketMessage("START GPS");
 
-                        ajax_request = setInterval(sendAjaxRequest, update_interval*1000); // milliseconds
+                        // !!! TESTING !!!
+                        // ajax_request = setInterval(sendAjaxRequest, update_interval*1000); // milliseconds
 
                       }
                       isRunning = !isRunning;
@@ -1213,15 +1217,30 @@
                     }
 
                     // Function to remove marker by index
-                    function removeMarkerByIndex(index) {
-                        var markerIndex = markers.findIndex(function(marker) {
-                            return marker.options.index === index;
-                        });
+                    function removeMarkersByIndices(indices) {
+                        indices.forEach(index => {
+                            var markerIndex = markers.findIndex(marker => marker.options.index === index);
 
-                        if (markerIndex !== -1) {
-                            var removedMarker = markers.splice(markerIndex, 1)[0];
-                            map.removeLayer(removedMarker);
+                            if (markerIndex !== -1) {
+                                var removedMarker = markers.splice(markerIndex, 1)[0];
+                                map.removeLayer(removedMarker);
+                            }
+                        });
+                    }
+
+                    function findMissingMarkerIds(cattleObjects, markers) {
+                        const missingMarkerIds = [];
+
+                        for (const marker of markers) {
+                            const markerId = marker.options.id;
+                            const isIdPresent = cattleObjects.some(cattle => cattle.id === markerId);
+
+                            if (!isIdPresent) {
+                                missingMarkerIds.push(markerId);
+                            }
                         }
+
+                        return missingMarkerIds;
                     }
 
                     // Function to send the Ajax request
@@ -1233,6 +1252,8 @@
                               'cattle_tracker': true,
                           },
                           success: function(data) {
+                          // Updates/Creates cattle's GPS label with info
+
                           pasture_load = data.pasture_load;
                           cattle_count = Object.values(pasture_load).reduce((acc, value) => acc + value, 0);
 
@@ -1351,11 +1372,99 @@ chatSocket.onmessage = function(e) {
   const message = e.data;
   console.log("WSK: ", message);
 
-  if (message.length > 16 && message.split("|").length - 1 === 2){
-    $.ajax({ type: "GET", url: "/ajax/", data: { 'GPS_of_cows': message,},
-      success: function(data) { console.log(data); },
-      error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+  if (message.length > 16 && message.split(" | ").length - 1 === 2){
+    // Forwarding the cattle's GPS coordinates further into backend server
+    // Everything should have been done right here instead !!!
+
+
+    // message = "1 | 56.25512554 | 69.554155774" = sample GPS
+    // message = "1 | 56.25512554 | 69.554155774, 2 | 56.25512554 | 69.554155774 " = sample GPSs
+
+
+    // TESING
+    // Split the string by ', ' to get an array of individual elements
+
+    const message = "1 | 56.25512554 | 69.554155774, 2 | 54.213234 | 69.513128";
+
+    const cattles = message.split(', ');
+    cattle_count = cattles.length;
+
+    // Initialize an array to store the extracted elements
+    const cattleObjects = [];
+
+    // Iterate over each element in the array
+    for (const cattle of cattles) {
+      // Split each cattle by ' | ' to extract ID, latitude, and longitude
+      const [id, latitude, longitude] = cattle.split(' | ');
+
+      // Create an object with the extracted elements
+      const cattleDict = {
+        id: id,
+        latitude: latitude,
+        longitude: longitude,
+      };
+
+      // Push the object into the array
+      cattleObjects.push(cattleDict);
+    }
+
+    console.log(cattleObjects);
+    console.log(cattle_count);
+
+
+    var paddock_layer = 1;
+
+    // Iterate through each feature in the GeoJSON data
+    geoJsonLayer.eachLayer(function (layer) {
+
+        pasture_load[paddock_layer] = 0;
+
+        cattleObjects.forEach(function (cattle, index) {
+
+        const cattleLatitude = parseFloat(cattle.latitude);
+        const cattleLongitude = parseFloat(cattle.longitude);
+
+        // Check if the GPS coordinate is inside the polygon
+        var isInside = turf.booleanPointInPolygon(turf.point([cattleLongitude, cattleLatitude]), layer.feature.geometry);
+
+          if (isInside) {
+            cattle.paddock_number = paddock_layer;
+            // The GPS coordinate is inside the current polygon
+            console.log(`Cattle #${cattle.id} is inside the polygon #${paddock_layer}:`);
+            pasture_load[paddock_layer] += 1;
+          }
+        });
+
+        paddock_layer++;
     });
+
+
+      cattleObjects.forEach(function(cattle) {
+
+      // Check if a marker with the same index already exists
+      var existingMarker = markers.find(function(marker) {
+          return marker.options.index === cattle.id;
+      });
+
+      if (existingMarker) {
+          // If marker exists, update its position
+          updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
+      }
+      else {
+          // If marker doesn't exist, create a new one
+          createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
+      }
+
+      const missingIds = findMissingMarkerIds(cattleObjects, markers);
+      removeMarkerByIndex(missingIds);
+      });
+    // TESING
+
+
+    // $.ajax({ type: "GET", url: "/ajax/", data: { 'GPS_of_cows': message,},
+    //   success: function(data) { console.log(data); },
+    //   error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+    // });
   }
 
   // Signals from Transfer Process
