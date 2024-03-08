@@ -1218,6 +1218,12 @@
 
                     // Function to remove marker by index
                     function removeMarkersByIndices(indices) {
+
+                        if (indices.length === 0) {
+                            console.log("No missing markers to remove.");
+                            return;
+                        }
+
                         indices.forEach(index => {
                             var markerIndex = markers.findIndex(marker => marker.options.index === index);
 
