@@ -5,6 +5,7 @@
 #include <esp_wifi.h>
 #include <WiFi.h>
 #include <EEPROM.h>
+#include <esp_task_wdt.h>
 
 #define Monitor Serial
 // Set your Board and Server ID 
@@ -40,7 +41,7 @@ typedef struct struct_message {
 typedef struct struct_pairing {       // new structure for pairing
     uint8_t msgType;
     uint8_t id;
-    uint8_t macAddr[6];
+    uint8_t macAddr[6]; 
     uint8_t channel;
 } struct_pairing;
 
@@ -284,44 +285,49 @@ bool readLimitSwitch(String mode) {
 }
 
 
-void moveStepper(bool direction, int gate_ID){
+void moveStepper(bool direction, int gate_ID) {
   int current_direction = direction;
+  unsigned long loopStartTime = millis();
 
   digitalWrite(DIR, direction);
-  if (gate_ID == motor_id){
+
+  if (gate_ID == motor_id) {
     Monitor.println("Moving Stepper #" + String(motor_id));
-    
     // SendToServer(("Moving Stepper #" + String(motor_id)).c_str());
 
-    for(int step = 0; step < 200*50; step++){
+    // Initialize the task watchdog timer
+    esp_task_wdt_init(1000, true);  // Timeout set to 1000ms (adjust as needed)
+    esp_task_wdt_add(NULL); // Add the current task to the Watchdog Timer
+
+    for (;;) {
       digitalWrite(STEP, HIGH);
       delayMicroseconds(500);
       digitalWrite(STEP, LOW);
       delayMicroseconds(500);
 
-      if (current_direction==0 && !digitalRead(close_contact)){
-      
-        String formattedMessage = createMessage(gate_ID, "CLOSED");      
+      // Reset the task watchdog timer
+      esp_task_wdt_reset();
+
+      if (current_direction == 0 && !digitalRead(close_contact)) {
+        String formattedMessage = createMessage(gate_ID, "CLOSED");
         SendToServer(formattedMessage.c_str());
-            
         break;
       }
 
-      if (current_direction==1 && !digitalRead(open_contact)){
-        
-        String formattedMessage = createMessage(gate_ID, "OPENED");  
+      if (current_direction == 1 && !digitalRead(open_contact)) {
+        String formattedMessage = createMessage(gate_ID, "OPENED");
         SendToServer(formattedMessage.c_str());
-
         break;
       }
-
     }
-    delay(1000);    
-  }
-  else{
+
+    delay(1000);
+  } else {
     Monitor.println("Missing Stepper Motor");
-  }  
+  }
 }
+
+
 
 String createMessage(int gate_ID, const char* status) {
   // Create a String and convert it to a C-style string

@@ -904,7 +904,7 @@
     var legend = null;
     var geoJSONData = null;
     var geoJsonLayer = null;
-    var pasture_load = null;
+    var pasture_load = {};
     var resourceValues = null;
     var cattle_count = null;
     var gates_state = {};
@@ -1153,7 +1153,7 @@
 
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
-                        clearInterval(ajax_request);
+                        // clearInterval(ajax_request);
                         clearInterval(intervalId);
                         SendWebSocketMessage("STOP GPS");
                       } else {
@@ -1249,59 +1249,59 @@
                         return missingMarkerIds;
                     }
 
-                    // Function to send the Ajax request
-                    function sendAjaxRequest() {
-                      $.ajax({
-                          type: "GET",
-                          url: "/ajax/",
-                          data: {
-                              'cattle_tracker': true,
-                          },
-                          success: function(data) {
-                          // Updates/Creates cattle's GPS label with info
+                    // // Function to send the Ajax request
+                    // function sendAjaxRequest() {
+                    //   $.ajax({
+                    //       type: "GET",
+                    //       url: "/ajax/",
+                    //       data: {
+                    //           'cattle_tracker': true,
+                    //       },
+                    //       success: function(data) {
+                    //       // Updates/Creates cattle's GPS label with info
 
-                          pasture_load = data.pasture_load;
-                          cattle_count = Object.values(pasture_load).reduce((acc, value) => acc + value, 0);
+                    //       pasture_load = data.pasture_load;
+                    //       cattle_count = Object.values(pasture_load).reduce((acc, value) => acc + value, 0);
 
-                          updateMapWithFormula()
+                    //       updateMapWithFormula();
 
-                          data.list_of_cattles.forEach(function(cattle) {
+                    //       data.list_of_cattles.forEach(function(cattle) {
 
-                          // Check if a marker with the same index already exists
-                          var existingMarker = markers.find(function(marker) {
-                              return marker.options.index === cattle.index;
-                          });
+                    //       // Check if a marker with the same index already exists
+                    //       var existingMarker = markers.find(function(marker) {
+                    //           return marker.options.index === cattle.index;
+                    //       });
 
-                          if (existingMarker) {
-                              // If marker exists, update its position
-                              updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                          } else {
-                              // If marker doesn't exist, create a new one
-                              createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                          }
-                              // updateMarkerPosition(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                          });
+                    //       if (existingMarker) {
+                    //           // If marker exists, update its position
+                    //           updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                    //       } else {
+                    //           // If marker doesn't exist, create a new one
+                    //           createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                    //       }
+                    //           // updateMarkerPosition(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
+                    //       });
 
-                          // // Check for markers that need to be removed
-                          // markers.forEach(function(marker) {
-                          //     var markerIndex = data.list_of_cattles.findIndex(function(cattle) {
-                          //         return cattle.index === marker.options.index;
-                          //     });
+                    //       // // Check for markers that need to be removed
+                    //       // markers.forEach(function(marker) {
+                    //       //     var markerIndex = data.list_of_cattles.findIndex(function(cattle) {
+                    //       //         return cattle.index === marker.options.index;
+                    //       //     });
 
-                          //     if (markerIndex === -1) {
-                          //         // Marker exists in markers but not in the current dataset, remove it
-                          //         map.removeLayer(marker);
-                          //     }
-                          // });
+                    //       //     if (markerIndex === -1) {
+                    //       //         // Marker exists in markers but not in the current dataset, remove it
+                    //       //         map.removeLayer(marker);
+                    //       //     }
+                    //       // });
 
 
 
-                        },
-                        error: function(xhr, status, error) {
-                          console.error('Ajax request failed', status, error);
-                        }
-                      });
-                    }
+                    //     },
+                    //     error: function(xhr, status, error) {
+                    //       console.error('Ajax request failed', status, error);
+                    //     }
+                    //   });
+                    // }
 
 
                     // Remove existing GeoJSON layer if it exists
@@ -1374,6 +1374,57 @@ const DEVICE_IP = "192.168.54.6:80"
 const chatSocket = new WebSocket('ws://' + DEVICE_IP);
 
 
+var markers = [];
+
+// Function to create markers
+function createMarker(latitude, longitude, index, paddock_number) {
+    var marker = L.marker([latitude, longitude])
+        .addTo(map)
+        .bindTooltip('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number, { permanent: false, opacity: 0.7 });
+
+    marker.options.index = index;  // Set the custom 'index' attribute
+    markers.push(marker); // Add the marker to the array
+}
+
+// Function to update marker position based on new data
+function updateMarkerPosition(marker, latitude, longitude, index, paddock_number) {
+    marker.setLatLng([latitude, longitude]);
+    marker.getTooltip().setContent('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number);
+}
+
+// Function to remove marker by index
+function removeMarkersByIndices(indices) {
+
+    if (indices.length === 0) {
+        console.log("No missing markers to remove.");
+        return;
+    }
+
+    indices.forEach(index => {
+        var markerIndex = markers.findIndex(marker => marker.options.index === index);
+
+        if (markerIndex !== -1) {
+            var removedMarker = markers.splice(markerIndex, 1)[0];
+            map.removeLayer(removedMarker);
+        }
+    });
+}
+
+function findMissingMarkerIds(cattleObjects, markers) {
+    const missingMarkerIds = [];
+
+    for (const marker of markers) {
+        const markerId = marker.options.id;
+        const isIdPresent = cattleObjects.some(cattle => cattle.id === markerId);
+
+        if (!isIdPresent) {
+            missingMarkerIds.push(markerId);
+        }
+    }
+
+    return missingMarkerIds;
+}
+
 chatSocket.onmessage = function(e) {
   const message = e.data;
   console.log("WSK: ", message);
@@ -1390,7 +1441,7 @@ chatSocket.onmessage = function(e) {
     // TESING
     // Split the string by ', ' to get an array of individual elements
 
-    const message = "1 | 56.25512554 | 69.554155774, 2 | 54.213234 | 69.513128";
+    // const message = "1 | 56.25512554 | 69.554155774, 2 | 54.213234 | 69.513128";
 
     const cattles = message.split(', ');
     cattle_count = cattles.length;
@@ -1462,8 +1513,10 @@ chatSocket.onmessage = function(e) {
       }
 
       const missingIds = findMissingMarkerIds(cattleObjects, markers);
-      removeMarkerByIndex(missingIds);
+      removeMarkersByIndices(missingIds);
       });
+
+    updateMapWithFormula();
     // TESING
 
 

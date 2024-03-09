@@ -1590,45 +1590,45 @@ def ajax_view(request):
         #         ws_client.send(f"STOP GPS")
 
         #     return JsonResponse({'message': 'GPS state has been changed'})
-        elif "cattle_tracker" in request.GET:
-            # Just gets elements from 'list_of_cattles' list and determines the pasture load, cattle's current paddock # !!!
+        # elif "cattle_tracker" in request.GET:
+        #     # Just gets elements from 'list_of_cattles' list and determines the pasture load, cattle's current paddock # !!!
 
-            if HolderClass.sentinel_request:
+        #     if HolderClass.sentinel_request:
 
-                pasture_load = dict()
-                for i in HolderClass.sentinel_request.pasture_df.index:
-                    pasture_load[i+1] = 0
+        #         pasture_load = dict()
+        #         for i in HolderClass.sentinel_request.pasture_df.index:
+        #             pasture_load[i+1] = 0
 
-                for i in HolderClass.sentinel_request.pasture_df.index:
+        #         for i in HolderClass.sentinel_request.pasture_df.index:
 
-                    if (list_of_cattles): # Handling real cattles
-                        for cattle in list_of_cattles:
-                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+        #             if (list_of_cattles): # Handling real cattles
+        #                 for cattle in list_of_cattles:
+        #                     point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
 
-                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                                cattle["paddock_number"] = f"{i+1}"
-                                pasture_load[i+1] += 1
-                    else: # Dealing with dummy cattle
+        #                     if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+        #                         cattle["paddock_number"] = f"{i+1}"
+        #                         pasture_load[i+1] += 1
+        #             else: # Dealing with dummy cattle
 
-                        # # Randomize coordinates in the list of dictionaries
-                        # for cattle in list_of_dummy_cattles:
-                        #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
+        #                 # # Randomize coordinates in the list of dictionaries
+        #                 # for cattle in list_of_dummy_cattles:
+        #                 #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
 
-                        current_coordinate = next(coordinates_gen)
-                        for cattle in [current_coordinate]:
-                            point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
+        #                 current_coordinate = next(coordinates_gen)
+        #                 for cattle in [current_coordinate]:
+        #                     point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
 
-                            if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-                                cattle["paddock_number"] = f"{i+1}"
-                                pasture_load[i+1] += 1
+        #                     if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
+        #                         cattle["paddock_number"] = f"{i+1}"
+        #                         pasture_load[i+1] += 1
 
-                if (list_of_cattles):
-                    return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
-                else:
-                    return JsonResponse({"list_of_cattles": list_of_dummy_cattles, "pasture_load": pasture_load})
-            else:
-                # print("No request has been made yet!", list_of_cattles)
-                return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": None})
+        #         if (list_of_cattles):
+        #             return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
+        #         else:
+        #             return JsonResponse({"list_of_cattles": list_of_dummy_cattles, "pasture_load": pasture_load})
+        #     else:
+        #         # print("No request has been made yet!", list_of_cattles)
+        #         return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": None})
 
         elif "simulation_data" in request.GET:
             sim_request = json.loads(request.GET['simulation_data'])
@@ -1700,21 +1700,21 @@ def ajax_view(request):
 
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
-        elif "GPS_of_cows" in request.GET:
-            # Just updates 'list_of_cattles' list !!!
+        # elif "GPS_of_cows" in request.GET:
+        #     # Just updates 'list_of_cattles' list !!!
 
-            message = request.GET.get("GPS_of_cows")
-            cows = str(message)
-            list_of_cattles = []
+        #     message = request.GET.get("GPS_of_cows")
+        #     cows = str(message)
+        #     list_of_cattles = []
 
-            for cow in divide_cows(cows):
-                cow_id, latitude, longitude = parse_GPS(message)
-                print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
+        #     for cow in divide_cows(cows):
+        #         cow_id, latitude, longitude = parse_GPS(message)
+        #         print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
 
-                cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
+        #         cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
 
-                list_of_cattles.append(cattle)
-            return JsonResponse({'message': 'GPS of cows are updated'})
+        #         list_of_cattles.append(cattle)
+        #     return JsonResponse({'message': 'GPS of cows are updated'})
 
         # elif "action_on_gate" in request.GET:
         #     print()
