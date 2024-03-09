@@ -848,34 +848,37 @@
 
     function StartTransfer(){
 
-        if (pasture_load && cattle_count > 0){
+        var transfer_button = document.getElementById("transer_action");
+        var paddock_from = document.getElementById("numberSelect_from").value;
+        var paddock_to = document.getElementById("numberSelect_to").value;
 
-            var transfer_button = document.getElementById("transer_action");
-            var paddock_from = document.getElementById("numberSelect_from").value;
-            var paddock_to = document.getElementById("numberSelect_to").value;
+        var state_button_from = document.getElementById("gate_state_from");
+        var state_button_to = document.getElementById("gate_state_to");
 
-            var state_button_from = document.getElementById("gate_state_from");
-            var state_button_to = document.getElementById("gate_state_to");
+        if (paddock_from == paddock_to) { alert(`Невожможно произвести перегон с загона №${paddock_from} в загон №${paddock_to} `); return; };
 
-            transfer_button.innerHTML = "Производится...";
-
-            if (gates_state[String(paddock_from)] == "Закрыт"){
-                SendWebSocketMessage(`OPEN:${paddock_from}`);
-                gates_state[String(paddock_from)] = "открывается...";
-                state_button_from.innerHTML = gates_state[String(paddock_from)]
-            }
-            if (gates_state[String(paddock_to)] == "Закрыт"){
-                SendWebSocketMessage(`OPEN:${paddock_to}`);
-                gates_state[String(paddock_to)] = "открывается...";
-                state_button_to.innerHTML = gates_state[String(paddock_to)]
-            }
-
-            intervalId = setInterval(lookForCattleMovement, update_interval*1000);
-            started_transfer = true;
+        if (!pasture_load || cattle_count < 1){ alert("Начните треккинг и дождитесь определения координат КРС"); return;};
 
 
+        transfer_button.innerHTML = "Производится...";
+
+        if (gates_state[String(paddock_from)] == "Закрыт"){
+            SendWebSocketMessage(`OPEN:${paddock_from}`);
+            gates_state[String(paddock_from)] = "открывается...";
+            state_button_from.innerHTML = gates_state[String(paddock_from)]
         }
-        else{ alert("Начните треккинг и дождитесь определения координат КРС"); return; }
+        if (gates_state[String(paddock_to)] == "Закрыт"){
+            SendWebSocketMessage(`OPEN:${paddock_to}`);
+            gates_state[String(paddock_to)] = "открывается...";
+            state_button_to.innerHTML = gates_state[String(paddock_to)]
+        }
+
+        intervalId = setInterval(lookForCattleMovement, update_interval*1000);
+        started_transfer = true;
+
+
+
+
     }
 
     function applyChanges(){

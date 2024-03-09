@@ -25,8 +25,8 @@ Preferences preferences;
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 
-uint8_t Gate1Address[] = {0xA0, 0xA3, 0xB3, 0x2C, 0x0E, 0x50};
-uint8_t Gate2Address[] = {0x24, 0x6F, 0x28, 0xB2, 0x27, 0x64};
+uint8_t Gate1Address[6];
+uint8_t Gate2Address[6];
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
@@ -238,16 +238,21 @@ void displayOLED(String IPaddress, String ServerIP, int pairCount){
 
 void setup() {
 
+
+  preferences.begin("credentials", false);
+
+  preferences.getBytes("Gate1Address", Gate1Address, sizeof(Gate1Address));
+  preferences.getBytes("Gate2Address", Gate2Address, sizeof(Gate2Address));
+  
   addressDictionary["1"] = Gate1Address;
   addressDictionary["2"] = Gate2Address;
 
-
-  preferences.begin("credentials", false);
 
   ssid = preferences.getString("ssid", "");
   password = preferences.getString("password", "");
 
   cycle_time = preferences.getInt("time");
+
 
   Monitor.begin(9600);  //открываем порт для связи с ПК
 
