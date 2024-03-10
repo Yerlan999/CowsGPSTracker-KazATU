@@ -552,6 +552,7 @@ class SentinelRequest():
             dt_object = datetime.datetime.strptime(seek_date, "%Y-%m-%d")
             desired_timezone = datetime.timezone.utc
             result_datetime = dt_object.replace(hour=7, minute=0, second=0, tzinfo=desired_timezone)
+
             df = self.grand_history_weather_df[self.grand_history_weather_df["dt_iso"] == self.round_up_to_hour(result_datetime)]
             df = df.drop(columns=['dt', 'dt_iso', 'timezone', 'city_name', 'lat', 'lon', 'weather_id', 'weather_main', 'weather_description', 'weather_icon'])
         return df.reset_index(drop=True)
@@ -650,16 +651,18 @@ class SentinelRequest():
 
     def get_last2_true_color_images(self):
         current_image_id = self.image_date
-        last_2_images = []
+        last_2_images = []; last_2_date_str = []; last_2_RZAs = [];
         for _ in range(2):
             self.image_date -= 1
             self.prepare_all_bands()
+            last_2_RZAs.append(self.SZA + self.VZM)
+            last_2_date_str.append(self.unique_acquisitions[self.image_date].date().isoformat());
             last_2_images.append(self.get_true_color_image())
 
         # Clearing
         self.image_date = current_image_id
         self.prepare_all_bands()
-        return last_2_images
+        return last_2_images, last_2_date_str, last_2_RZAs
 
 
     def get_last2_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff):
@@ -1007,20 +1010,26 @@ def date_detail(request, *args, **kwargs):
     HolderClass.sentinel_request.set_choosen_date(pk)
     HolderClass.sentinel_request.prepare_all_bands()
     image_data = HolderClass.sentinel_request.get_true_color_image()
-    previous_2_days = HolderClass.sentinel_request.get_last2_true_color_images()
+    previous_2_days, last_2_date_str, last_2_RZAs = HolderClass.sentinel_request.get_last2_true_color_images()
 
     dict_of_dates = HolderClass.sentinel_request.clear_date_dict
     date_string = next((key for key, value in dict_of_dates.items() if value == int(pk)), None)
 
+    all_3_date_str = [date_string] + last_2_date_str
     RZA = HolderClass.sentinel_request.SZA + HolderClass.sentinel_request.VZM
 
-    weather_df = HolderClass.sentinel_request.get_weather_data(date_string)
+    weather_df1 = HolderClass.sentinel_request.get_weather_data(date_string)
+    weather_html_df1 = weather_df1.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id='weather_table')
+    weather_html_df1 = weather_html_df1.replace('<thead>', '<thead class="thead-dark">')
 
-    weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id='weather_table')
+    other_2_previous_weather_df = []
+    for i, date_string in enumerate(last_2_date_str, start=1):
+        weather_df = HolderClass.sentinel_request.get_weather_data(date_string)
+        weather_html_df = weather_df.to_html(classes='table table-striped table-bordered', escape=False, index=False, table_id=f'weather_table{i}')
+        weather_html_df = weather_html_df.replace('<thead>', '<thead class="thead-dark">')
+        other_2_previous_weather_df.append(weather_html_df)
 
-    weather_html_df = weather_html_df.replace('<thead>', '<thead class="thead-dark">')
-
-    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df, "RZA": RZA, "previous_2_days": previous_2_days})
+    return render(request, 'my_pasture/date_detail.html', {'pk': pk, "image_data": image_data, "weather_data": weather_html_df1, "RZA": RZA, "previous_2_days": previous_2_days, "other_2_previous_weather_df": other_2_previous_weather_df, "last_2_RZAs": last_2_RZAs, "all_3_date_str": all_3_date_str})
 
 
 def modify_formula(formula, by_pasture):

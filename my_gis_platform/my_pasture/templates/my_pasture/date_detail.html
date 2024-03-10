@@ -453,16 +453,56 @@
     </div>
 
 
+
+
+
     <div class="card">
       <h5 class="card-header text-center">Погодные данные</h5>
       <div class="card-body">
-        <div class="container mt-4">
-          <div class="table-responsive rounded w-100 d-block">
-              {{ weather_data|safe }}
+        <div id="weatherCarousel" class="carousel slide" data-interval="false">
+          <div class="carousel-inner">
+            <!-- First Carousel Item -->
+            <div class="carousel-item active">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.0 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ weather_data|safe }}
+                </div>
+              </div>
+            </div>
+            <!-- Second Carousel Item -->
+            <div class="carousel-item">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.1 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ other_2_previous_weather_df.0|safe }}
+                </div>
+              </div>
+            </div>
+            <!-- Third Carousel Item -->
+            <div class="carousel-item">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.2 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ other_2_previous_weather_df.1|safe }}
+                </div>
+              </div>
+            </div>
           </div>
+          <!-- Carousel Controls -->
+          <a class="carousel-control-prev" href="#weatherCarousel" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+          </a>
+          <a class="carousel-control-next" href="#weatherCarousel" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">Next</span>
+          </a>
         </div>
       </div>
     </div>
+
+
 
 
 
@@ -808,11 +848,10 @@
     </div>
 
 
-
-
 </div>
 
 <script>
+
 
     function lookForCattleMovement() {
       console.log("This function is running at a certain interval.");
@@ -1429,13 +1468,67 @@
 function generateBarGraphContent(properties, index) {
   // Example: Generate dummy data for the bar graph
 
-  var a1 = decodedData[index].Медианная;
-  var a2 = last_2_decodedData[0][index].Медианная;
-  var a3 = last_2_decodedData[1][index].Медианная;
 
-  var data = [a3, a2, a1];
+  var weather_table1 = document.getElementById('weather_table');
+  var weather_table2 = document.getElementById('weather_table1');
+  var weather_table3 = document.getElementById('weather_table2');
 
-  console.log(index, data);
+  var temperature1 = parseFloat(weather_table.rows[1].cells[0].textContent);
+  var pressure1 = parseFloat(weather_table.rows[1].cells[2].textContent);
+  var humidity1 = parseFloat(weather_table.rows[1].cells[3].textContent);
+
+  var temperature2 = parseFloat(weather_table1.rows[1].cells[0].textContent);
+  var pressure2 = parseFloat(weather_table1.rows[1].cells[2].textContent);
+  var humidity2 = parseFloat(weather_table1.rows[1].cells[3].textContent);
+
+  var temperature3 = parseFloat(weather_table2.rows[1].cells[0].textContent);
+  var pressure3 = parseFloat(weather_table2.rows[1].cells[2].textContent);
+  var humidity3 = parseFloat(weather_table2.rows[1].cells[3].textContent);
+
+  var RZA1 = {{ RZA|default:"undefined" }};
+  var RZA2 = {{ last_2_RZAs.1|default:"undefined" }};
+  var RZA3 = {{ last_2_RZAs.0|default:"undefined" }};
+
+//     Today | Yesterday | The Day Before
+  var RZAs = [RZA1, RZA3, RZA2];
+  var temps = [temperature1, temperature2, temperature3];
+  var humss = [humidity1, humidity2, humidity3];
+  var press = [pressure1, pressure2, pressure3];
+
+
+  var selectedValue = document.getElementById("fast_methodSelection").value;
+  var prediction_mode = document.querySelector('input[name="radioOptions"]:checked').value;
+
+  var intake = document.getElementById('fast_intake').value;
+  var reserve = document.getElementById('fast_reserve').value;
+
+  var average1 = decodedData[index].Медианная;
+  var average2 = last_2_decodedData[0][index].Медианная;
+  var average3 = last_2_decodedData[1][index].Медианная;
+
+  //       The Day Before | Yesterday | Today
+  var averages = [average3, average2, average1];
+  var resources = [];
+
+
+  if (prediction_mode == "Plane"){
+
+    averages.forEach(function(average, index){
+
+      var temp_resource = 8.87 * parseFloat(average) + 0.03 * temps[2-index] -7.91;
+      var press_resource = 9.12 * parseFloat(average) -0.01 * press[2-index] + 2.18;
+      var humid_resource = 8.49 * parseFloat(average) -0.00 * humss[2-index] -6.66;
+      var angle_resource = 8.95 * parseFloat(average) -0.03 * RZAs[2-index] -6.06;
+
+      var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
+      resources.push(mean);
+    });
+
+
+  }
+
+
+
 
   // Create a container for the chart
   var chartContainer = document.createElement('div');
@@ -1456,8 +1549,8 @@ function generateBarGraphContent(properties, index) {
       data: {
         labels: [str_dates[1], str_dates[0], str_dates[2]],
         datasets: [{
-          label: 'Изменение урожайности',
-          data: data,
+          label: `Измен. урож. в загоне №${index+1}`,
+          data: resources,
           backgroundColor: 'steelblue',
           borderColor: 'black',
           borderWidth: 1
