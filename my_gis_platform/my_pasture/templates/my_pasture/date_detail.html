@@ -905,6 +905,12 @@
     var paddocks_count = 0;
     var map = null;
     var legend = null;
+
+    var last_2_geoJSONData = [];
+    var last_2_decodedData = [];
+
+    var str_dates = [];
+    var decodedData = null;
     var geoJSONData = null;
     var geoJsonLayer = null;
     var pasture_load = {};
@@ -963,6 +969,8 @@
                     'correction_coeff': correction_coeff,
                 },
                 success: function(data) {
+
+                    str_dates = data.str_dates;
 
                     if (data.index_image === null && data.df === null && data.hist_images === null){
                         $button.html(originalContent);
@@ -1054,7 +1062,12 @@
                     tbody.empty();
 
                     // Decode column names from UTF-8 encoding
-                    var decodedData = JSON.parse(data.df);
+                    decodedData = JSON.parse(data.df);
+
+                    data.last_2_summary_df.forEach(function(element) {
+                        last_2_decodedData.push(JSON.parse(element));
+                    });
+
 
                     // Iterate over the JSON data and populate the table
                     $.each(decodedData, function(index, row) {
@@ -1313,6 +1326,11 @@
                     }
 
                     geoJSONData = JSON.parse(data.geodataframe);
+
+                    data.last_2_geodataframe.forEach(function(element) {
+                        last_2_geoJSONData.push(JSON.parse(element));
+                    });
+
                     paddocks_count = geoJSONData.features.length -1;
                     geoJsonLayer = L.geoJSON(geoJSONData, {
                       style: {
@@ -1321,6 +1339,9 @@
                         fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
                       },
                       onEachFeature: function (feature, layer) {
+
+                        var index = geoJSONData.features.indexOf(feature);
+
                         // Add mouseover event to highlight the shape and display information
                         layer.on('mouseover', function (e) {
                           var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь;
@@ -1336,6 +1357,41 @@
                           layer.closePopup();
                           geoJsonLayer.resetStyle(layer);
                         });
+
+
+
+                        //  !!! TESTING !!!
+
+                        // Add click event to display bar graph
+                        layer.on('click', function (e) {
+                          L.DomEvent.stop(e);
+
+                          // Create a new popup
+                          var popup = L.popup({
+                            closeButton: true,
+                            autoClose: true,
+                            closeOnClick: false,
+                            // Prevent the default behavior of the map to avoid closing the popup
+                            // when clicking on the map after opening the popup.
+                            preventDefault: true,
+                            // Use the clicked coordinates for positioning the popup
+                            autoPan: false,
+                            // Use the coordinates of the click event for popup positioning
+                            coordinates: e.latlng,
+                            keepInView: true,
+                          });
+
+                          // Set the content of the popup using the generated bar graph content
+                          popup.setContent(generateBarGraphContent(feature.properties, index));
+
+                          // Bind the popup to the clicked layer and open it
+                          layer.bindPopup(popup).openPopup();
+                        });
+
+                        // !!! TESTING !!!
+
+
+
                       }
                     });
 
@@ -1367,6 +1423,77 @@
             });
         });
     });
+
+
+
+function generateBarGraphContent(properties, index) {
+  // Example: Generate dummy data for the bar graph
+
+  var a1 = decodedData[index].Медианная;
+  var a2 = last_2_decodedData[0][index].Медианная;
+  var a3 = last_2_decodedData[1][index].Медианная;
+
+  var data = [a3, a2, a1];
+
+  console.log(index, data);
+
+  // Create a container for the chart
+  var chartContainer = document.createElement('div');
+  chartContainer.style.width = '300px';
+  chartContainer.style.height = '200px';
+
+  // Create a canvas element and append it to the container
+  var canvas = document.createElement('canvas');
+  canvas.width = 300;
+  canvas.height = 200;
+  chartContainer.appendChild(canvas);
+
+  // Use Chart.js to create a bar graph on the canvas
+  var ctx = canvas.getContext('2d');
+
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [str_dates[1], str_dates[0], str_dates[2]],
+        datasets: [{
+          label: 'Изменение урожайности',
+          data: data,
+          backgroundColor: 'steelblue',
+          borderColor: 'black',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: {
+              autoSkip: false, // Ensure all labels are shown
+              maxRotation: 45, // Adjust this value to set the rotation angle
+              minRotation: 45, // Adjust this value to set the rotation angle
+            }
+          },
+          y: {
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+
+
+  return chartContainer;
+}
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -2478,6 +2605,38 @@ function startSimulation() {
               layer.closePopup();
               geoJsonLayer.resetStyle(layer);
             });
+
+
+            //  !!! TESTING !!!
+
+            // Add click event to display bar graph
+            layer.on('click', function (e) {
+              L.DomEvent.stop(e);
+
+              // Create a new popup
+              var popup = L.popup({
+                closeButton: false,
+                autoClose: false,
+                closeOnClick: false,
+                // Prevent the default behavior of the map to avoid closing the popup
+                // when clicking on the map after opening the popup.
+                preventDefault: true,
+                // Use the clicked coordinates for positioning the popup
+                autoPan: false,
+                // Use the coordinates of the click event for popup positioning
+                coordinates: e.latlng,
+              });
+
+              // Set the content of the popup using the generated bar graph content
+              popup.setContent(generateBarGraphContent(feature.properties));
+
+              // Bind the popup to the clicked layer and open it
+              layer.bindPopup(popup).openPopup();
+            });
+
+            // !!! TESTING !!!
+
+
           }
         });
 

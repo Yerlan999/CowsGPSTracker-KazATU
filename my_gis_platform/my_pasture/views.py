@@ -666,11 +666,12 @@ class SentinelRequest():
         current_image_id = self.image_date
         mask_of_this_day = 1-self.cloud_mask
 
-        last_2_indices = []; last_2_missing_parts = [];
+        last_2_indices = []; last_2_missing_parts = []; last_2_summary_df = []; last_2_geodataframe = []; str_dates = [];
 
         for _ in range(2):
             self.image_date -= 1
             self.prepare_all_bands()
+            str_dates.append(self.unique_acquisitions[self.image_date].date().isoformat())
 
             try:
                 test_index = eval(modify_formula(formula, by_pasture))
@@ -717,6 +718,71 @@ class SentinelRequest():
                 image_stream.seek(0)
                 encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
 
+
+                # !!! TESTING !!!
+
+                test_index_masked_array = []
+                for i, mask in enumerate(self.masks):
+                    mx = ma.masked_array(test_meet, mask=mask.reshape(self.aoi_height, self.aoi_width))
+                    test_index_masked_array.append(mx)
+
+                mx_pasture = ma.masked_array(test_meet, mask=self.combined_mask.reshape(self.aoi_height, self.aoi_width))
+                test_index_masked_array.append(mx_pasture)
+
+                summary_data = []; decoded_hist_images = [];
+                for i, zagon in enumerate(test_index_masked_array):
+                    if (i+1 == len(test_index_masked_array)): title = f'{header} || Пастбище {self.general_info}';
+                    else: title = f'{header} || Загон-{i+1} {self.general_info}';
+
+                    ep.hist(zagon, colors = colors[i], title=title, cols=4, alpha=0.5,
+                    figsize = (12, 5))
+                    if (i+1 < len(test_index_masked_array)):
+                        summary_data.append([f"№{i+1}", round(zagon.sum(),self.precision), round(zagon.mean(),self.precision), round(ma.median(zagon),self.precision), round(zagon.max(),self.precision), round(zagon.min(),self.precision)])
+                    plt.axvline(test_index_masked_array[i].mean(), color='b', linestyle='dashed', linewidth=2)
+                    plt.axvline(ma.median(test_index_masked_array[i]), color='r', linestyle='dashed', linewidth=2)
+                    has_negative_or_zero = test_index_masked_array[i] <= 0
+                    if not has_negative_or_zero.sum():
+                        plt.axvline(hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='g', linestyle='dashed', linewidth=2)
+                        plt.axvline(gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height)), color='y', linestyle='dashed', linewidth=2)
+                        plt.legend([f"Средняя: {test_index_masked_array[i].mean()}",f"Медианная: {ma.median(test_index_masked_array[i])}",f"Гармоническая: {hmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}",f"Геометрическая: {gmean(test_index_masked_array[i].reshape(self.aoi_width * self.aoi_height))}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+                    else:
+                        plt.legend([f"Средняя: {ma.mean(test_index_masked_array[i])}",f"Медианная: {ma.median(test_index_masked_array[i])}"], title=f'Сумма: {round(zagon.sum(),self.precision)}')
+
+                    image_buffer = io.BytesIO()
+                    plt.savefig(image_buffer, format='png')
+                    plt.close()
+                    # Convert the image buffer to a base64-encoded string
+                    image_encoded = base64.b64encode(image_buffer.getvalue()).decode('utf-8')
+                    decoded_hist_images.append(image_encoded)
+
+
+                paddocks_area = []
+                for i, mask in enumerate(self.masks):
+                    paddocks_area.append((mask.size-mask.sum())*(10**2)/10000)
+                paddocks_area.append(sum(paddocks_area))
+
+                summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
+                sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
+                summary_df = pd.concat([summary_df, sum_row])
+                summary_df["Площадь"] = paddocks_area
+
+                # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
+                # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
+
+                geodataframe = pd.concat([self.pasture_df, summary_df], axis=1)
+                geodataframe = geodataframe.to_json(default=mapping)
+
+                # geodataframe = geodataframe.to_dict(orient='records')
+                # geodataframe = json.dumps(geodataframe, ensure_ascii=False)
+
+                summary_df = summary_df.to_dict(orient='records')
+                summary_df = json.dumps(summary_df, ensure_ascii=False)
+
+                last_2_summary_df.append(summary_df); last_2_geodataframe.append(geodataframe);
+
+                # !!! TESTING !!!
+
+
                 last_2_indices.append(encoded_image); last_2_missing_parts.append(clouds_values_by_zagons)
 
             except Exception as error:
@@ -727,7 +793,9 @@ class SentinelRequest():
 
         self.image_date = current_image_id
         self.prepare_all_bands()
-        return last_2_indices, last_2_missing_parts
+        str_dates.append(self.unique_acquisitions[self.image_date].date().isoformat())
+
+        return last_2_indices, last_2_missing_parts, last_2_summary_df, last_2_geodataframe, str_dates
 
 
     def get_requested_index(self, formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff):
@@ -746,7 +814,7 @@ class SentinelRequest():
                 only_cloud_index = ma.masked_array(test_index, mask=1-self.cloud_mask)
 
                 # Calling for last 2 days history here
-                last2_indices, last2_missing_parts = self.get_last2_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
+                last2_indices, last2_missing_parts, last_2_summary_df, last_2_geodataframe, str_dates = self.get_last2_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
 
                 clouds_values_by_zagons = self.get_zagons_values(only_cloud_index)
                 clouds_masks_by_zagons = self.get_zagons_values(self.cloud_mask)
@@ -870,7 +938,7 @@ class SentinelRequest():
 
             centroid = self.merged_zagons.centroid.x, self.merged_zagons.centroid.y
 
-            return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid, last2_indices
+            return encoded_image, decoded_hist_images, summary_df, geodataframe, centroid, last2_indices, last_2_summary_df, last_2_geodataframe, str_dates
 
         except Exception as error:
             print()
@@ -1576,9 +1644,9 @@ def ajax_view(request):
 
             correction_coeff = request.GET.get('correction_coeff')
 
-            index_image, hist_images, df, geodataframe, centroid, last2_indices = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
+            index_image, hist_images, df, geodataframe, centroid, last2_indices, last_2_summary_df, last_2_geodataframe, str_dates = HolderClass.sentinel_request.get_requested_index(formula, relative_radio, absolute_radio, upper_bound, lower_bound, threshold_check, threshold, operators, by_pasture, correction_coeff_able, correction_coeff)
 
-            response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices}
+            response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices, "last_2_summary_df": last_2_summary_df, "last_2_geodataframe": last_2_geodataframe, "str_dates": str_dates}
 
             return JsonResponse(response_data)
         # elif "ToggleGPS" in request.GET:
