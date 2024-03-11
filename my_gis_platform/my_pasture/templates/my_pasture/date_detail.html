@@ -604,8 +604,8 @@
                   <option value="1 Сумма">Сумма</option>
                   <option value="2 Средняя">Средняя</option>
                   <option value="3 Медианная" selected>Медианная</option>
-                  <option value="4 Макс.">Макс.</option>
-                  <option value="5 Мин.">Мин.</option>
+                  <option value="4 Макс">Макс.</option>
+                  <option value="5 Мин">Мин.</option>
                 </select>
             </div>
             <div class="col">
@@ -854,7 +854,6 @@
 
 
     function lookForCattleMovement() {
-      console.log("This function is running at a certain interval.");
 
       var transfer_button = document.getElementById("transer_action");
       var paddock_from = document.getElementById("numberSelect_from").value;
@@ -863,12 +862,6 @@
       var state_button_from = document.getElementById("gate_state_from");
       var state_button_to = document.getElementById("gate_state_to");
 
-
-      console.log();
-      console.log("Departure Paddock: ", pasture_load[paddock_from]);
-      console.log("Destination Paddock: ", pasture_load[paddock_to]);
-      console.log("Overall Cattle: ", cattle_count);
-      console.log();
 
       if (pasture_load[paddock_from] == 0 && gates_state[String(paddock_from)] == "Открыт"){
         SendWebSocketMessage(`CLOSE:${paddock_from}`);
@@ -1113,7 +1106,7 @@
                         var tr = $('<tr>');
                         tr.append('<td>' + row.Загон + '</td>');
                         tr.append('<td>' + row.Сумма + '</td>');
-                        tr.append('<td>' + row.Cреднаяя + '</td>');
+                        tr.append('<td>' + row.Средняя + '</td>');
                         tr.append('<td>' + row.Медианная + '</td>');
                         tr.append('<td>' + row.Макс + '</td>');
                         tr.append('<td>' + row.Мин + '</td>');
@@ -1275,7 +1268,6 @@
                     function removeMarkersByIndices(indices) {
 
                         if (indices.length === 0) {
-                            console.log("No missing markers to remove.");
                             return;
                         }
 
@@ -1496,38 +1488,19 @@ function generateBarGraphContent(properties, index) {
   var press = [pressure1, pressure2, pressure3];
 
 
-  var selectedValue = document.getElementById("fast_methodSelection").value;
+  var selectedValue = document.getElementById("fast_methodSelection").value.split(" ")[1];
   var prediction_mode = document.querySelector('input[name="radioOptions"]:checked').value;
 
   var intake = document.getElementById('fast_intake').value;
   var reserve = document.getElementById('fast_reserve').value;
 
-  var average1 = decodedData[index].Медианная;
-  var average2 = last_2_decodedData[0][index].Медианная;
-  var average3 = last_2_decodedData[1][index].Медианная;
+  var average1 = decodedData[index][selectedValue];
+  var average2 = last_2_decodedData[0][index][selectedValue];
+  var average3 = last_2_decodedData[1][index][selectedValue];
 
   //       The Day Before | Yesterday | Today
   var averages = [average3, average2, average1];
-  var resources = [];
-
-
-  if (prediction_mode == "Plane"){
-
-    averages.forEach(function(average, index){
-
-      var temp_resource = 8.87 * parseFloat(average) + 0.03 * temps[2-index] -7.91;
-      var press_resource = 9.12 * parseFloat(average) -0.01 * press[2-index] + 2.18;
-      var humid_resource = 8.49 * parseFloat(average) -0.00 * humss[2-index] -6.66;
-      var angle_resource = 8.95 * parseFloat(average) -0.03 * RZAs[2-index] -6.06;
-
-      var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
-      resources.push(mean);
-    });
-
-
-  }
-
-
+  var resources;
 
 
   // Create a container for the chart
@@ -1543,6 +1516,69 @@ function generateBarGraphContent(properties, index) {
 
   // Use Chart.js to create a bar graph on the canvas
   var ctx = canvas.getContext('2d');
+
+
+
+
+  if (prediction_mode == "Plane"){
+    resources = [];
+    averages.forEach(function(average, index){
+
+      var temp_resource = 8.87 * parseFloat(average) + 0.03 * temps[2-index] -7.91;
+      var press_resource = 9.12 * parseFloat(average) -0.01 * press[2-index] + 2.18;
+      var humid_resource = 8.49 * parseFloat(average) -0.00 * humss[2-index] -6.66;
+      var angle_resource = 8.95 * parseFloat(average) -0.03 * RZAs[2-index] -6.06;
+
+      var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
+      resources.push(mean);
+    });
+    setGrapthsContent(ctx, resources, index, str_dates);
+  }
+
+  else if (prediction_mode == "ANN" && pasture_load && cattle_count > 0){
+
+    $.ajax({ type: "GET", url: "/ajax/", data: {
+        'assessDaysLeftDiff': true,
+        'pasture_load': JSON.stringify(pasture_load),
+        'RZAs': JSON.stringify(RZAs),
+        'temps': JSON.stringify(temps),
+        'humss': JSON.stringify(humss),
+        'press': JSON.stringify(press),
+        'averages': JSON.stringify([average1, average2, average3]),
+        'intake' : intake,
+        'reserve' : reserve,
+        'index': index,
+
+    },
+      success: function(data) {
+
+      // data.days_left_pred.forEach(function(value) {
+      //   model_days_left_prediction[index] = value.toFixed(2);
+      // });
+
+      resources = [];
+      data.resource_pred.forEach(function(value) {
+        var paddock_area = parseFloat(data.area);
+        var resource = ((parseFloat(value)/1000)/paddock_area);
+        resources.push(resource);
+      });
+      setGrapthsContent(ctx, resources.reverse(), index, str_dates);
+
+    },
+      error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+    });
+  }
+
+
+
+
+
+  return chartContainer;
+}
+
+
+
+function setGrapthsContent(ctx, resources, index, str_dates){
 
     new Chart(ctx, {
       type: 'bar',
@@ -1573,13 +1609,7 @@ function generateBarGraphContent(properties, index) {
         }
       }
     });
-
-
-  return chartContainer;
 }
-
-
-
 
 
 
@@ -1619,7 +1649,6 @@ function updateMarkerPosition(marker, latitude, longitude, index, paddock_number
 function removeMarkersByIndices(indices) {
 
     if (indices.length === 0) {
-        console.log("No missing markers to remove.");
         return;
     }
 
@@ -1688,10 +1717,6 @@ chatSocket.onmessage = function(e) {
       cattleObjects.push(cattleDict);
     }
 
-    console.log(cattleObjects);
-    console.log(cattle_count);
-
-
     var paddock_layer = 1;
 
     // Iterate through each feature in the GeoJSON data
@@ -1710,7 +1735,6 @@ chatSocket.onmessage = function(e) {
           if (isInside) {
             cattle.paddock_number = paddock_layer;
             // The GPS coordinate is inside the current polygon
-            console.log(`Cattle #${cattle.id} is inside the polygon #${paddock_layer}:`);
             pasture_load[paddock_layer] += 1;
           }
         });
@@ -2677,6 +2701,9 @@ function startSimulation() {
             fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
           },
           onEachFeature: function (feature, layer) {
+
+            var index = geoJSONData.features.indexOf(feature);
+
             // Add mouseover event to highlight the shape and display information
             layer.on('mouseover', function (e) {
               var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(2);
@@ -2721,7 +2748,7 @@ function startSimulation() {
               });
 
               // Set the content of the popup using the generated bar graph content
-              popup.setContent(generateBarGraphContent(feature.properties));
+              popup.setContent(generateBarGraphContent(feature.properties, index));
 
               // Bind the popup to the clicked layer and open it
               layer.bindPopup(popup).openPopup();

@@ -764,8 +764,8 @@ class SentinelRequest():
                     paddocks_area.append((mask.size-mask.sum())*(10**2)/10000)
                 paddocks_area.append(sum(paddocks_area))
 
-                summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
-                sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
+                summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Средняя", "Медианная", "Макс", "Мин"])
+                sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Средняя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
                 summary_df = pd.concat([summary_df, sum_row])
                 summary_df["Площадь"] = paddocks_area
 
@@ -922,8 +922,8 @@ class SentinelRequest():
                 paddocks_area.append((mask.size-mask.sum())*(10**2)/10000)
             paddocks_area.append(sum(paddocks_area))
 
-            summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", "Макс", "Мин"])
-            sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Cреднаяя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
+            summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Средняя", "Медианная", "Макс", "Мин"])
+            sum_row = pd.DataFrame({'Загон': ["Пастбище"], 'Сумма': [round(float(summary_df['Сумма'].sum()),self.precision)], 'Средняя': [round(float(test_meet.mean()),self.precision)], 'Медианная': [round(float(ma.median(test_meet)),self.precision)], 'Макс': [summary_df['Макс'].max()], 'Мин': [summary_df['Мин'].min()]}, index=[len(summary_df.index)])
             summary_df = pd.concat([summary_df, sum_row])
             summary_df["Площадь"] = paddocks_area
 
@@ -1711,6 +1711,46 @@ def ajax_view(request):
             sim_request = json.loads(request.GET['simulation_data'])
             paddocks_grazing_graphs = play_simulation(sim_request)
             return JsonResponse({'paddocks_grazing_graphs': paddocks_grazing_graphs})
+
+        elif "assessDaysLeftDiff" in request.GET:
+            reserve = request.GET.get("reserve")
+            intake = request.GET.get("intake")
+            index = request.GET.get("index")
+            pasture_load = json.loads(request.GET.get("pasture_load"))
+            averages = json.loads(request.GET.get("averages"))
+            RZAs = json.loads(request.GET.get("RZAs"))
+            temps = json.loads(request.GET.get("temps"))
+            humss = json.loads(request.GET.get("humss"))
+            press = json.loads(request.GET.get("press"))
+
+            mask = HolderClass.sentinel_request.masks[int(index)]
+            area = (mask.size-mask.sum())*(10**2)/10000
+
+            upper_list = []
+            for i in range(3):
+
+                if pasture_load[str(int(index)+1)] == 0:
+                    load = sum(pasture_load.values())
+                else:
+                    load = pasture_load[str(int(index)+1)]
+
+                p_index = averages[i]
+
+                RZA = RZAs[i]; temp = temps[i]; hums = humss[i]; pres = press[i];
+
+                inner_list = [float(p_index), RZA] + [float(temp), float(pres), float(hums)] + [int(load), float(intake), int(reserve)]
+                upper_list.append(inner_list)
+
+            model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
+
+            large_model = HolderClass.sentinel_request.large_model
+            norm_model_df = np.array(HolderClass.sentinel_request.norm(model_df))
+            another_predictions = large_model.predict(norm_model_df)
+            resource_pred = another_predictions[0][:,0]
+            days_left_pred = another_predictions[1][:,0]
+
+            return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), 'area': area})
+
         elif "assessDaysLeft" in request.GET:
 
             reserve = request.GET.get("reserve")
@@ -1732,8 +1772,7 @@ def ajax_view(request):
             SAA = HolderClass.sentinel_request.SAA
             VAM = HolderClass.sentinel_request.VAM
 
-            upper_list = []
-            area_list = []
+            upper_list = []; area_list = []
             for paddock_id, load in pasture_load.items():
 
                 mask = HolderClass.sentinel_request.masks[int(paddock_id)-1]
