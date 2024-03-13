@@ -1809,10 +1809,10 @@ def ajax_view(request):
                 another_predictions = large_model.predict(norm_model_df)
                 resource_pred = another_predictions[0][:,0]
                 days_left_pred = another_predictions[1][:,0]
-            elif model == "RF":
-                rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
-                resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
-                days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
+            # elif model == "RF":
+            #     rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
+            #     resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
+            #     days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
 
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
