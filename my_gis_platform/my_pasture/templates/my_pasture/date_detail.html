@@ -875,20 +875,6 @@ function percentageCloseToValues(value) {
     return [percentageToNegOne, percentageToZero, percentageToOne];
 }
 
-function percentageCloseToZeroAndOne(value) {
-    // Calculate the distance from zero and one
-    let distanceToZero = Math.max(1 - Math.abs(value), 0);
-    let distanceToOne = Math.max(value, 0);
-
-    // Calculate the total distance
-    let totalDistance = distanceToZero + distanceToOne;
-
-    // Calculate the percentages
-    let percentageToZero = (distanceToZero / totalDistance) * 100;
-    let percentageToOne = (distanceToOne / totalDistance) * 100;
-
-    return [percentageToZero, percentageToOne];
-}
 
 
     function EvaluateByML(){
@@ -930,8 +916,6 @@ function percentageCloseToZeroAndOne(value) {
 
         },
           success: function(data) {
-            console.log(data.assesses);
-            console.log(data.action);
 
             console.log(percentageCloseToValues(data.assesses[0]));
             console.log(percentageCloseToValues(data.assesses[1]));
@@ -941,7 +925,7 @@ function percentageCloseToZeroAndOne(value) {
             console.log(percentageCloseToValues(data.assesses[5]));
             console.log(percentageCloseToValues(data.assesses[6]));
 
-            console.log(percentageCloseToZeroAndOne(data.action));
+            console.log(percentageCloseToValues(data.action));
         },
           error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
         });
