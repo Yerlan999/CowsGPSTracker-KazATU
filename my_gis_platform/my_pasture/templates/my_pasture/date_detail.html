@@ -720,6 +720,12 @@
                 </div>
             </div>
 
+            <div class="row">
+                <div class="col">
+                    <button id="evaluate_paddocks" type="button" onclick="EvaluateByML()" class="btn btn-info btn-block">Произвести оценку через модель МО</button>
+                </div>
+            </div>
+
           </div>
         </div>
 
@@ -851,6 +857,53 @@
 </div>
 
 <script>
+
+    function EvaluateByML(){
+
+      var intake = document.getElementById('fast_intake').value;
+      var reserve = document.getElementById('fast_reserve').value;
+
+      var weather_table1 = document.getElementById('weather_table');
+
+      var t_temperature = parseFloat(weather_table1.rows[1].cells[0].textContent);
+      var t_pressure = parseFloat(weather_table1.rows[1].cells[2].textContent);
+      var t_humidity = parseFloat(weather_table1.rows[1].cells[3].textContent);
+
+      if (pasture_load && cattle_count > 0){
+
+        var t_resources = [];
+        var t_days_left = [];
+
+        geoJSONData['features'].forEach(function(element){
+
+            var index = geoJSONData.features.indexOf(element);
+
+            if (index < paddocks_count){
+                t_resources.push(parseFloat(element.properties.Урож));
+                t_days_left.push(parseFloat(element.properties.КормоЗапас));
+            }
+        });
+
+        $.ajax({ type: "GET", url: "/ajax/", data: {
+            'takeAction': true,
+            'pasture_load': JSON.stringify(Object.values(pasture_load)),
+            'intake' : intake,
+            'reserve' : reserve,
+            'temperature': t_temperature,
+            'pressure': t_pressure,
+            'humidity': t_humidity,
+            'days_lefts': JSON.stringify(t_days_left),
+            'resources': JSON.stringify(t_resources),
+
+        },
+          success: function(data) {
+            console.log(data);
+        },
+          error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+        });
+      }
+
+    }
 
 
     function lookForCattleMovement() {
@@ -1465,17 +1518,17 @@ function generateBarGraphContent(properties, index) {
   var weather_table2 = document.getElementById('weather_table1');
   var weather_table3 = document.getElementById('weather_table2');
 
-  var temperature1 = parseFloat(weather_table.rows[1].cells[0].textContent);
-  var pressure1 = parseFloat(weather_table.rows[1].cells[2].textContent);
-  var humidity1 = parseFloat(weather_table.rows[1].cells[3].textContent);
+  var temperature1 = parseFloat(weather_table1.rows[1].cells[0].textContent);
+  var pressure1 = parseFloat(weather_table1.rows[1].cells[2].textContent);
+  var humidity1 = parseFloat(weather_table1.rows[1].cells[3].textContent);
 
-  var temperature2 = parseFloat(weather_table1.rows[1].cells[0].textContent);
-  var pressure2 = parseFloat(weather_table1.rows[1].cells[2].textContent);
-  var humidity2 = parseFloat(weather_table1.rows[1].cells[3].textContent);
+  var temperature2 = parseFloat(weather_table2.rows[1].cells[0].textContent);
+  var pressure2 = parseFloat(weather_table2.rows[1].cells[2].textContent);
+  var humidity2 = parseFloat(weather_table2.rows[1].cells[3].textContent);
 
-  var temperature3 = parseFloat(weather_table2.rows[1].cells[0].textContent);
-  var pressure3 = parseFloat(weather_table2.rows[1].cells[2].textContent);
-  var humidity3 = parseFloat(weather_table2.rows[1].cells[3].textContent);
+  var temperature3 = parseFloat(weather_table3.rows[1].cells[0].textContent);
+  var pressure3 = parseFloat(weather_table3.rows[1].cells[2].textContent);
+  var humidity3 = parseFloat(weather_table3.rows[1].cells[3].textContent);
 
   var RZA1 = {{ RZA|default:"undefined" }};
   var RZA2 = {{ last_2_RZAs.1|default:"undefined" }};

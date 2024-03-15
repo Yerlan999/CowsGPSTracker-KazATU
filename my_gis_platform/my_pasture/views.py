@@ -279,11 +279,11 @@ class SentinelRequest():
         self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
-        # self.model = load_model('my_model.keras')
+        self.control_model = load_model('my_control_model.keras')
         self.large_model = tf.keras.models.load_model('/large_model/')
         # self.rf_model = joblib.load('random_forest_model.pkl')
 
-        # self.scaler = joblib.load('scaler.joblib')
+        self.control_scaler = joblib.load('control_scaler.joblib')
         self.saved_mean = pd.read_pickle('saved_mean.pkl')
         self.saved_std = pd.read_pickle('saved_std.pkl')
 
@@ -1750,6 +1750,58 @@ def ajax_view(request):
             days_left_pred = another_predictions[1][:,0]
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), 'area': area})
+
+        elif "takeAction" in request.GET:
+            # "resources1-7", "loads1-7", "reserve", "daily_intake", "days_lefts1-7", "temp", "pressure", "humidity"
+
+            reserve = int(request.GET.get("reserve"))
+            intake = int(request.GET.get("intake"))
+
+            temperature = float(request.GET.get("temperature"))
+            humidity = float(request.GET.get("humidity"))
+            pressure = float(request.GET.get("pressure"))
+
+            pasture_load = [float(x) for x in json.loads(request.GET.get("pasture_load"))]
+            days_lefts = [float(x) for x in json.loads(request.GET.get("days_lefts"))]
+            resources = [float(x) for x in json.loads(request.GET.get("resources"))]
+
+            data_lables = ["resource_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["load_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["reserve", "daily_intake"] + ["days_left_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["temp", "pressure", "humidity"]
+            data_draft = [resources+pasture_load+[reserve, intake]+days_lefts+[temperature, pressure, humidity]]
+
+            print("Data: ", data_draft)
+
+            model_df = pd.DataFrame(data_draft, columns=data_lables)
+
+            model_deep = HolderClass.sentinel_request.control_model
+            scaler = HolderClass.sentinel_request.control_scaler
+            new_data_scaled = scaler.transform(model_df)
+            predictions = model_deep.predict(new_data_scaled)
+
+            # Extract predictions for each output
+            assess_paddock1 = predictions[:,0].flatten()
+            assess_paddock2 = predictions[:,1].flatten()
+            assess_paddock3 = predictions[:,2].flatten()
+            assess_paddock4 = predictions[:,3].flatten()
+            assess_paddock5 = predictions[:,4].flatten()
+            assess_paddock6 = predictions[:,5].flatten()
+            assess_paddock7 = predictions[:,6].flatten()
+            action = predictions[:,7].flatten()
+
+            # Create DataFrames with the predictions
+            predictions_df = pd.DataFrame({
+                "assess_paddock1": assess_paddock1,
+                "assess_paddock2": assess_paddock2,
+                "assess_paddock3": assess_paddock3,
+                "assess_paddock4": assess_paddock4,
+                "assess_paddock5": assess_paddock5,
+                "assess_paddock6": assess_paddock6,
+                "assess_paddock7": assess_paddock7,
+                "action": action,
+            })
+
+            predictions_df = pd.DataFrame({'Predictions': predictions_df})
+
+            return JsonResponse({"Trying to take an actin here": {}})
 
         elif "assessDaysLeft" in request.GET:
 
