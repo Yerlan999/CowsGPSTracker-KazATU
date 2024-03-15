@@ -1778,30 +1778,18 @@ def ajax_view(request):
             predictions = model_deep.predict(new_data_scaled)
 
             # Extract predictions for each output
-            assess_paddock1 = predictions[:,0].flatten()
-            assess_paddock2 = predictions[:,1].flatten()
-            assess_paddock3 = predictions[:,2].flatten()
-            assess_paddock4 = predictions[:,3].flatten()
-            assess_paddock5 = predictions[:,4].flatten()
-            assess_paddock6 = predictions[:,5].flatten()
-            assess_paddock7 = predictions[:,6].flatten()
-            action = predictions[:,7].flatten()
+            assess_paddock1 = float(predictions[0][0])
+            assess_paddock2 = float(predictions[0][1])
+            assess_paddock3 = float(predictions[0][2])
+            assess_paddock4 = float(predictions[0][3])
+            assess_paddock5 = float(predictions[0][4])
+            assess_paddock6 = float(predictions[0][5])
+            assess_paddock7 = float(predictions[0][6])
+            action = float(predictions[0][7])
 
-            # Create DataFrames with the predictions
-            predictions_df = pd.DataFrame({
-                "assess_paddock1": assess_paddock1,
-                "assess_paddock2": assess_paddock2,
-                "assess_paddock3": assess_paddock3,
-                "assess_paddock4": assess_paddock4,
-                "assess_paddock5": assess_paddock5,
-                "assess_paddock6": assess_paddock6,
-                "assess_paddock7": assess_paddock7,
-                "action": action,
-            })
 
-            predictions_df = pd.DataFrame({'Predictions': predictions_df})
+            return JsonResponse({"action": action, "assesses": [assess_paddock1, assess_paddock2, assess_paddock3, assess_paddock4, assess_paddock5, assess_paddock6, assess_paddock7]})
 
-            return JsonResponse({"Trying to take an actin here": {}})
 
         elif "assessDaysLeft" in request.GET:
 

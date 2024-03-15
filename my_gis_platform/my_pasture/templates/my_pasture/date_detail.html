@@ -858,6 +858,39 @@
 
 <script>
 
+function percentageCloseToValues(value) {
+    // Calculate the distance from -1, 0, and 1
+    let distanceToNegOne = Math.max(1 - Math.abs(value + 1), 0);
+    let distanceToZero = Math.max(1 - Math.abs(value), 0);
+    let distanceToOne = Math.max(1 - Math.abs(value - 1), 0);
+
+    // Calculate the total distance
+    let totalDistance = distanceToNegOne + distanceToZero + distanceToOne;
+
+    // Calculate the percentages
+    let percentageToNegOne = (distanceToNegOne / totalDistance) * 100;
+    let percentageToZero = (distanceToZero / totalDistance) * 100;
+    let percentageToOne = (distanceToOne / totalDistance) * 100;
+
+    return [percentageToNegOne, percentageToZero, percentageToOne];
+}
+
+function percentageCloseToZeroAndOne(value) {
+    // Calculate the distance from zero and one
+    let distanceToZero = Math.max(1 - Math.abs(value), 0);
+    let distanceToOne = Math.max(value, 0);
+
+    // Calculate the total distance
+    let totalDistance = distanceToZero + distanceToOne;
+
+    // Calculate the percentages
+    let percentageToZero = (distanceToZero / totalDistance) * 100;
+    let percentageToOne = (distanceToOne / totalDistance) * 100;
+
+    return [percentageToZero, percentageToOne];
+}
+
+
     function EvaluateByML(){
 
       var intake = document.getElementById('fast_intake').value;
@@ -897,7 +930,18 @@
 
         },
           success: function(data) {
-            console.log(data);
+            console.log(data.assesses);
+            console.log(data.action);
+
+            console.log(percentageCloseToValues(data.assesses[0]));
+            console.log(percentageCloseToValues(data.assesses[1]));
+            console.log(percentageCloseToValues(data.assesses[2]));
+            console.log(percentageCloseToValues(data.assesses[3]));
+            console.log(percentageCloseToValues(data.assesses[4]));
+            console.log(percentageCloseToValues(data.assesses[5]));
+            console.log(percentageCloseToValues(data.assesses[6]));
+
+            console.log(percentageCloseToZeroAndOne(data.action));
         },
           error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
         });
