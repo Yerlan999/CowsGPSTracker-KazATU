@@ -81,6 +81,28 @@
 </style>
 
 
+<!-- Assess Modal -->
+<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document"> <!-- Add modal-lg class here -->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLongTitle">Оценка модели МО</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div id="model-assess" class="modal-body">
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
 <!-- Prediction Modal -->
 <div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document">
@@ -722,7 +744,7 @@
 
             <div class="row">
                 <div class="col">
-                    <button id="evaluate_paddocks" type="button" onclick="EvaluateByML()" class="btn btn-info btn-block">Произвести оценку через модель МО</button>
+                    <button id="evaluate_paddocks" type="button" onclick="EvaluateByML()" class="btn btn-info btn-block" data-toggle="modal" data-target="#exampleModalCenter">Произвести оценку через модель МО</button>
                 </div>
             </div>
 
@@ -917,15 +939,94 @@ function percentageCloseToValues(value) {
         },
           success: function(data) {
 
-            console.log(percentageCloseToValues(data.assesses[0]));
-            console.log(percentageCloseToValues(data.assesses[1]));
-            console.log(percentageCloseToValues(data.assesses[2]));
-            console.log(percentageCloseToValues(data.assesses[3]));
-            console.log(percentageCloseToValues(data.assesses[4]));
-            console.log(percentageCloseToValues(data.assesses[5]));
-            console.log(percentageCloseToValues(data.assesses[6]));
+            // Get the modal body element
+            let modalBody = document.getElementById("model-assess");
+            // Clear all existing elements inside the modal body
+            modalBody.innerHTML = '';
 
-            console.log(percentageCloseToValues(data.action));
+
+            var button = document.createElement("button");
+            if (percentageCloseToValues(data.action)[2] > 50){
+                button.className = "btn btn-block btn-danger";
+            }
+            if (percentageCloseToValues(data.action)[1] > 50){
+                button.className = "btn btn-block btn-success";
+            }
+            button.textContent = `Не требует перегона: ${percentageCloseToValues(data.action)[1].toFixed(2)} % || Требует перегона: ${percentageCloseToValues(data.action)[2].toFixed(2)} %`;
+            modalBody.appendChild(button);
+
+            // Create a table element
+            let table = document.createElement("table");
+            table.classList.add("table", "table-striped", "table-hover"); // Add table-hover class
+
+            // Create a table body element
+            let tbody = document.createElement("tbody");
+
+            // Add column names to the header row
+            let thead = document.createElement("thead");
+            let headerRow = document.createElement("tr");
+            headerRow.classList.add("thead-dark"); // Add thead-dark class to the header row
+            ["Загон №", "Макс.", "Норм.", "Изтощен"].forEach(function(columnName) {
+                let th = document.createElement("th");
+                th.textContent = columnName;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Iterate over data.assesses array and create table rows
+            data.assesses.forEach(function(assess, index) {
+                // Create a table row
+                let row = document.createElement("tr");
+
+                // Calculate the percentages using the percentageCloseToValues function
+                let percentages = percentageCloseToValues(assess);
+
+                // Create a header cell for the row index
+                let indexHeaderCell = document.createElement("th");
+                indexHeaderCell.textContent = index + 1;
+                row.appendChild(indexHeaderCell);
+
+                // Create three table data cells for each percentage value
+                percentages.forEach(function(percentage, cellIndex) {
+                    // Create a table data cell
+                    let cell = document.createElement("td");
+
+                    // Check if the percentage is defined and not null
+                    if (typeof percentage !== 'undefined' && percentage !== null) {
+                        // Set the text content of the cell to the percentage value
+                        cell.textContent = percentage.toFixed(2) + "%";
+
+                        // Add a class to the cell based on a certain condition
+                        if (percentage > 50 && cellIndex === 0) {
+                            cell.classList.add("table-success"); // Add bg-primary class to the cell
+                        }
+                        if (percentage > 50 && cellIndex === 1) {
+                            cell.classList.add("table-info"); // Add bg-primary class to the cell
+                        }
+                        if (percentage > 50 && cellIndex === 2) {
+                            cell.classList.add("table-danger"); // Add bg-primary class to the cell
+                        }
+                    } else {
+                        // If the percentage is undefined or null, set the cell content to an empty string
+                        cell.textContent = "";
+                    }
+
+                    // Append the cell to the row
+                    row.appendChild(cell);
+                });
+
+                // Append the row to the table body
+                tbody.appendChild(row);
+            });
+
+            // Append the table body to the table
+            table.appendChild(tbody);
+
+            // Append the table to the modal body
+            modalBody.appendChild(table);
+
+
         },
           error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
         });
@@ -2864,8 +2965,8 @@ function startSimulation() {
 
               // Create a new popup
               var popup = L.popup({
-                closeButton: false,
-                autoClose: false,
+                closeButton: true,
+                autoClose: true,
                 closeOnClick: false,
                 // Prevent the default behavior of the map to avoid closing the popup
                 // when clicking on the map after opening the popup.
@@ -2874,6 +2975,7 @@ function startSimulation() {
                 autoPan: false,
                 // Use the coordinates of the click event for popup positioning
                 coordinates: e.latlng,
+                keepInView: true,
               });
 
               // Set the content of the popup using the generated bar graph content

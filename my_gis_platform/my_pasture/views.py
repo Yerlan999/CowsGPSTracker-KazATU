@@ -1778,17 +1778,14 @@ def ajax_view(request):
             predictions = model_deep.predict(new_data_scaled)
 
             # Extract predictions for each output
-            assess_paddock1 = float(predictions[0][0])
-            assess_paddock2 = float(predictions[0][1])
-            assess_paddock3 = float(predictions[0][2])
-            assess_paddock4 = float(predictions[0][3])
-            assess_paddock5 = float(predictions[0][4])
-            assess_paddock6 = float(predictions[0][5])
-            assess_paddock7 = float(predictions[0][6])
-            action = float(predictions[0][7])
+            list_of_assesses = []
+            for i in range(len(HolderClass.sentinel_request.masks)):
+                list_of_assesses.append(float(predictions[0][i]))
+
+            action = float(predictions[0][len(HolderClass.sentinel_request.masks)])
 
 
-            return JsonResponse({"action": action, "assesses": [assess_paddock1, assess_paddock2, assess_paddock3, assess_paddock4, assess_paddock5, assess_paddock6, assess_paddock7]})
+            return JsonResponse({"action": action, "assesses": list_of_assesses})
 
 
         elif "assessDaysLeft" in request.GET:
