@@ -738,13 +738,10 @@
 
             <div class="row">
                 <div class="col">
-                    <button id="transer_action" type="button" onclick="StartTransfer()" class="btn btn-primary btn-block">Произвести перегон</button>
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col">
                     <button id="evaluate_paddocks" type="button" onclick="EvaluateByML()" class="btn btn-info btn-block" data-toggle="modal" data-target="#exampleModalCenter">Произвести оценку через модель МО</button>
+                </div>
+                <div class="col">
+                    <button id="transer_action" type="button" onclick="StartTransfer()" class="btn btn-primary btn-block">Произвести перегон</button>
                 </div>
             </div>
 
@@ -881,20 +878,18 @@
 <script>
 
 function percentageCloseToValues(value) {
-    // Calculate the distance from -1, 0, and 1
-    let distanceToNegOne = Math.max(1 - Math.abs(value + 1), 0);
+    // Calculate the distance from 0 and 1
     let distanceToZero = Math.max(1 - Math.abs(value), 0);
     let distanceToOne = Math.max(1 - Math.abs(value - 1), 0);
 
     // Calculate the total distance
-    let totalDistance = distanceToNegOne + distanceToZero + distanceToOne;
+    let totalDistance = distanceToZero + distanceToOne;
 
     // Calculate the percentages
-    let percentageToNegOne = (distanceToNegOne / totalDistance) * 100;
     let percentageToZero = (distanceToZero / totalDistance) * 100;
     let percentageToOne = (distanceToOne / totalDistance) * 100;
 
-    return [percentageToNegOne, percentageToZero, percentageToOne];
+    return [percentageToZero, percentageToOne];
 }
 
 
@@ -946,13 +941,18 @@ function percentageCloseToValues(value) {
 
 
             var button = document.createElement("button");
-            if (percentageCloseToValues(data.action)[2] > 50){
-                button.className = "btn btn-block btn-danger";
-            }
-            if (percentageCloseToValues(data.action)[1] > 50){
+
+            if (percentageCloseToValues(data.action)[0] > 80){
                 button.className = "btn btn-block btn-success";
             }
-            button.textContent = `Не требует перегона: ${percentageCloseToValues(data.action)[1].toFixed(2)} % || Требует перегона: ${percentageCloseToValues(data.action)[2].toFixed(2)} %`;
+            else if  (percentageCloseToValues(data.action)[1] > 80){
+                button.className = "btn btn-block btn-danger";
+            }
+            else{
+                button.className = "btn btn-block btn-info";
+            }
+
+            button.textContent = `Не требует перегона: ${percentageCloseToValues(data.action)[0].toFixed(2)} % || Требует перегона: ${percentageCloseToValues(data.action)[1].toFixed(2)} %`;
             modalBody.appendChild(button);
 
             // Create a table element
@@ -966,7 +966,7 @@ function percentageCloseToValues(value) {
             let thead = document.createElement("thead");
             let headerRow = document.createElement("tr");
             headerRow.classList.add("thead-dark"); // Add thead-dark class to the header row
-            ["Загон №", "Макс.", "Норм.", "Изтощен"].forEach(function(columnName) {
+            ["Загон №", "Изтощен", "Норм."].forEach(function(columnName) {
                 let th = document.createElement("th");
                 th.textContent = columnName;
                 headerRow.appendChild(th);
@@ -992,20 +992,17 @@ function percentageCloseToValues(value) {
                     // Create a table data cell
                     let cell = document.createElement("td");
 
-                    // Check if the percentage is defined and not null
+                    // Check if threee percentage is defined and not null
                     if (typeof percentage !== 'undefined' && percentage !== null) {
                         // Set the text content of the cell to the percentage value
                         cell.textContent = percentage.toFixed(2) + "%";
 
                         // Add a class to the cell based on a certain condition
-                        if (percentage > 50 && cellIndex === 0) {
-                            cell.classList.add("table-success"); // Add bg-primary class to the cell
-                        }
-                        if (percentage > 50 && cellIndex === 1) {
-                            cell.classList.add("table-info"); // Add bg-primary class to the cell
-                        }
-                        if (percentage > 50 && cellIndex === 2) {
+                        if (percentage > 80 && cellIndex === 0) {
                             cell.classList.add("table-danger"); // Add bg-primary class to the cell
+                        }
+                        if (percentage > 80 && cellIndex === 1) {
+                            cell.classList.add("table-success"); // Add bg-primary class to the cell
                         }
                     } else {
                         // If the percentage is undefined or null, set the cell content to an empty string
