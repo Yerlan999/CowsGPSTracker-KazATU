@@ -1768,8 +1768,6 @@ def ajax_view(request):
             data_lables = ["resource_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["load_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["reserve", "daily_intake"] + ["days_left_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["temp", "pressure", "humidity"]
             data_draft = [resources+pasture_load+[reserve, intake]+days_lefts+[temperature, pressure, humidity]]
 
-            print("Data: ", data_draft)
-
             model_df = pd.DataFrame(data_draft, columns=data_lables)
 
             model_deep = HolderClass.sentinel_request.control_model
@@ -1780,10 +1778,14 @@ def ajax_view(request):
             # Extract predictions for each output
             list_of_assesses = []
             for i in range(len(HolderClass.sentinel_request.masks)):
-                list_of_assesses.append(float(predictions[0][i]))
+                list_of_assesses.append(float(predictions[i][0]))
 
-            action = float(predictions[0][len(HolderClass.sentinel_request.masks)])
+            action = float(predictions[len(HolderClass.sentinel_request.masks)][0])
 
+            print()
+            print(list_of_assesses)
+            print(action)
+            print()
 
             return JsonResponse({"action": action, "assesses": list_of_assesses})
 

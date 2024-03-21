@@ -878,9 +878,26 @@
 <script>
 
 function percentageCloseToValues(value) {
-    // Calculate the distance from 0 and 1
+    // Calculate the distance from -1, 0, and 1
+    let distanceToNegOne = Math.max(1 - Math.abs(value + 1), 0);
     let distanceToZero = Math.max(1 - Math.abs(value), 0);
     let distanceToOne = Math.max(1 - Math.abs(value - 1), 0);
+
+    // Calculate the total distance
+    let totalDistance = distanceToNegOne + distanceToZero + distanceToOne;
+
+    // Calculate the percentages
+    let percentageToNegOne = (distanceToNegOne / totalDistance) * 100;
+    let percentageToZero = (distanceToZero / totalDistance) * 100;
+    let percentageToOne = (distanceToOne / totalDistance) * 100;
+
+    return [percentageToNegOne, percentageToZero, percentageToOne];
+}
+
+function percentageCloseToZeroAndOne(value) {
+    // Calculate the distance from zero and one
+    let distanceToZero = Math.max(1 - Math.abs(value), 0);
+    let distanceToOne = Math.max(value, 0);
 
     // Calculate the total distance
     let totalDistance = distanceToZero + distanceToOne;
@@ -891,6 +908,7 @@ function percentageCloseToValues(value) {
 
     return [percentageToZero, percentageToOne];
 }
+
 
 
 
@@ -942,17 +960,17 @@ function percentageCloseToValues(value) {
 
             var button = document.createElement("button");
 
-            if (percentageCloseToValues(data.action)[0] > 80){
+            if (percentageCloseToZeroAndOne(data.action)[0] > 80){
                 button.className = "btn btn-block btn-success";
             }
-            else if  (percentageCloseToValues(data.action)[1] > 80){
+            else if  (percentageCloseToZeroAndOne(data.action)[1] > 80){
                 button.className = "btn btn-block btn-danger";
             }
             else{
                 button.className = "btn btn-block btn-info";
             }
 
-            button.textContent = `Не требует перегона: ${percentageCloseToValues(data.action)[0].toFixed(2)} % || Требует перегона: ${percentageCloseToValues(data.action)[1].toFixed(2)} %`;
+            button.textContent = `Не требует перегона: ${percentageCloseToZeroAndOne(data.action)[0].toFixed(2)} % || Требует перегона: ${percentageCloseToZeroAndOne(data.action)[1].toFixed(2)} %`;
             modalBody.appendChild(button);
 
             // Create a table element
@@ -966,7 +984,7 @@ function percentageCloseToValues(value) {
             let thead = document.createElement("thead");
             let headerRow = document.createElement("tr");
             headerRow.classList.add("thead-dark"); // Add thead-dark class to the header row
-            ["Загон №", "Изтощен", "Норм."].forEach(function(columnName) {
+            ["Загон №", "Изтощен", "Норм.", "Макс."].forEach(function(columnName) {
                 let th = document.createElement("th");
                 th.textContent = columnName;
                 headerRow.appendChild(th);
@@ -1002,6 +1020,9 @@ function percentageCloseToValues(value) {
                             cell.classList.add("table-danger"); // Add bg-primary class to the cell
                         }
                         if (percentage > 80 && cellIndex === 1) {
+                            cell.classList.add("table-info"); // Add bg-primary class to the cell
+                        }
+                        if (percentage > 80 && cellIndex === 2) {
                             cell.classList.add("table-success"); // Add bg-primary class to the cell
                         }
                     } else {
