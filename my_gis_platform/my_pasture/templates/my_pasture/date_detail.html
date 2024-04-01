@@ -83,7 +83,7 @@
 
 <!-- Assess Modal -->
 <div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg" role="document"> <!-- Add modal-lg class here -->
+  <div class="modal-dialog modal-dialog-centered" role="document"> <!-- Add modal-lg class here -->
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="exampleModalLongTitle">Оценка модели МО</h5>
@@ -909,7 +909,29 @@ function percentageCloseToZeroAndOne(value) {
     return [percentageToZero, percentageToOne];
 }
 
+// Define the function to be called when the button is pressed
+function handleButtonClick(event) {
+    // Your function logic here
+    var state_button_from = document.getElementById("gate_state_from");
+    var state_button_to = document.getElementById("gate_state_to");
 
+    var paddock_from = document.getElementById("numberSelect_from");
+    var paddock_to = document.getElementById("numberSelect_to");
+
+    paddock_to.value = parseInt(cattles_there);
+    paddock_from.value = parseInt(cattles_here);
+
+    state_button_from.innerHTML = gates_state[String(paddock_from.value)]
+    state_button_to.innerHTML = gates_state[String(paddock_to.value)]
+
+    var closeButton = document.querySelector("#exampleModalCenter .modal-footer button[data-dismiss='modal']");
+    if (closeButton) {
+        closeButton.click(); // Simulate click event on the close button
+    } else {
+        console.log("Close button not found in modal.");
+    }
+
+}
 
 
     function EvaluateByML(){
@@ -957,20 +979,25 @@ function percentageCloseToZeroAndOne(value) {
             // Clear all existing elements inside the modal body
             modalBody.innerHTML = '';
 
+            cattles_here = String(Object.keys(pasture_load).find(key => pasture_load[key] !== 0));
+            cattles_there = String(t_resources.reduce((maxIndex, currentValue, currentIndex, arr) => currentValue > arr[maxIndex] ? currentIndex : maxIndex, 0)+1);
 
             var button = document.createElement("button");
+            var apply_button = document.createElement("button");
+            apply_button.className = "btn btn-block btn-secondary";
+            apply_button.textContent = `Рекомендация: Из Загона №${cattles_here} -> В Загон №${cattles_there}`;
+            apply_button.addEventListener("click", handleButtonClick);
 
-            if (percentageCloseToZeroAndOne(data.action)[0] > 80){
+            if (data.action == 0){
                 button.className = "btn btn-block btn-success";
+                button.textContent = `Не требует перегона!`;
             }
-            else if  (percentageCloseToZeroAndOne(data.action)[1] > 80){
+            else {
                 button.className = "btn btn-block btn-danger";
-            }
-            else{
-                button.className = "btn btn-block btn-info";
+                button.textContent = `Требует перегона!`;
             }
 
-            button.textContent = `Не требует перегона: ${percentageCloseToZeroAndOne(data.action)[0].toFixed(2)} % || Требует перегона: ${percentageCloseToZeroAndOne(data.action)[1].toFixed(2)} %`;
+
             modalBody.appendChild(button);
 
             // Create a table element
@@ -984,7 +1011,7 @@ function percentageCloseToZeroAndOne(value) {
             let thead = document.createElement("thead");
             let headerRow = document.createElement("tr");
             headerRow.classList.add("thead-dark"); // Add thead-dark class to the header row
-            ["Загон №", "Изтощен", "Норм.", "Макс."].forEach(function(columnName) {
+            ["Загон №", "Статус загона"].forEach(function(columnName) {
                 let th = document.createElement("th");
                 th.textContent = columnName;
                 headerRow.appendChild(th);
@@ -993,46 +1020,45 @@ function percentageCloseToZeroAndOne(value) {
             table.appendChild(thead);
 
             // Iterate over data.assesses array and create table rows
-            data.assesses.forEach(function(assess, index) {
+
+            data.assesses.forEach(function(category, index) {
                 // Create a table row
                 let row = document.createElement("tr");
 
                 // Calculate the percentages using the percentageCloseToValues function
-                let percentages = percentageCloseToValues(assess);
-
                 // Create a header cell for the row index
                 let indexHeaderCell = document.createElement("th");
                 indexHeaderCell.textContent = index + 1;
                 row.appendChild(indexHeaderCell);
 
                 // Create three table data cells for each percentage value
-                percentages.forEach(function(percentage, cellIndex) {
+
                     // Create a table data cell
-                    let cell = document.createElement("td");
+                let cell = document.createElement("td");
 
-                    // Check if threee percentage is defined and not null
-                    if (typeof percentage !== 'undefined' && percentage !== null) {
-                        // Set the text content of the cell to the percentage value
-                        cell.textContent = percentage.toFixed(2) + "%";
+                // Check if threee category is defined and not null
 
-                        // Add a class to the cell based on a certain condition
-                        if (percentage > 80 && cellIndex === 0) {
-                            cell.classList.add("table-danger"); // Add bg-primary class to the cell
-                        }
-                        if (percentage > 80 && cellIndex === 1) {
-                            cell.classList.add("table-info"); // Add bg-primary class to the cell
-                        }
-                        if (percentage > 80 && cellIndex === 2) {
-                            cell.classList.add("table-success"); // Add bg-primary class to the cell
-                        }
-                    } else {
-                        // If the percentage is undefined or null, set the cell content to an empty string
-                        cell.textContent = "";
-                    }
+                // Set the text content of the cell to the category value
+                // Add a class to the cell based on a certain condition
+                if (category == -1) {
+                    cell.innerHTML = "Изтощен";
+                    cell.classList.add("table-danger"); // Add bg-primary class to the cell
+                }
+                if (category == 0) {
+                    cell.innerHTML = "Норм.";
+                    cell.classList.add("table-info"); // Add bg-primary class to the cell
+                }
+                if (category == 1) {
+                    cell.innerHTML = "Макс.";
+                    cell.classList.add("table-success"); // Add bg-primary class to the cell
+                }
 
-                    // Append the cell to the row
-                    row.appendChild(cell);
-                });
+                cell.style.fontWeight = "bold";
+                cell.style.textAlign = "center";
+
+                // Append the cell to the row
+                row.appendChild(cell);
+
 
                 // Append the row to the table body
                 tbody.appendChild(row);
@@ -1043,6 +1069,10 @@ function percentageCloseToZeroAndOne(value) {
 
             // Append the table to the modal body
             modalBody.appendChild(table);
+
+            if (data.action == 1){
+                modalBody.appendChild(apply_button);
+            }
 
 
         },
@@ -1140,6 +1170,9 @@ function percentageCloseToZeroAndOne(value) {
 
     var last_2_geoJSONData = [];
     var last_2_decodedData = [];
+
+    var cattles_here = null;
+    var cattles_there = null;
 
     var str_dates = [];
     var decodedData = null;
