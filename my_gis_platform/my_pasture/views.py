@@ -1762,13 +1762,13 @@ def ajax_view(request):
             humidity = float(request.GET.get("humidity"))
             pressure = float(request.GET.get("pressure"))
 
-            pasture_load = [float(x) for x in json.loads(request.GET.get("pasture_load"))]
+            pasture_load = [int(x) for x in json.loads(request.GET.get("pasture_load"))]
             days_lefts = [float(x) for x in json.loads(request.GET.get("days_lefts"))]
             resources = [float(x) for x in json.loads(request.GET.get("resources"))]
 
 
-            data_lables = ["resource_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["load_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["reserve", "daily_intake"] + ["temp", "pressure", "humidity"]
-            data_draft = [resources+pasture_load+[reserve, intake]+[temperature, pressure, humidity]]
+            data_lables = ["load_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["reserve", "daily_intake"] + ["days_left_of_"+str(p) for p, _ in enumerate(HolderClass.sentinel_request.masks, start=1)] + ["temp", "pressure", "humidity"]
+            data_draft = [pasture_load+[reserve, intake]+days_lefts+[temperature, pressure, humidity]]
 
             model_df = pd.DataFrame(data_draft, columns=data_lables)
             model_deep = HolderClass.sentinel_request.control_model
@@ -1797,18 +1797,23 @@ def ajax_view(request):
             pasture_load = json.loads(request.GET.get("pasture_load"))
             resourceValues = json.loads(request.GET.get("resourceValues"))
 
-            current_weather_df = HolderClass.sentinel_request.current_weather_df
-            current_weather_df.columns = HolderClass.sentinel_request.alt_eng_column_names
+            RZA = request.GET.get("RZA")
+            temperature = request.GET.get("temperature")
+            humidity = request.GET.get("humidity")
+            pressure = request.GET.get("pressure")
 
-            BLUE = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.BLUE))
-            RED = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.RED))
-            NIR = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.NIR))
-            SWIR3 = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.SWIR3))
+            # current_weather_df = HolderClass.sentinel_request.current_weather_df
+            # current_weather_df.columns = HolderClass.sentinel_request.alt_eng_column_names
 
-            SZA = HolderClass.sentinel_request.SZA
-            VZM = HolderClass.sentinel_request.VZM
-            SAA = HolderClass.sentinel_request.SAA
-            VAM = HolderClass.sentinel_request.VAM
+            # BLUE = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.BLUE))
+            # RED = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.RED))
+            # NIR = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.NIR))
+            # SWIR3 = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.SWIR3))
+
+            # SZA = HolderClass.sentinel_request.SZA
+            # VZM = HolderClass.sentinel_request.VZM
+            # SAA = HolderClass.sentinel_request.SAA
+            # VAM = HolderClass.sentinel_request.VAM
 
             upper_list = []; area_list = []
             for paddock_id, load in pasture_load.items():
@@ -1823,11 +1828,11 @@ def ajax_view(request):
                 p_index = resourceValues[int(paddock_id)-1] #(float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
 
                 # inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
-                temp = current_weather_df["temp"].iloc[0]
-                pressure = current_weather_df["pressure"].iloc[0]
-                humidity = current_weather_df["humidity"].iloc[0]
+                # temp = current_weather_df["temp"].iloc[0]
+                # pressure = current_weather_df["pressure"].iloc[0]
+                # humidity = current_weather_df["humidity"].iloc[0]
 
-                inner_list = [float(p_index), SZA+VZM] + [float(temp), float(pressure), float(humidity)] + [int(load), float(intake), int(reserve)]
+                inner_list = [float(p_index), float(RZA)] + [float(temperature), float(pressure), float(humidity)] + [int(load), float(intake), int(reserve)]
                 upper_list.append(inner_list)
 
             model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)

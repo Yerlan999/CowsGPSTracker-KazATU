@@ -980,7 +980,7 @@ function handleButtonClick(event) {
             modalBody.innerHTML = '';
 
             cattles_here = String(Object.keys(pasture_load).find(key => pasture_load[key] !== 0));
-            cattles_there = String(t_resources.reduce((maxIndex, currentValue, currentIndex, arr) => currentValue > arr[maxIndex] ? currentIndex : maxIndex, 0)+1);
+            cattles_there = String(t_days_left.reduce((maxIndex, currentValue, currentIndex, arr) => currentValue > arr[maxIndex] ? currentIndex : maxIndex, 0)+1);
 
             var button = document.createElement("button");
             var apply_button = document.createElement("button");
@@ -1719,7 +1719,6 @@ function generateBarGraphContent(properties, index) {
   var temps = [temperature1, temperature2, temperature3];
   var humss = [humidity1, humidity2, humidity3];
   var press = [pressure1, pressure2, pressure3];
-
 
   var selectedValue = document.getElementById("fast_methodSelection").value.split(" ")[1];
   var prediction_mode = document.querySelector('input[name="radioOptions"]:checked').value;
@@ -2905,6 +2904,12 @@ function startSimulation() {
           }
           else{
 
+            var weather_table1 = document.getElementById('weather_table');
+            var temperature1 = parseFloat(weather_table1.rows[1].cells[0].textContent);
+            var pressure1 = parseFloat(weather_table1.rows[1].cells[2].textContent);
+            var humidity1 = parseFloat(weather_table1.rows[1].cells[3].textContent);
+            var RZA1 = {{ RZA|default:"undefined" }};
+
             $.ajax({
                 type: "GET",
                 url: "/ajax/",
@@ -2915,6 +2920,10 @@ function startSimulation() {
                     'intake': intake,
                     'model': String(selected_prediction_mode.value),
                     'reserve': reserve,
+                    'RZA': RZA1,
+                    'temperature': temperature1,
+                    'humidity': humidity1,
+                    'pressure': pressure1,
                 },
                 success: function(data) {
                   // data.model_prediction.forEach(function(value, index) {
@@ -2946,11 +2955,13 @@ function startSimulation() {
             // Add the new property to the properties of each feature
 
             if (selected_prediction_mode.value == "Plane"){
+
               if (parseInt(feature.properties.КолКРС)){
-                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
+
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(feature.properties.Урож, parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
               }
               else{
-                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(resourceValues[index], parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(feature.properties.Урож, parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
               }
             }
             else{

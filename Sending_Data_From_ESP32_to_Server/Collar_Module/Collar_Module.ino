@@ -48,8 +48,8 @@ bool deliver_GPS = false;
 // };
 
 float dummy_coordinates[][2] = {
-  {54.215265, 69.526276},
-  {54.212264, 69.529712}
+  {54.215138, 69.510212},
+  {54.215399, 69.526062}
 };
 
 int numCoordinates = sizeof(dummy_coordinates) / sizeof(dummy_coordinates[0]);  // Calculate the number of coordinates
