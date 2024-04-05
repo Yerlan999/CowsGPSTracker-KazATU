@@ -258,6 +258,17 @@ void setup() {
 
   LoRa.begin();
 
+	ResponseStructContainer c;
+	c = LoRa.getConfiguration();
+	Configuration configuration = *(Configuration*) c.data;
+	// Serial.println(c.status.getResponseDescription());
+	configuration.CHAN = 0x17;
+  configuration.ADDH = 1;
+  configuration.ADDL = 1;
+	configuration.OPTION.fixedTransmission = 1; // FT_TRANSPARENT_TRANSMISSION = 3
+	LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+  c.close();
+
   // Initialize the OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
@@ -341,7 +352,7 @@ String readFromLoRa() {
 }
 
 ResponseStatus writeToLoRa(String input) {
-  ResponseStatus rs = LoRa.sendMessage(input);
+  ResponseStatus rs = LoRa.sendBroadcastFixedMessage(0x17, input);
   return rs;
 }
 

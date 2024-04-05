@@ -1,15 +1,22 @@
+// FireBeetle ESP-32 Board
+
 #include <HardwareSerial.h>
+#include <SoftwareSerial.h>
 #include <TinyGPS++.h>
 #include <string.h>
 #include <Arduino.h>
 #include <Wire.h>
 #include "LoRa_E32.h"
 
-LoRa_E32 LoRa(&Serial2, 15, 22, 21); //  Serial Pins, AUX, M0, M1
+#define RX_PIN 16
+#define TX_PIN 17
+
+HardwareSerial Serial2(2);   // PA3  (RX)  PA2  (TX)
+LoRa_E32 LoRa(&Serial2, 13, 5, 2); //  Serial Pins, AUX, M0, M1
 
 HardwareSerial GPS(1);  // use UART1
-// GREEN wire - TX (GPS) --> RX (ESP32) (pin 4)
-// YELLOW wire - RX (GPS) --> TX (ESP32) (pin 2)
+// GREEN wire - TX (GPS) --> RX (ESP32) (pin 26)
+// YELLOW wire - RX (GPS) --> TX (ESP32) (pin 27)
 TinyGPSPlus gps;
 
 #define Monitor Serial
@@ -62,7 +69,7 @@ int currentCoordinateIndex = 0;  // Initialize the index counter
 
 void setup() {
   Monitor.begin(9600);
-  GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
+  GPS.begin(9600, SERIAL_8N1, 26, 27); // RX, TX;
   LoRa.begin();
 
 	ResponseStructContainer c;
@@ -91,9 +98,9 @@ void loop() {
     if (deliver_GPS) {
       get_GPS_coordinates();
       
-      latitude = dummy_coordinates[cowId][0];
-      longitude = dummy_coordinates[cowId][1];
-      currentCoordinateIndex = (currentCoordinateIndex + 1) % numCoordinates;
+      // latitude = dummy_coordinates[cowId][0];
+      // longitude = dummy_coordinates[cowId][1];
+      // currentCoordinateIndex = (currentCoordinateIndex + 1) % numCoordinates;
 
       char latitudeStr[15];  // Adjust the size based on your precision needs
       char longitudeStr[15];
