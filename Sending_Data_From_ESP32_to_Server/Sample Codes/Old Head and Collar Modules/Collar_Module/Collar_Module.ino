@@ -5,7 +5,7 @@
 #include <Wire.h>
 #include "LoRa_E32.h"
 
-LoRa_E32 LoRa(&Serial2, 15, 22, 21, UART_BPS_RATE_9600); //  Serial Pins, AUX, M0, M1
+LoRa_E32 LoRa(&Serial2, 15, 22, 21); //  Serial Pins, AUX, M0, M1
 
 HardwareSerial GPS(1);  // use UART1
 // GREEN wire - TX (GPS) --> RX (ESP32) (pin 4)
@@ -13,23 +13,19 @@ HardwareSerial GPS(1);  // use UART1
 TinyGPSPlus gps;
 
 #define Monitor Serial
-#define LED 18
 
-String COW_ID = "5";
+String COW_ID = "2";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;
 float longitude;
-
-char latitudeStr[15];
-char longitudeStr[15];
 
 bool DUMMY_MODE = true;
 
 unsigned long lastTime = 0;
 unsigned long cycle_time = 10;  // КАЖДЫЕ N секунд
 
-String GPS_ENABLE_COMMAND = "START GPS" + COW_ID;
+String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
 String TIME_UPDATE_COMMAND = "TIME_UPDATE";
 
@@ -65,22 +61,21 @@ int currentCoordinateIndex = 0;  // Initialize the index counter
 
 
 void setup() {
-  pinMode(LED,OUTPUT);
-  digitalWrite(LED,LOW);
-
   Monitor.begin(9600);
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
   LoRa.begin();
 
-  ResponseStructContainer c;
-  c = LoRa.getConfiguration();
-  Configuration configuration = *(Configuration*) c.data;
-  configuration.ADDL = 0;
-  configuration.ADDH = COW_ID.toInt();
-  configuration.CHAN = 23;
-  // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
-  configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
-  LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
+	ResponseStructContainer c;
+	c = LoRa.getConfiguration();
+	Configuration configuration = *(Configuration*) c.data;
+	// Serial.println(c.status.getResponseDescription());
+	configuration.CHAN = 0x17;
+  configuration.ADDH = 0;  
+  configuration.ADDL = COW_ID.toInt();
+  //       FT_FIXED_TRANSMISSION = 1 OR FT_TRANSPARENT_TRANSMISSION = 0
+	configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
+	LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+  c.close(); 
 }
 
 void loop() {
@@ -95,9 +90,19 @@ void loop() {
 
   if ((millis() - lastTime) > cycle_time * 1000) {
     if (deliver_GPS) {
-      
       get_GPS_coordinates();
       
+      latitude = dummy_coordinates[cowId][0];
+      longitude = dummy_coordinates[cowId][1];
+      currentCoordinateIndex = (currentCoordinateIndex + 1) % numCoordinates;
+
+      char latitudeStr[15];  // Adjust the size based on your precision needs
+      char longitudeStr[15];
+
+      // Convert latitude and longitude to strings with 6 decimal places
+      dtostrf(latitude, 6, 6, latitudeStr);
+      dtostrf(longitude, 6, 6, longitudeStr);
+
       ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
 
       lastTime = millis();
@@ -117,38 +122,27 @@ void listenToLoRa(){
     Monitor.println(input);
 
     if (input.equals(GPS_ENABLE_COMMAND)) {
-      
-      // !!! TESING !!!
-      digitalWrite(LED,HIGH);
-      get_GPS_coordinates();
-      // ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String("54.123456") + " | " + String("64.123456"));
-      ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
-      digitalWrite(LED,LOW);
-
-      // deliver_GPS = true;
+      deliver_GPS = true;
     }
     if (input.equals(GPS_DISABLE_COMMAND)) {
       deliver_GPS = false;
-      digitalWrite(LED,LOW);
     }
+
     updateTime(input);
   }  
 }
-
 
 String readFromLoRa(){
   ResponseContainer rc = LoRa.receiveMessage();
   if (rc.status.code!=1){
       rc.status.getResponseDescription();
   }else{  
-      return rc.data.substring(3);
+      return rc.data;
   }  
 }
 
 ResponseStatus writeToLoRa(String input){
-  ResponseStatus rs = LoRa.sendFixedMessage(1, 1, 23, input);
-  // ResponseStatus rs = LoRa.sendMessage(input);
-  // ResponseStatus rs = LoRa.sendFixedMessage(BROADCAST_ADDRESS, BROADCAST_ADDRESS, 0x0A, input);
+  ResponseStatus rs = LoRa.sendFixedMessage(0x01, 0x01, 0x17, input);
   return rs;
 }
 
@@ -198,7 +192,8 @@ void get_GPS_coordinates() {
   while (GPS.available() > 0) {
     if (gps.encode(GPS.read())) {
       if (gps.location.isValid()) {
-        latitude = gps.location.lat(); longitude = gps.location.lng();
+        latitude = gps.location.lat();
+        longitude = gps.location.lng();
         // Monitor.println(String(latitude) + " | " + String(longitude));
       } else {
         // Monitor.println("Invalid Location");
@@ -206,10 +201,4 @@ void get_GPS_coordinates() {
       }
     }
   }
-  if (DUMMY_MODE) { latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1]; }
-
-  // Convert latitude and longitude to strings with 6 decimal places
-  dtostrf(latitude, 6, 6, latitudeStr); dtostrf(longitude, 6, 6, longitudeStr);
-
-
 }

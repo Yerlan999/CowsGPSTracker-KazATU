@@ -1961,7 +1961,7 @@ chatSocket.onmessage = function(e) {
   const message = e.data;
   console.log("WSK: ", message);
 
-  if (message.length > 16 && message.split(" | ").length - 1 === 2){
+  if (message.length > 16){ // && message.split(", ").length > 0
     // Forwarding the cattle's GPS coordinates further into backend server
     // Everything should have been done right here instead !!!
 
@@ -1984,17 +1984,19 @@ chatSocket.onmessage = function(e) {
     // Iterate over each element in the array
     for (const cattle of cattles) {
       // Split each cattle by ' | ' to extract ID, latitude, and longitude
-      const [id, latitude, longitude] = cattle.split(' | ');
+      if (cattle) {
+        const [id, latitude, longitude] = cattle.split(' | ');
 
-      // Create an object with the extracted elements
-      const cattleDict = {
-        id: id,
-        latitude: latitude,
-        longitude: longitude,
-      };
+        // Create an object with the extracted elements
+        const cattleDict = {
+          id: id,
+          latitude: latitude,
+          longitude: longitude,
+        };
 
-      // Push the object into the array
-      cattleObjects.push(cattleDict);
+        // Push the object into the array
+        cattleObjects.push(cattleDict);
+      }
     }
 
     var paddock_layer = 1;

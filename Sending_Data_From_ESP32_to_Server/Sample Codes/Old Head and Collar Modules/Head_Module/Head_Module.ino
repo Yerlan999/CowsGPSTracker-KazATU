@@ -18,7 +18,7 @@
 #define OLED_RESET    -1
 #define SCREEN_ADDRESS 0x3C // I2C address
 
-LoRa_E32 LoRa(&Serial2, 15, 19, 18, UART_BPS_RATE_9600);  //  Serial Pins,  AUX, M0, M1
+LoRa_E32 LoRa(&Serial2, 15, 19, 18);  //  Serial Pins,  AUX, M0, M1
 WebSocketsServer webSocket = WebSocketsServer(80);
 std::map<String, uint8_t*> addressDictionary;
 Preferences preferences;
@@ -258,16 +258,17 @@ void setup() {
 
   LoRa.begin();
 
-  ResponseStructContainer c;
-  c = LoRa.getConfiguration();
-  Configuration configuration = *(Configuration*) c.data;
-  configuration.ADDL = BROADCAST_ADDRESS;
-  configuration.ADDH = BROADCAST_ADDRESS;
-  configuration.CHAN = 23;
-  // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
-  configuration.OPTION.fixedTransmission = FT_TRANSPARENT_TRANSMISSION; 
-  LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
-
+	ResponseStructContainer c;
+	c = LoRa.getConfiguration();
+	Configuration configuration = *(Configuration*) c.data;
+	// Serial.println(c.status.getResponseDescription());
+	configuration.CHAN = 0x17;
+  configuration.ADDH = 1;
+  configuration.ADDL = 1;
+//       FT_FIXED_TRANSMISSION = 1 OR FT_TRANSPARENT_TRANSMISSION = 0  
+	configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
+	LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_SAVE);
+  c.close();
 
   // Initialize the OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -324,9 +325,8 @@ void loop() {
   listenToLoRa();
 }
 
-String cattles_array;
 
-bool listenToLoRa() {
+void listenToLoRa() {
   if (LoRa.available() > 1) {
     String input = readFromLoRa();
     input.trim();
@@ -335,15 +335,12 @@ bool listenToLoRa() {
 
     int firstPipeIndex = input.indexOf('|');
     int secondPipeIndex = input.indexOf('|', firstPipeIndex + 1);
-    
+
     if (firstPipeIndex != -1 && secondPipeIndex != -1 && input.length() > 16) {
-      cattles_array += input + ", ";
       // Two occurrences of "|" found in the string
-      // webSocket.sendTXT(0, input);
+      webSocket.sendTXT(0, input);
     }
-    return true;
   }
-  return false;
 }
 
 String readFromLoRa() {
@@ -355,35 +352,8 @@ String readFromLoRa() {
   }
 }
 
- 
 ResponseStatus writeToLoRa(String input) {
-
-  cattles_array = "";
-  ResponseStatus rs;
-  for (int address=2; address<6; address++){
-    Monitor.println();
-    Monitor.println("Asking Collar: #" + String(address));
-
-    rs = LoRa.sendFixedMessage(0, address, 23, input+String(address));
-
-    unsigned long startTime = millis(); bool response;
-    
-    while (millis() - startTime < 3000) {
-      response = listenToLoRa();
-      if (response) { Monitor.println("Got responce from: #" + String(address)); break; }
-    }
-    if (!response) { Monitor.println("No responce from: #" + String(address)); }
-    
-
-  }
-  
-  Monitor.println(cattles_array);
-
-  webSocket.sendTXT(0, cattles_array);
-  
-  // ResponseStatus rs = LoRa.sendFixedMessage(0, 2, 23, input);
-  // ResponseStatus rs = LoRa.sendMessage(input);
-  // ResponseStatus rs = LoRa.sendFixedMessage(BROADCAST_ADDRESS, BROADCAST_ADDRESS, 0x0A, input);
+  ResponseStatus rs = LoRa.sendBroadcastFixedMessage(0x17, input);
   return rs;
 }
 
