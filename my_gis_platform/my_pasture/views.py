@@ -47,8 +47,6 @@ import seaborn as sns
 from functools import reduce
 
 import tensorflow as tf
-# import threading
-# import websocket
 
 matplotlib.use('agg')
 
@@ -160,8 +158,6 @@ HISTORY_RUSSIAN_PARAMETERS = [
     "коротковолновое_излучение_сумма",
     "эвапотранспирация",]
 
-
-GPS_TRACKING_STATE = False
 
 
 class HolderClass():
@@ -279,12 +275,9 @@ class SentinelRequest():
         self.rus_column_names = ["температура", "ощущается как", "атм. давление", "влажность воздуха", "точка росы", "облачность", "скорость ветра", "направление ветра"]
 
         self.grand_history_weather_df = pd.read_csv('Pasture_Weather_History.csv')
-        # self.control_model = load_model('my_control_model.keras')
         self.control_model = joblib.load('multi_target_rf_model.pkl')
         self.large_model = tf.keras.models.load_model('/large_model/')
-        # self.rf_model = joblib.load('random_forest_model.pkl')
 
-        # self.control_scaler = joblib.load('control_scaler.joblib')
         self.saved_mean = pd.read_pickle('saved_mean.pkl')
         self.saved_std = pd.read_pickle('saved_std.pkl')
 
@@ -352,10 +345,6 @@ class SentinelRequest():
 
         all_timestamps = self.search_iterator.get_timestamps()
         self.unique_acquisitions = filter_times(all_timestamps, time_difference)
-
-        # if self.recent_date:
-        #     self.unique_acquisitions = [self.unique_acquisitions[-1]]
-
 
         self.all_bands_process_requests = []
 
@@ -524,18 +513,6 @@ class SentinelRequest():
         self.current_weather_df = current_weather_df
 
         return self.current_weather_df
-
-        # response = requests.get(url)
-
-        # if response.status_code == 200:
-        #     data = response.json()
-        #     current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).loc[:, self.eng_column_names]
-        #     current_weather_df.columns = self.rus_column_names
-        #     self.current_weather_df = current_weather_df
-
-        #     return self.current_weather_df
-        # else:
-        #     print(f"Error: {response.status_code} - {response.text}")
 
 
     def get_main_weather_params_history(self, seek_date):
@@ -770,22 +747,13 @@ class SentinelRequest():
                 summary_df = pd.concat([summary_df, sum_row])
                 summary_df["Площадь"] = paddocks_area
 
-                # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
-                # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
-
                 geodataframe = pd.concat([self.pasture_df, summary_df], axis=1)
                 geodataframe = geodataframe.to_json(default=mapping)
-
-                # geodataframe = geodataframe.to_dict(orient='records')
-                # geodataframe = json.dumps(geodataframe, ensure_ascii=False)
 
                 summary_df = summary_df.to_dict(orient='records')
                 summary_df = json.dumps(summary_df, ensure_ascii=False)
 
                 last_2_summary_df.append(summary_df); last_2_geodataframe.append(geodataframe);
-
-                # !!! TESTING !!!
-
 
                 last_2_indices.append(encoded_image); last_2_missing_parts.append(clouds_values_by_zagons)
 
@@ -825,10 +793,6 @@ class SentinelRequest():
                 test_index_masked_array = self.get_zagons_values(cloud_covered_index)
 
                 for i, (zagon_cloud_mask, zagon_index, previous_day, the_day_before_previous) in enumerate(zip(clouds_masks_by_zagons, test_index_masked_array, last2_missing_parts[0], last2_missing_parts[1]), start=1):
-
-                    # mean_value = zagon_index.mean()
-                    # std_dev_value = zagon_index.std()
-                    # normal_distribution_values = np.random.normal(loc=mean_value, scale=std_dev_value, size=np.sum(zagon_cloud_mask == 1))
 
                     prev_mean = previous_day.mean()
                     before_prev = the_day_before_previous.mean()
@@ -928,14 +892,8 @@ class SentinelRequest():
             summary_df = pd.concat([summary_df, sum_row])
             summary_df["Площадь"] = paddocks_area
 
-            # encoded_columns = [col.encode('utf-8') for col in summary_df.columns]
-            # summary_df = summary_df.to_json(orient='records', force_ascii=False, columns=encoded_columns)
-
             geodataframe = pd.concat([self.pasture_df, summary_df], axis=1)
             geodataframe = geodataframe.to_json(default=mapping)
-
-            # geodataframe = geodataframe.to_dict(orient='records')
-            # geodataframe = json.dumps(geodataframe, ensure_ascii=False)
 
             summary_df = summary_df.to_dict(orient='records')
             summary_df = json.dumps(summary_df, ensure_ascii=False)
@@ -1233,15 +1191,8 @@ class Plant():
 
 
     def get_condition_score(self, grazing_day):
-#         grazing_day = datetime.datetime.strptime(grazing_day, "%Y-%m-%d")
         start_date = grazing_day + datetime.timedelta(-15)
         end_date = grazing_day + datetime.timedelta(+15)
-
-#         Hist_URL = f"https://archive-api.open-meteo.com/v1/archive?latitude={latitude}&longitude={longitude}&start_date={start_date.date()}&end_date={end_date.date()}"
-#         Hist_URL = apply_params_to_URL(Hist_URL, history_parameters)
-#         history_json_obj = make_API_request(Hist_URL)
-#         history_df = pd.DataFrame(history_json_obj["daily"])
-#         history_df.drop(columns=["weathercode", "sunrise", "sunset"], inplace=True)
 
         filtered_df = Plant.history_df[(Plant.history_df['time'] >= str(start_date)) & (Plant.history_df['time'] <= str(end_date))]
 
@@ -1257,7 +1208,6 @@ class Plant():
 
 
     def get_seasonal_score(self, grazing_day):
-#         grazing_day = datetime.datetime.strptime(grazing_day, "%Y-%m-%d")
         days_passed = (grazing_day - self.season_start_date).days
 
         self.max1_x = (self.first_peak - self.season_start_date).days  # x value of the first maximum point
@@ -1368,7 +1318,6 @@ class Pasture():
         paddock_current_resource = getattr(self, f"paddock_{paddock_number}_resource")
         first_paddock_resource = TimeLine.watcher[f"paddock_{paddock_number}_resource_history"][0]
         if first_paddock_resource * 0.3 > paddock_current_resource:
-#         if paddock_current_resource < 5000:
             next_paddock_number = next(self.grazing_cycle)
             for cattle in Cattle.cattle_stack:
                 self.add_cattle_into_paddock(cattle, next_paddock_number)
@@ -1421,50 +1370,6 @@ test_cattle = {"latitude": 0,
                 "index": 0,
                 "paddock_number": 0}
 pasture_load = None
-
-list_of_cattles = []
-
-list_of_dummy_cattles = [
-
-  {"latitude": 54.214284,
-  "longitude": 69.514049,
-  "index": "1",},
-
-  {"latitude": 54.214440,
-  "longitude": 69.511097,
-  "index": "2",},
-
-  {"latitude": 54.213070,
-  "longitude": 69.511260,
-  "index": "3",},
-
-]
-
-def cyclic_coordinates_generator(coordinates):
-    length = len(coordinates)
-    index = 0
-
-    while True:
-        yield coordinates[index]
-        index = (index + 1) % length
-
-dummy_coordinates = [
-  {"index": 1, "longitude": 54.214802, "latitude": 69.511022, },
-  {"index": 1, "longitude": 54.214422, "latitude": 69.510974, },
-  {"index": 1, "longitude": 54.214013, "latitude": 69.511046, },
-  {"index": 1, "longitude": 54.213562, "latitude": 69.511287, },
-  {"index": 1, "longitude": 54.213224, "latitude": 69.511335, },
-  {"index": 1, "longitude": 54.212604, "latitude": 69.511408, },
-  {"index": 1, "longitude": 54.212067, "latitude": 69.511659, },
-  {"index": 1, "longitude": 54.211783, "latitude": 69.512166, },
-  {"index": 1, "longitude": 54.211891, "latitude": 69.512238, },
-  {"index": 1, "longitude": 54.212285, "latitude": 69.512249, },
-  {"index": 1, "longitude": 54.212515, "latitude": 69.512424, },
-  {"index": 1, "longitude": 54.212793, "latitude": 69.512559, },
-  {"index": 1, "longitude": 54.213234, "latitude": 69.513128, }
-];
-
-coordinates_gen = cyclic_coordinates_generator(dummy_coordinates)
 
 
 
@@ -1599,14 +1504,6 @@ def play_simulation(request):
     return paddocks_grazing_graphs
 
 
-# MODEL_COLUMNS = ['BLUE', 'RED', 'NIR', 'SWIR3', 'resource', 'sunZenithAngles',
-#    'sunAzimuthAngles', 'viewZenithMean', 'viewAzimuthMean', 'temp',
-#    'feels_like', 'pressure', 'humidity', 'dew_point', 'clouds_all',
-#    'wind_speed', 'wind_deg', 'cattle_count', 'daily_intake',
-#    'reserve']
-
-# MODEL_COLUMNS = ['resource', 'cattle_count', 'daily_intake', 'reserve']
-
 MODEL_COLUMNS = ["index", "RZM", "temp", "pressure", "humidity", "cattle_count", "daily_intake", "reserve"]
 
 
@@ -1625,16 +1522,6 @@ def send_SMS_message(message_content):
 
 @csrf_exempt
 def ajax_view(request):
-    global list_of_cattles, GPS_TRACKING_STATE
-
-    # Data from ESP32 module
-    if request.method == 'POST':
-        list_of_cattles = []
-        for cattle in json.loads(request.body):
-            # print(cattle)
-            list_of_cattles.append(cattle)
-        # print("Updated List of Cattles after POST:", list_of_cattles)
-
 
     if request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest' and request.method == 'GET':
 
@@ -1659,54 +1546,6 @@ def ajax_view(request):
             response_data = {'index_image': index_image, "hist_images": hist_images, "df": df, "geodataframe": geodataframe, "centroid": centroid, "last2_indices": last2_indices, "last_2_summary_df": last_2_summary_df, "last_2_geodataframe": last_2_geodataframe, "str_dates": str_dates}
 
             return JsonResponse(response_data)
-        # elif "ToggleGPS" in request.GET:
-
-        #     GPS_TRACKING_STATE = not GPS_TRACKING_STATE
-        #     if (GPS_TRACKING_STATE):
-        #         ws_client.send(f"START GPS")
-        #     else:
-        #         ws_client.send(f"STOP GPS")
-
-        #     return JsonResponse({'message': 'GPS state has been changed'})
-        # elif "cattle_tracker" in request.GET:
-        #     # Just gets elements from 'list_of_cattles' list and determines the pasture load, cattle's current paddock # !!!
-
-        #     if HolderClass.sentinel_request:
-
-        #         pasture_load = dict()
-        #         for i in HolderClass.sentinel_request.pasture_df.index:
-        #             pasture_load[i+1] = 0
-
-        #         for i in HolderClass.sentinel_request.pasture_df.index:
-
-        #             if (list_of_cattles): # Handling real cattles
-        #                 for cattle in list_of_cattles:
-        #                     point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
-
-        #                     if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-        #                         cattle["paddock_number"] = f"{i+1}"
-        #                         pasture_load[i+1] += 1
-        #             else: # Dealing with dummy cattle
-
-        #                 # # Randomize coordinates in the list of dictionaries
-        #                 # for cattle in list_of_dummy_cattles:
-        #                 #     cattle["latitude"], cattle["longitude"] = randomize_coordinates(cattle["latitude"], cattle["longitude"])
-
-        #                 current_coordinate = next(coordinates_gen)
-        #                 for cattle in [current_coordinate]:
-        #                     point = Point(float(cattle["longitude"]), float(cattle["latitude"]))
-
-        #                     if (point.within(HolderClass.sentinel_request.pasture_df.iloc[i].geometry)):
-        #                         cattle["paddock_number"] = f"{i+1}"
-        #                         pasture_load[i+1] += 1
-
-        #         if (list_of_cattles):
-        #             return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": pasture_load})
-        #         else:
-        #             return JsonResponse({"list_of_cattles": list_of_dummy_cattles, "pasture_load": pasture_load})
-        #     else:
-        #         # print("No request has been made yet!", list_of_cattles)
-        #         return JsonResponse({"list_of_cattles": list_of_cattles, "pasture_load": None})
 
         elif "simulation_data" in request.GET:
             sim_request = json.loads(request.GET['simulation_data'])
@@ -1753,7 +1592,6 @@ def ajax_view(request):
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), 'area': area})
 
         elif "takeAction" in request.GET:
-            # "resources1-7", "loads1-7", "reserve", "daily_intake", "days_lefts1-7", "temp", "pressure", "humidity"
 
             reserve = int(request.GET.get("reserve"))
             intake = int(request.GET.get("intake"))
@@ -1772,16 +1610,8 @@ def ajax_view(request):
 
             model_df = pd.DataFrame(data_draft, columns=data_lables)
             model_deep = HolderClass.sentinel_request.control_model
-            # scaler = HolderClass.sentinel_request.control_scaler
-            # new_data_scaled = scaler.transform(model_df)
+
             predictions = model_deep.predict(model_df)
-
-            # print(predictions)
-
-            # # Extract predictions for each output
-            # list_of_assesses = []
-            # for i in range(len(HolderClass.sentinel_request.masks)):
-            #     list_of_assesses.append(float(predictions[i][0]))
 
             action = int(predictions[0][7])
             list_of_assesses = predictions[0][:7].tolist()
@@ -1802,19 +1632,6 @@ def ajax_view(request):
             humidity = request.GET.get("humidity")
             pressure = request.GET.get("pressure")
 
-            # current_weather_df = HolderClass.sentinel_request.current_weather_df
-            # current_weather_df.columns = HolderClass.sentinel_request.alt_eng_column_names
-
-            # BLUE = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.BLUE))
-            # RED = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.RED))
-            # NIR = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.NIR))
-            # SWIR3 = ma.median(HolderClass.sentinel_request.pasture(HolderClass.sentinel_request.SWIR3))
-
-            # SZA = HolderClass.sentinel_request.SZA
-            # VZM = HolderClass.sentinel_request.VZM
-            # SAA = HolderClass.sentinel_request.SAA
-            # VAM = HolderClass.sentinel_request.VAM
-
             upper_list = []; area_list = []
             for paddock_id, load in pasture_load.items():
 
@@ -1827,24 +1644,11 @@ def ajax_view(request):
 
                 p_index = resourceValues[int(paddock_id)-1] #(float(resourceValues[int(paddock_id)-1]) * float(area)) * 1000
 
-                # inner_list = [BLUE, RED, NIR, SWIR3, p_resource, SZA, SAA, VZM, VAM] + current_weather_df.values.tolist()[0] + [load, intake, reserve]
-                # temp = current_weather_df["temp"].iloc[0]
-                # pressure = current_weather_df["pressure"].iloc[0]
-                # humidity = current_weather_df["humidity"].iloc[0]
-
                 inner_list = [float(p_index), float(RZA)] + [float(temperature), float(pressure), float(humidity)] + [int(load), float(intake), int(reserve)]
                 upper_list.append(inner_list)
 
             model_df = pd.DataFrame(upper_list, columns=MODEL_COLUMNS)
 
-            # (index, RZM, temp, pressure, humidity, cattle_count, daily_intake, reserve)
-
-            # model_deep = HolderClass.sentinel_request.model
-            # scaler = HolderClass.sentinel_request.scaler
-            # new_data_scaled = scaler.transform(model_df)
-            # predictions = model_deep.predict(new_data_scaled)
-            # predictions_flat = predictions.flatten()
-            # predictions_df = pd.DataFrame({'Predictions': predictions_flat})
 
             if model == "ANN":
                 large_model = HolderClass.sentinel_request.large_model
@@ -1852,40 +1656,8 @@ def ajax_view(request):
                 another_predictions = large_model.predict(norm_model_df)
                 resource_pred = another_predictions[0][:,0]
                 days_left_pred = another_predictions[1][:,0]
-            # elif model == "RF":
-            #     rf_predictions = HolderClass.sentinel_request.rf_model.predict(np.array(HolderClass.sentinel_request.norm(model_df)))
-            #     resource_pred = rf_predictions[:, 0]  # Assuming the first value is resource
-            #     days_left_pred = rf_predictions[:, 1]  # Assuming the second value is days_left
-
 
             return JsonResponse({"resource_pred": resource_pred.tolist(), "days_left_pred": days_left_pred.tolist(), "area_list": area_list})
-        # elif "GPS_of_cows" in request.GET:
-        #     # Just updates 'list_of_cattles' list !!!
-
-        #     message = request.GET.get("GPS_of_cows")
-        #     cows = str(message)
-        #     list_of_cattles = []
-
-        #     for cow in divide_cows(cows):
-        #         cow_id, latitude, longitude = parse_GPS(message)
-        #         print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
-
-        #         cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
-
-        #         list_of_cattles.append(cattle)
-        #     return JsonResponse({'message': 'GPS of cows are updated'})
-
-        # elif "action_on_gate" in request.GET:
-        #     print()
-
-        #     gate_id = request.GET.get("gate_id")
-        #     gate_action = request.GET.get("gate_action")
-
-        #     print(f"{gate_action.upper()}:{gate_id}")
-
-        #     ws_client.send(f"{gate_action.upper()}:{gate_id}")
-
-        #     return JsonResponse({'message': 'Gate state has been changed'})
         else:
             return JsonResponse({'message': 'Undefined response'})
     else:
@@ -1900,30 +1672,3 @@ def parse_GPS(input_string):
 
 def divide_cows(input_string):
     return input_string.split(",")
-
-
-
-# def on_message(ws, message):
-#     global list_of_cattles
-
-#     cows = str(message)
-#     list_of_cattles = []
-
-#     for cow in divide_cows(cows):
-#         if contains_two_pipe_symbols(cow):
-#             cow_id, latitude, longitude = parse_GPS(message)
-#             print(f"Cow ID: {cow_id}, latitude: {latitude}, longitude: {longitude}")
-
-#             cattle = { "index": cow_id, "latitude": latitude, "longitude": longitude, }
-
-#             list_of_cattles.append(cattle)
-
-
-
-# # Connect to the WebSocket server
-# IP = "192.168.54.6:80"
-# ws_client = websocket.WebSocketApp("ws://" + IP, on_message=on_message)
-# ws_client_thread = threading.Thread(target=ws_client.run_forever)
-# ws_client_thread.start()
-# send_thread = threading.Thread(target=send)
-# send_thread.start()

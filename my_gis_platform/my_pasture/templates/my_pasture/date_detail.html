@@ -569,13 +569,16 @@
               <button id="ajaxRunner" class="btn btn-primary btn-block mt-3 mb-3" style="display: none">Начать треккинг</button>
             </div>
             <div class="col">
-              <label id="integerOptionsLable" for="integerOptions" class="form-label mt-3 mb-3" style="display: none">Интервал обновления опроса GPS треккеров (сек.):</label>
-              <select id="integerOptions" class="form-select mt-3 mb-3" onchange="handleValueChange(this)" style="display: none">
+              <label id="number_of_trackersLable" for="number_of_trackers" style="display: none">Количество трекеров</label>
+              <input type="number" id="number_of_trackers" class="form-control" min="1" style="display: none;">
+            </div>
+            <div class="col">
+              <label id="integerOptionsLable" for="integerOptions" class="form-label" style="display: none">Ожидание ответа от треккеров (сек.)</label>
+              <select id="integerOptions" class="form-control" style="display: none">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
                   <option value="5">5</option>
-                  <option value="10">10</option>
-                  <option value="20">20</option>
-                  <option value="30">30</option>
-                  <option value="60">60</option>
               </select>
             </div>
         </div>
@@ -607,14 +610,6 @@
                 </div>
             </div>
 
-        <!--     <div class="col">
-                <div class="form-check">
-                    <input class="form-check-input" type="radio" name="radioOptions" id="option3" value="RF">
-                    <label class="form-check-label" for="option3">
-                        Модель СЛ
-                    </label>
-                </div>
-            </div> -->
             <div class="col">
             </div>
         </div>
@@ -1262,9 +1257,6 @@ function handleButtonClick(event) {
                     requested_pred_date_image.src = `data:image/png;base64,${data.last2_indices[1]}`;
                     requested_before_prev_date_image.src = `data:image/png;base64,${data.last2_indices[0]}`;
 
-                    // requested_index.removeAttribute('hidden');
-                    // requested_pred_date_image.removeAttribute('hidden');
-                    // requested_before_prev_date_image.removeAttribute('hidden');
                     carouselElement.removeAttribute('hidden');
 
                     requested_index_header.removeAttribute('hidden');
@@ -1350,7 +1342,6 @@ function handleButtonClick(event) {
                     // Show the table
                     $('#data-table').show();
                     $('#histograms_header').show();
-                    // paddocks_count = document.getElementById('data-table').getElementsByTagName('tr').length - 2;
 
                     $button.html(originalContent);
                     $button.attr('disabled', false);
@@ -1371,13 +1362,6 @@ function handleButtonClick(event) {
                     var selectElement_to = document.getElementById("numberSelect_to");
                     var state_button = document.getElementById("gate_state");
                     var p_count = decodedData.length-1
-
-                    // for (var i = 1; i <= p_count; i++) {
-                    //   var key = i;
-                    //   var value = 'Закрыт';
-                    //   gates_state[key] = value;
-                    // }
-                    // state_button.innerHTML = gates_state["1"];
 
                     for (var i = 1; i <= p_count; i++) {
                       var optionElement = document.createElement("option");
@@ -1418,19 +1402,6 @@ function handleButtonClick(event) {
 
                     function toggleButtonText() {
 
-                      // $.ajax({
-                      //   type: "GET",
-                      //   url: "/ajax/",
-                      //   data: {
-                      //       'ToggleGPS': true,
-                      //   },
-                      //   success: function(data) {
-                      //     console.log('Ajax request Toggle GPS finished');
-                      //   },
-                      //   error: function(xhr, status, error) {
-                      //     console.error('Ajax request Toggle GPS failed ', status, error);
-                      //   }
-                      // });
 
                       if (isRunning) {
                         toggleButton.textContent = "Начать треккинг";
@@ -1438,11 +1409,13 @@ function handleButtonClick(event) {
                         clearInterval(intervalId);
                         SendWebSocketMessage("STOP GPS");
                       } else {
-                        toggleButton.textContent = "Остановить треккинг";
-                        SendWebSocketMessage("START GPS");
 
-                        // !!! TESTING !!!
-                        // ajax_request = setInterval(sendAjaxRequest, update_interval*1000); // milliseconds
+                        var wait_time = document.getElementById('integerOptions').value;
+                        var number_of_trackers = document.getElementById('number_of_trackers').value;
+
+                        if (!(number_of_trackers > 0)){ alert(`Количество треккеров должно быть больше 0. Вы ввели: ${number_of_trackers}`); return; }
+                        toggleButton.textContent = "Остановить треккинг";
+                        SendWebSocketMessage(`START GPS ${wait_time} ${number_of_trackers}`);
 
                       }
                       isRunning = !isRunning;
@@ -1461,6 +1434,8 @@ function handleButtonClick(event) {
                     $("#action_button").show();
                     $("#integerOptions").show();
                     $("#integerOptionsLable").show();
+                    $("#number_of_trackers").show();
+                    $("#number_of_trackersLable").show();
 
 
                     var existingMap = L.DomUtil.get('map');
@@ -1529,60 +1504,6 @@ function handleButtonClick(event) {
                         return missingMarkerIds;
                     }
 
-                    // // Function to send the Ajax request
-                    // function sendAjaxRequest() {
-                    //   $.ajax({
-                    //       type: "GET",
-                    //       url: "/ajax/",
-                    //       data: {
-                    //           'cattle_tracker': true,
-                    //       },
-                    //       success: function(data) {
-                    //       // Updates/Creates cattle's GPS label with info
-
-                    //       pasture_load = data.pasture_load;
-                    //       cattle_count = Object.values(pasture_load).reduce((acc, value) => acc + value, 0);
-
-                    //       updateMapWithFormula();
-
-                    //       data.list_of_cattles.forEach(function(cattle) {
-
-                    //       // Check if a marker with the same index already exists
-                    //       var existingMarker = markers.find(function(marker) {
-                    //           return marker.options.index === cattle.index;
-                    //       });
-
-                    //       if (existingMarker) {
-                    //           // If marker exists, update its position
-                    //           updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                    //       } else {
-                    //           // If marker doesn't exist, create a new one
-                    //           createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                    //       }
-                    //           // updateMarkerPosition(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.index, cattle.paddock_number);
-                    //       });
-
-                    //       // // Check for markers that need to be removed
-                    //       // markers.forEach(function(marker) {
-                    //       //     var markerIndex = data.list_of_cattles.findIndex(function(cattle) {
-                    //       //         return cattle.index === marker.options.index;
-                    //       //     });
-
-                    //       //     if (markerIndex === -1) {
-                    //       //         // Marker exists in markers but not in the current dataset, remove it
-                    //       //         map.removeLayer(marker);
-                    //       //     }
-                    //       // });
-
-
-
-                    //     },
-                    //     error: function(xhr, status, error) {
-                    //       console.error('Ajax request failed', status, error);
-                    //     }
-                    //   });
-                    // }
-
 
                     // Remove existing GeoJSON layer if it exists
                     if (geoJsonLayer) {
@@ -1623,9 +1544,6 @@ function handleButtonClick(event) {
                         });
 
 
-
-                        //  !!! TESTING !!!
-
                         // Add click event to display bar graph
                         layer.on('click', function (e) {
                           L.DomEvent.stop(e);
@@ -1652,10 +1570,6 @@ function handleButtonClick(event) {
                           layer.bindPopup(popup).openPopup();
                         });
 
-                        // !!! TESTING !!!
-
-
-
                       }
                     });
 
@@ -1668,7 +1582,7 @@ function handleButtonClick(event) {
 
                     legend.onAdd = function(map) {
                       var div = L.DomUtil.create("div", "legend");
-                      div.innerHTML += "<h4>Нагрузка загонов</h4>";
+                      div.innerHTML += "<h4>Нагрузка загонов (" + cattle_count + ")</h4>";
                       for (let i = 1; i < paddocks_count+1; i++) {
                         div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + 0 + '</span><br>';
                       }
@@ -1784,10 +1698,6 @@ function generateBarGraphContent(properties, index) {
     },
       success: function(data) {
 
-      // data.days_left_pred.forEach(function(value) {
-      //   model_days_left_prediction[index] = value.toFixed(2);
-      // });
-
       resources = [];
       data.resource_pred.forEach(function(value) {
         var paddock_area = parseFloat(data.area);
@@ -1893,14 +1803,6 @@ function setGrapthsContent(ctx, resources, index, str_dates){
 
 
 
-
-
-
-
-
-
-
-
 // const DEVICE_IP = "192.168.0.18:80"
 const DEVICE_IP = "192.168.54.6:80"
 
@@ -1962,21 +1864,9 @@ chatSocket.onmessage = function(e) {
   console.log("WSK: ", message);
 
   if (message.length > 16){ // && message.split(", ").length > 0
-    // Forwarding the cattle's GPS coordinates further into backend server
-    // Everything should have been done right here instead !!!
-
-
-    // message = "1 | 56.25512554 | 69.554155774" = sample GPS
-    // message = "1 | 56.25512554 | 69.554155774, 2 | 56.25512554 | 69.554155774 " = sample GPSs
-
-
-    // TESING
-    // Split the string by ', ' to get an array of individual elements
-
-    // const message = "1 | 56.25512554 | 69.554155774, 2 | 54.213234 | 69.513128";
 
     const cattles = message.split(', ');
-    cattle_count = cattles.length;
+    cattle_count = cattles.length - 1;
 
     // Initialize an array to store the extracted elements
     const cattleObjects = [];
@@ -2046,13 +1936,7 @@ chatSocket.onmessage = function(e) {
       });
 
     updateMapWithFormula();
-    // TESING
 
-
-    // $.ajax({ type: "GET", url: "/ajax/", data: { 'GPS_of_cows': message,},
-    //   success: function(data) { console.log(data); },
-    //   error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
-    // });
   }
 
   // Signals from Transfer Process
@@ -2112,7 +1996,7 @@ chatSocket.onmessage = function(e) {
     state_button_to.innerHTML = gates_state["1"];
     state_button_from.innerHTML = gates_state["1"];
 
-    selectElement.value = resultArray[0];
+    // selectElement.value = resultArray[0];
     update_interval = resultArray[0];
   }
 
@@ -2122,24 +2006,12 @@ chatSocket.onclose = function(e) {
     console.error('Chat socket closed unexpectedly');
 };
 
-// chatSocket.onopen = function(e) {
-//     console.log('Chat socket opened successfully');
-// };
 
 // Send message to server
 function SendWebSocketMessage(message) {
     chatSocket.send(message);
 }
 
-
-
-function handleValueChange(selectElement) {
-    // Get the selected value
-    var selectedValue = selectElement.value;
-    update_interval = selectElement.value;
-    // Update the displayed value
-    SendWebSocketMessage(`TIME_UPDATE:${parseInt(selectedValue)}`);
-}
 
 </script>
 
@@ -2862,7 +2734,7 @@ function startSimulation() {
           legend = L.control({ position: "bottomleft" });
           legend.onAdd = function(map) {
             var div = L.DomUtil.create("div", "legend");
-            div.innerHTML += "<h4>Нагрузка загонов</h4>";
+            div.innerHTML += "<h4>Нагрузка загонов (" + cattle_count + ")</h4>";
             for (let i = 1; i < paddocks_count+1; i++) {
               div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><br>';
             }
@@ -2928,9 +2800,7 @@ function startSimulation() {
                     'pressure': pressure1,
                 },
                 success: function(data) {
-                  // data.model_prediction.forEach(function(value, index) {
-                  //   model_days_left_prediction[index] = value;
-                  // });
+
                   data.days_left_pred.forEach(function(value, index) {
                     model_days_left_prediction[index] = value.toFixed(2);
                   });
@@ -2939,9 +2809,6 @@ function startSimulation() {
                     model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
                   });
 
-                  // resourceValues.forEach(function(value, index, array) {
-                  //   array[index] = data.resource_pred[index];
-                  // });
               },
               error: function(xhr, status, error) {
                 console.error('Ajax request failed', status, error);
@@ -3021,8 +2888,6 @@ function startSimulation() {
             });
 
 
-            //  !!! TESTING !!!
-
             // Add click event to display bar graph
             layer.on('click', function (e) {
               L.DomEvent.stop(e);
@@ -3048,8 +2913,6 @@ function startSimulation() {
               // Bind the popup to the clicked layer and open it
               layer.bindPopup(popup).openPopup();
             });
-
-            // !!! TESTING !!!
 
 
           }

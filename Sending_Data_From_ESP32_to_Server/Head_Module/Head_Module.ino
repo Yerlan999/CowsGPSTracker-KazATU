@@ -30,7 +30,6 @@ uint8_t Gate2Address[6];
 
 String GPS_ENABLE_COMMAND = "START GPS";
 String GPS_DISABLE_COMMAND = "STOP GPS";
-String TIME_UPDATE_COMMAND = "TIME_UPDATE";
 
 String GATE_CLOSE_COMMAND = "CLOSE";
 String GATE_OPEN_COMMAND = "OPEN";
@@ -49,9 +48,12 @@ enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
 int pairCount = 0;
+int number_of_trackers;
+int wait_time;
 
-// Structure example to receive data
-// Must match the sender structure
+bool tracking_enabled = false;
+
+
 typedef struct struct_message {
   
   uint8_t msgType;
@@ -162,8 +164,7 @@ void OnDataRecv(const uint8_t * mac_addr, const uint8_t *incomingData, int len) 
 
   case DATA :
     byteArrayToStruct(incomingData, incomingMessage);  // the message is data type
-    // memcpy(&incomingMessage, incomingData, sizeof(incomingMessage));
-    // create a JSON document with received data and send it by event to the web page
+
     Monitor.print("Recieved content: ");
     Monitor.print(incomingMessage.command);
     Monitor.println();
@@ -322,6 +323,10 @@ void loop() {
   }
 
   listenToLoRa();
+
+  if (tracking_enabled){
+    ResponseStatus responce = writeToLoRa(GPS_ENABLE_COMMAND);
+  }
 }
 
 String cattles_array;
@@ -338,8 +343,6 @@ bool listenToLoRa() {
     
     if (firstPipeIndex != -1 && secondPipeIndex != -1 && input.length() > 16) {
       cattles_array += input + ", ";
-      // Two occurrences of "|" found in the string
-      // webSocket.sendTXT(0, input);
     }
     return true;
   }
@@ -360,7 +363,7 @@ ResponseStatus writeToLoRa(String input) {
 
   cattles_array = "";
   ResponseStatus rs;
-  for (int address=2; address<6; address++){
+  for (int address=1; address<number_of_trackers+1; address++){
     Monitor.println();
     Monitor.println("Asking Collar: #" + String(address));
 
@@ -368,7 +371,7 @@ ResponseStatus writeToLoRa(String input) {
 
     unsigned long startTime = millis(); bool response;
     
-    while (millis() - startTime < 3000) {
+    while (millis() - startTime < wait_time*1000) {
       response = listenToLoRa();
       if (response) { Monitor.println("Got responce from: #" + String(address)); break; }
     }
@@ -378,12 +381,8 @@ ResponseStatus writeToLoRa(String input) {
   }
   
   Monitor.println(cattles_array);
-
   webSocket.sendTXT(0, cattles_array);
   
-  // ResponseStatus rs = LoRa.sendFixedMessage(0, 2, 23, input);
-  // ResponseStatus rs = LoRa.sendMessage(input);
-  // ResponseStatus rs = LoRa.sendFixedMessage(BROADCAST_ADDRESS, BROADCAST_ADDRESS, 0x0A, input);
   return rs;
 }
 
@@ -438,8 +437,6 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
       break;
     //Echo the text messages
     case WStype_TEXT:
-      // Monitor.printf("[%u] Text %s\n", num, payload);
-      // webSocket.sendTXT(num, "YOu are the best");
 
       // Convert the payload to a C-string
       strncpy(receivedMessage, (char*)payload, length);
@@ -464,22 +461,27 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t* payload, size_t lengt
 }
 
 
+
 void updateItems(String input) {
   
   Monitor.println(input);
+  
+  if (input.startsWith(GPS_ENABLE_COMMAND)) {
+    String* splitStrings;
+    int splitCount = splitString(input, ' ', splitStrings);
 
-  if (input.equals(GPS_ENABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); return; }
-  if (input.equals(GPS_DISABLE_COMMAND)) { ResponseStatus responce = writeToLoRa(input); return; }
+    number_of_trackers = splitStrings[3].toInt();
+    wait_time = splitStrings[2].toInt();
+    tracking_enabled = true;
+
+    delete[] splitStrings;
+    return;
+  }
+
+  if (input.equals(GPS_DISABLE_COMMAND)) { tracking_enabled = false; return; }
 
   String* splitStrings;
   int splitCount = splitString(input, ':', splitStrings);
-
-  if (splitStrings[0].equals(TIME_UPDATE_COMMAND)) {
-    Monitor.println("Old Time: " + String(cycle_time) + " || New Time: " + splitStrings[1]);
-    cycle_time = splitStrings[1].toInt();
-    preferences.putInt("time", cycle_time);
-    ResponseStatus responce = writeToLoRa(input);
-  }
 
   String key = "gate" + splitStrings[1];
 
