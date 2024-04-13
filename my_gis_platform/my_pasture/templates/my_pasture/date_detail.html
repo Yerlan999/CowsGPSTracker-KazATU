@@ -1158,6 +1158,15 @@ function handleButtonClick(event) {
       state_button.innerHTML = gates_state[String(selectedValue)];
     }
 
+    function deleteAllMarkers() {
+        // Loop through the markers array and remove each marker from the map
+        markers.forEach(function(marker) {
+            map.removeLayer(marker);
+        });
+
+        // Clear the markers array
+        markers = [];
+    }
 
     var paddocks_count = 0;
     var map = null;
@@ -1465,45 +1474,6 @@ function handleButtonClick(event) {
                         marker.options.index = index;  // Set the custom 'index' attribute
                         markers.push(marker); // Add the marker to the array
                     }
-
-                    // Function to update marker position based on new data
-                    function updateMarkerPosition(marker, latitude, longitude, index, paddock_number) {
-                        marker.setLatLng([latitude, longitude]);
-                        marker.getTooltip().setContent('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number);
-                    }
-
-                    // Function to remove marker by index
-                    function removeMarkersByIndices(indices) {
-
-                        if (indices.length === 0) {
-                            return;
-                        }
-
-                        indices.forEach(index => {
-                            var markerIndex = markers.findIndex(marker => marker.options.index === index);
-
-                            if (markerIndex !== -1) {
-                                var removedMarker = markers.splice(markerIndex, 1)[0];
-                                map.removeLayer(removedMarker);
-                            }
-                        });
-                    }
-
-                    function findMissingMarkerIds(cattleObjects, markers) {
-                        const missingMarkerIds = [];
-
-                        for (const marker of markers) {
-                            const markerId = marker.options.id;
-                            const isIdPresent = cattleObjects.some(cattle => cattle.id === markerId);
-
-                            if (!isIdPresent) {
-                                missingMarkerIds.push(markerId);
-                            }
-                        }
-
-                        return missingMarkerIds;
-                    }
-
 
                     // Remove existing GeoJSON layer if it exists
                     if (geoJsonLayer) {
@@ -1821,49 +1791,14 @@ function createMarker(latitude, longitude, index, paddock_number) {
     markers.push(marker); // Add the marker to the array
 }
 
-// Function to update marker position based on new data
-function updateMarkerPosition(marker, latitude, longitude, index, paddock_number) {
-    marker.setLatLng([latitude, longitude]);
-    marker.getTooltip().setContent('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number);
-}
-
-// Function to remove marker by index
-function removeMarkersByIndices(indices) {
-
-    if (indices.length === 0) {
-        return;
-    }
-
-    indices.forEach(index => {
-        var markerIndex = markers.findIndex(marker => marker.options.index === index);
-
-        if (markerIndex !== -1) {
-            var removedMarker = markers.splice(markerIndex, 1)[0];
-            map.removeLayer(removedMarker);
-        }
-    });
-}
-
-function findMissingMarkerIds(cattleObjects, markers) {
-    const missingMarkerIds = [];
-
-    for (const marker of markers) {
-        const markerId = marker.options.id;
-        const isIdPresent = cattleObjects.some(cattle => cattle.id === markerId);
-
-        if (!isIdPresent) {
-            missingMarkerIds.push(markerId);
-        }
-    }
-
-    return missingMarkerIds;
-}
 
 chatSocket.onmessage = function(e) {
   const message = e.data;
   console.log("WSK: ", message);
 
   if (message.length > 16){ // && message.split(", ").length > 0
+
+    deleteAllMarkers();
 
     const cattles = message.split(', ');
     cattle_count = cattles.length - 1;
@@ -1917,22 +1852,8 @@ chatSocket.onmessage = function(e) {
 
       cattleObjects.forEach(function(cattle) {
 
-      // Check if a marker with the same index already exists
-      var existingMarker = markers.find(function(marker) {
-          return marker.options.index === cattle.id;
-      });
+        createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
 
-      if (existingMarker) {
-          // If marker exists, update its position
-          updateMarkerPosition(existingMarker, parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
-      }
-      else {
-          // If marker doesn't exist, create a new one
-          createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
-      }
-
-      const missingIds = findMissingMarkerIds(cattleObjects, markers);
-      removeMarkersByIndices(missingIds);
       });
 
     updateMapWithFormula();

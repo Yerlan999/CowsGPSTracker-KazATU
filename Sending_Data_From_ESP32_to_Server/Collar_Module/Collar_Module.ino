@@ -15,7 +15,7 @@ TinyGPSPlus gps;
 #define Monitor Serial
 #define LED 18
 
-String COW_ID = "2";
+String COW_ID = "5";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;
@@ -40,7 +40,7 @@ float dummy_coordinates[][2] = {
   {54.215474, 69.511096},
   {54.214190, 69.513823},
   {54.213131, 69.512447},
-  {54.212228, 69.529872},
+  {54.215313, 69.526096},
 };
 
 // Cyclic Cattle Movement Simulation
