@@ -15,7 +15,7 @@ TinyGPSPlus gps;
 #define Monitor Serial
 #define LED 18
 
-String COW_ID = "1";
+String COW_ID = "2";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;
@@ -25,6 +25,7 @@ char latitudeStr[15];
 char longitudeStr[15];
 
 bool DUMMY_MODE = true;
+bool CYCLIC = false;
 
 unsigned long lastTime = 0;
 unsigned long cycle_time = 10;  // КАЖДЫЕ N секунд
@@ -41,6 +42,20 @@ float dummy_coordinates[][2] = {
   {54.213131, 69.512447},
   {54.212228, 69.529872},
 };
+
+// Cyclic Cattle Movement Simulation
+float dummy_cyclic_coordinates[][2] = {
+    {54.214176, 69.511151},
+    {54.213195, 69.511303},
+    {54.212246, 69.511400},
+    {54.211856, 69.512168},
+    {54.212011, 69.512357},
+    {54.212327, 69.512357},
+    {54.212580, 69.512519},
+};
+
+int num_coordinates = sizeof(dummy_cyclic_coordinates) / sizeof(dummy_cyclic_coordinates[0]);
+int counter = 0;
 
 
 void setup() {
@@ -125,7 +140,8 @@ void get_GPS_coordinates() {
       }
     }
   }
-  if (DUMMY_MODE) { latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1]; }
+  if (DUMMY_MODE) { latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1]; 
+    if (CYCLIC){ latitude = dummy_cyclic_coordinates[counter][0]; longitude = dummy_cyclic_coordinates[counter][1]; counter = (counter + 1) % num_coordinates; }; };
 
   // Convert latitude and longitude to strings with 6 decimal places
   dtostrf(latitude, 6, 6, latitudeStr); dtostrf(longitude, 6, 6, longitudeStr);
