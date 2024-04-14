@@ -60,3 +60,41 @@ latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1];
 +-----------------+-------------+----------+------------+-----------+
 |               7 |           1 |        1 |          1 |     74088 |
 +-----------------+-------------+----------+------------+-----------+
+
+
+
+uint8_t cfg_rxm_disable_power_save[] = {
+    0xB5, 0x62, // UBX Sync characters
+    0x06, 0x11, // CFG-RXM message class and message id
+    0x08, 0x00, // Payload length
+    0x00, 0x00, // Flags (disable power save mode)
+    0x01, 0x00, // Reserved
+    0x13, 0x9E  // Checksum (CK_A and CK_B)
+};
+
+uint8_t cfg_rxm_disable_continuous[] = {
+    0xB5, 0x62, // UBX Sync characters
+    0x06, 0x11, // CFG-RXM message class and message id
+    0x08, 0x00, // Payload length
+    0x00, 0x00, // Flags (disable continuous mode)
+    0x01, 0x00, // Reserved
+    0x12, 0xA0  // Checksum (CK_A and CK_B)
+};
+
+uint8_t cfg_rxm_enable_power_save[] = {
+    0xB5, 0x62, // UBX Sync characters
+    0x06, 0x11, // CFG-RXM message class and message id
+    0x08, 0x00, // Payload length
+    0x01, 0x00, // Flags (enable power save mode)
+    0x01, 0x00, // Reserved
+    0x13, 0x9F  // Checksum (CK_A and CK_B)
+};
+
+uint8_t cfg_rxm_enable_continuous[] = {
+    0xB5, 0x62, // UBX Sync characters
+    0x06, 0x11, // CFG-RXM message class and message id
+    0x08, 0x00, // Payload length
+    0x02, 0x00, // Flags (enable continuous mode)
+    0x01, 0x00, // Reserved
+    0x14, 0xA1  // Checksum (CK_A and CK_B)
+};
