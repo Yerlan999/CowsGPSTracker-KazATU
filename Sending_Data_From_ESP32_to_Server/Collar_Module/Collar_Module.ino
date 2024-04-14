@@ -13,6 +13,7 @@ HardwareSerial GPS(1);  // use UART1
 TinyGPSPlus gps;
 
 #define Monitor Serial
+#define LED 18
 
 String COW_ID = "5";
 int cowId = COW_ID.toInt()-1;
@@ -56,10 +57,10 @@ float dummy_cyclic_coordinates[][2] = {
 int num_coordinates = sizeof(dummy_cyclic_coordinates) / sizeof(dummy_cyclic_coordinates[0]);
 int counter = 0;
 
-#define LED 11
+
 void setup() {
   pinMode(LED, OUTPUT);
-  digitalWrite(LED, HIGH);
+  digitalWrite(LED, LOW);
 
   Monitor.begin(9600);
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
