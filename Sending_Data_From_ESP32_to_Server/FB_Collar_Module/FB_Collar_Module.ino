@@ -23,7 +23,7 @@ float longitude;
 char latitudeStr[15];
 char longitudeStr[15];
 
-bool DUMMY_MODE = false;
+bool DUMMY_MODE = true;
 bool CYCLIC = false;
 
 unsigned long lastTime = 0;
@@ -102,10 +102,10 @@ void listenToLoRa(){
     if (input.equals(GPS_ENABLE_COMMAND)) {
       
       // !!! TESING (Immediate Responce)!!!
-      digitalWrite(LED,HIGH);
+      digitalWrite(LED, HIGH);
       get_GPS_coordinates();
       ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
-      digitalWrite(LED,LOW);
+      digitalWrite(LED, LOW);
 
     }
 
