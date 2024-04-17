@@ -80,6 +80,80 @@ void setup() {
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
   printParameters(configuration);
   c.close();
+
+
+
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  if (ESP_SLEEP_WAKEUP_EXT0 == wakeup_reason) {
+      Monitor.println("Waked up from external GPIO!");
+
+      gpio_hold_dis(GPIO_NUM_22);
+      gpio_hold_dis(GPIO_NUM_21);
+
+      gpio_deep_sleep_hold_dis();
+
+      LoRa.setMode(MODE_0_NORMAL);
+
+      delay(1000);
+
+      ResponseStatus responce = writeToLoRa("We have waked up from message, but we can't read It!");
+
+      LoRa.setMode(MODE_2_POWER_SAVING);
+
+      delay(1000);
+      Monitor.println();
+      Monitor.println("Start sleep!");
+      delay(100);
+
+      if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){
+          Monitor.println("HOLD 22");
+      }else{
+          Monitor.println("NO HOLD 22");
+      }
+      if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){
+              Monitor.println("HOLD 21");
+          }else{
+              Monitor.println("NO HOLD 21");
+          }
+
+      esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+
+      gpio_deep_sleep_hold_en();
+      //Go to sleep now
+      Monitor.println("Going to sleep now");
+      esp_deep_sleep_start();
+            
+  }else{
+      LoRa.setMode(MODE_2_POWER_SAVING);
+
+      delay(1000);
+      Monitor.println();
+      Monitor.println("Start sleep!");
+      delay(100);
+
+      if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){
+          Monitor.println("HOLD 22");
+      }else{
+          Monitor.println("NO HOLD 22");
+      }
+      if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){
+              Monitor.println("HOLD 21");
+          }else{
+              Monitor.println("NO HOLD 21");
+          }
+
+      esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+
+      gpio_deep_sleep_hold_en();
+      //Go to sleep now
+      Monitor.println("Going to sleep now");
+      esp_deep_sleep_start();
+
+      delay(1);
+  }
 }
 
 void loop() {

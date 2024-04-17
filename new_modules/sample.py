@@ -100,11 +100,11 @@ uint8_t cfg_rxm_enable_continuous[] = {
 };
 
 # Receiver
-e32ttl.setMode(MODE_2_POWER_SAVING);
+LoRa.setMode(MODE_2_POWER_SAVING);
 configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
 
 # Sender
-e32ttl.setMode(MODE_1_WAKE_UP);
+LoRa.setMode(MODE_1_WAKE_UP);
 configuration.OPTION.wirelessWakeupTime = WAKE_UP_2000;
 
 
@@ -136,16 +136,53 @@ configuration.OPTION.wirelessWakeupTime = WAKE_UP_2000;
 
 Заключение
 
-print_wakeup_reason();
-esp_sleep_enable_ext0_wakeup(GPIO_NUM_15, 0); //1 = High, 0 = Low : that will trigger the wake-up
-Serial.println("Going to sleep now");
-esp_deep_sleep_start();
+
+21, 19
+22, 21
 
 
-esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+esp_sleep_wakeup_cause_t wakeup_reason;
 
-//Go to sleep now
-Serial.println("Going to sleep now");
-delay(100);
+wakeup_reason = esp_sleep_get_wakeup_cause();
 
-esp_light_sleep_start();
+if (ESP_SLEEP_WAKEUP_EXT0 == wakeup_reason) {
+    Monitor.println("Waked up from external GPIO!");
+
+    gpio_hold_dis(GPIO_NUM_22);
+    gpio_hold_dis(GPIO_NUM_21);
+
+    gpio_deep_sleep_hold_dis();
+
+    LoRa.setMode(MODE_0_NORMAL);
+
+    delay(1000);
+
+    ResponseStatus responce = writeToLoRa("We have waked up from message, but we can't read It!");
+}else{
+    LoRa.setMode(MODE_2_POWER_SAVING);
+
+    delay(1000);
+    Monitor.println();
+    Monitor.println("Start sleep!");
+    delay(100);
+
+    if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){
+        Monitor.println("HOLD 22");
+    }else{
+        Monitor.println("NO HOLD 22");
+    }
+    if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){
+            Monitor.println("HOLD 21");
+        }else{
+            Monitor.println("NO HOLD 21");
+        }
+
+    esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+
+    gpio_deep_sleep_hold_en();
+    //Go to sleep now
+    Monitor.println("Going to sleep now");
+    esp_deep_sleep_start();
+
+    delay(1);
+}
