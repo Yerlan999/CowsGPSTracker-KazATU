@@ -63,6 +63,7 @@ void setup() {
   digitalWrite(LED, LOW);
 
   Monitor.begin(9600);
+
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
   LoRa.begin();
   LoRa.setMode(MODE_2_POWER_SAVING);
@@ -75,9 +76,10 @@ void setup() {
   configuration.CHAN = 23;
   // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
-  configuration.OPTION.wirelessWakeupTime = WAKE_UP_2000;
+  configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
   printParameters(configuration);
+  c.close();
 }
 
 void loop() {
@@ -86,7 +88,12 @@ void loop() {
 
   if (Monitor.available() > 0) {
     String input = Monitor.readStringUntil('\n');
+    digitalWrite(LED,HIGH);
+    get_GPS_coordinates();
+    LoRa.setMode(MODE_0_NORMAL);
     ResponseStatus responce = writeToLoRa(input);
+    digitalWrite(LED,LOW);
+    LoRa.setMode(MODE_2_POWER_SAVING);
   }
 
   delay(20);
@@ -176,4 +183,21 @@ void printParameters(struct Configuration configuration) {
  
     Serial.println("----------------------------------------");
  
+}
+
+
+void print_wakeup_reason(){
+  esp_sleep_wakeup_cause_t wakeup_reason;
+
+  wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch(wakeup_reason)
+  {
+    case ESP_SLEEP_WAKEUP_EXT0 : Serial.println("Wakeup caused by external signal using RTC_IO"); break;
+    case ESP_SLEEP_WAKEUP_EXT1 : Serial.println("Wakeup caused by external signal using RTC_CNTL"); break;
+    case ESP_SLEEP_WAKEUP_TIMER : Serial.println("Wakeup caused by timer"); break;
+    case ESP_SLEEP_WAKEUP_TOUCHPAD : Serial.println("Wakeup caused by touchpad"); break;
+    case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
+    default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
+  }
 }

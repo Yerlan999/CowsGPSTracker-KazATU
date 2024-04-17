@@ -136,3 +136,16 @@ configuration.OPTION.wirelessWakeupTime = WAKE_UP_2000;
 
 Заключение
 
+print_wakeup_reason();
+esp_sleep_enable_ext0_wakeup(GPIO_NUM_15, 0); //1 = High, 0 = Low : that will trigger the wake-up
+Serial.println("Going to sleep now");
+esp_deep_sleep_start();
+
+
+esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+
+//Go to sleep now
+Serial.println("Going to sleep now");
+delay(100);
+
+esp_light_sleep_start();

@@ -271,14 +271,15 @@ void setup() {
   configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
   printParameters(configuration);
-
+  c.close();
+  
   // Initialize the OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
-
-  WiFi.mode(WIFI_AP_STA);
+ 
+  WiFi.mode(WIFI_AP_STA); 
   WiFi.begin(ssid.c_str(), password.c_str());
 
   while (WiFi.status() != WL_CONNECTED) {
