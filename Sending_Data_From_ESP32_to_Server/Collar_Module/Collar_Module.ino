@@ -78,7 +78,7 @@ void setup() {
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
   configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
-  printParameters(configuration);
+  // printParameters(configuration);
   c.close();
 
 
@@ -88,71 +88,18 @@ void setup() {
   wakeup_reason = esp_sleep_get_wakeup_cause();
 
   if (ESP_SLEEP_WAKEUP_EXT0 == wakeup_reason) {
-      Monitor.println("Waked up from external GPIO!");
+    Monitor.println("Waked up from Radio Signal");
 
-      gpio_hold_dis(GPIO_NUM_22);
-      gpio_hold_dis(GPIO_NUM_21);
+    gpio_hold_dis(GPIO_NUM_22);
+    gpio_hold_dis(GPIO_NUM_21);
+    gpio_deep_sleep_hold_dis();
 
-      gpio_deep_sleep_hold_dis();
-
-      LoRa.setMode(MODE_0_NORMAL);
-
-      delay(1000);
-
-      ResponseStatus responce = writeToLoRa("We have waked up from message, but we can't read It!");
-
-      LoRa.setMode(MODE_2_POWER_SAVING);
-
-      delay(1000);
-      Monitor.println();
-      Monitor.println("Start sleep!");
-      delay(100);
-
-      if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){
-          Monitor.println("HOLD 22");
-      }else{
-          Monitor.println("NO HOLD 22");
-      }
-      if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){
-              Monitor.println("HOLD 21");
-          }else{
-              Monitor.println("NO HOLD 21");
-          }
-
-      esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
-
-      gpio_deep_sleep_hold_en();
-      //Go to sleep now
-      Monitor.println("Going to sleep now");
-      esp_deep_sleep_start();
-            
-  }else{
-      LoRa.setMode(MODE_2_POWER_SAVING);
-
-      delay(1000);
-      Monitor.println();
-      Monitor.println("Start sleep!");
-      delay(100);
-
-      if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){
-          Monitor.println("HOLD 22");
-      }else{
-          Monitor.println("NO HOLD 22");
-      }
-      if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){
-              Monitor.println("HOLD 21");
-          }else{
-              Monitor.println("NO HOLD 21");
-          }
-
-      esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
-
-      gpio_deep_sleep_hold_en();
-      //Go to sleep now
-      Monitor.println("Going to sleep now");
-      esp_deep_sleep_start();
-
-      delay(1);
+    sendCoordinatesToHead();
+    enableDeepSleepMode();
+  }
+  else{
+    enableDeepSleepMode();
+    delay(1);
   }
 }
 
@@ -162,12 +109,7 @@ void loop() {
 
   if (Monitor.available() > 0) {
     String input = Monitor.readStringUntil('\n');
-    digitalWrite(LED,HIGH);
-    get_GPS_coordinates();
-    LoRa.setMode(MODE_0_NORMAL);
-    ResponseStatus responce = writeToLoRa(input);
-    digitalWrite(LED,LOW);
-    LoRa.setMode(MODE_2_POWER_SAVING);
+    sendCoordinatesToHead();
   }
 
   delay(20);
@@ -184,13 +126,7 @@ void listenToLoRa(){
 
     if (input.equals(GPS_ENABLE_COMMAND)) {
       
-      // !!! TESING (Immediate Responce)!!!
-      digitalWrite(LED,HIGH);
-      get_GPS_coordinates();
-      LoRa.setMode(MODE_0_NORMAL);
-      ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
-      digitalWrite(LED,LOW);
-      LoRa.setMode(MODE_2_POWER_SAVING);
+      sendCoordinatesToHead();
 
     }
 
@@ -215,23 +151,25 @@ ResponseStatus writeToLoRa(String input){
 
 
 void get_GPS_coordinates() {
-  while (GPS.available() > 0) {
-    if (gps.encode(GPS.read())) {
-      if (gps.location.isValid()) {
-        latitude = gps.location.lat(); longitude = gps.location.lng();
-        // Monitor.println(String(latitude) + " | " + String(longitude));
-      } else {
-        // Monitor.println("Invalid Location");
-        // Monitor.println(String(latitude) + " | " + String(longitude));
+  if (DUMMY_MODE) { latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1]; 
+    if (CYCLIC){ latitude = dummy_cyclic_coordinates[counter][0]; longitude = dummy_cyclic_coordinates[counter][1]; counter = (counter + 1) % num_coordinates; }; 
+  }
+  else {
+    while (GPS.available() > 0) {
+      if (gps.encode(GPS.read())) {
+        if (gps.location.isValid()) {
+          latitude = gps.location.lat(); longitude = gps.location.lng();
+          // Monitor.println(String(latitude) + " | " + String(longitude));
+        } else {
+          // Monitor.println("Invalid Location");
+          // Monitor.println(String(latitude) + " | " + String(longitude));
+        }
       }
     }
   }
-  if (DUMMY_MODE) { latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1]; 
-    if (CYCLIC){ latitude = dummy_cyclic_coordinates[counter][0]; longitude = dummy_cyclic_coordinates[counter][1]; counter = (counter + 1) % num_coordinates; }; };
 
   // Convert latitude and longitude to strings with 6 decimal places
   dtostrf(latitude, 6, 6, latitudeStr); dtostrf(longitude, 6, 6, longitudeStr);
-
 
 }
 
@@ -274,4 +212,34 @@ void print_wakeup_reason(){
     case ESP_SLEEP_WAKEUP_ULP : Serial.println("Wakeup caused by ULP program"); break;
     default : Serial.printf("Wakeup was not caused by deep sleep: %d\n",wakeup_reason); break;
   }
+}
+
+
+void sendCoordinatesToHead(){
+  digitalWrite(LED,HIGH);
+  get_GPS_coordinates();
+  LoRa.setMode(MODE_0_NORMAL);
+  ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
+  digitalWrite(LED,LOW);
+  LoRa.setMode(MODE_2_POWER_SAVING);  
+}
+
+
+void enableDeepSleepMode(){
+  LoRa.setMode(MODE_2_POWER_SAVING);
+
+  delay(1000);
+  Monitor.println();
+  Monitor.println("Entering in Deep Sleep Mode");
+  delay(100);
+
+  if (ESP_OK == gpio_hold_en(GPIO_NUM_22)){ Monitor.println("HOLD 22"); } else { Monitor.println("NO HOLD 22"); }
+  if (ESP_OK == gpio_hold_en(GPIO_NUM_21)){ Monitor.println("HOLD 21"); } else{ Monitor.println("NO HOLD 21"); }
+
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_15,LOW);
+
+  gpio_deep_sleep_hold_en();
+  //Go to sleep now
+  Monitor.println("Deep Sleep has been Started!");
+  esp_deep_sleep_start();  
 }
