@@ -258,7 +258,7 @@ void setup() {
   Monitor.begin(9600);  //открываем порт для связи с ПК
 
   LoRa.begin();
-  // LoRa.setMode(MODE_1_WAKE_UP);
+  LoRa.setMode(MODE_1_WAKE_UP);
 
   ResponseStructContainer c;
   c = LoRa.getConfiguration();
@@ -268,7 +268,7 @@ void setup() {
   configuration.CHAN = 23;
   // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION; 
-  // configuration.OPTION.wirelessWakeupTime = 4000;
+  configuration.OPTION.wirelessWakeupTime = WAKE_UP_250;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
   printParameters(configuration);
 

@@ -65,7 +65,7 @@ void setup() {
   Monitor.begin(9600);
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
   LoRa.begin();
-  // LoRa.setMode(MODE_2_POWER_SAVING);
+  LoRa.setMode(MODE_2_POWER_SAVING);
 
   ResponseStructContainer c;
   c = LoRa.getConfiguration();
@@ -75,7 +75,7 @@ void setup() {
   configuration.CHAN = 23;
   // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
-  // configuration.OPTION.wirelessWakeupTime = 250;
+  configuration.OPTION.wirelessWakeupTime = WAKE_UP_2000;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
   printParameters(configuration);
 }
@@ -106,8 +106,10 @@ void listenToLoRa(){
       // !!! TESING (Immediate Responce)!!!
       digitalWrite(LED,HIGH);
       get_GPS_coordinates();
+      LoRa.setMode(MODE_0_NORMAL);
       ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
       digitalWrite(LED,LOW);
+      LoRa.setMode(MODE_2_POWER_SAVING);
 
     }
 
