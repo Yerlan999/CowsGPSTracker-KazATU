@@ -62,6 +62,9 @@ latitude = dummy_coordinates[cowId][0]; longitude = dummy_coordinates[cowId][1];
 +-----------------+-------------+----------+------------+-----------+
 
 
+How to apply UBX-CFG-PMS message in Ublox NEO-M8N GPS module?
+UBX-CFG-RMX
+UBX-CFG-PM2
 
 uint8_t cfg_rxm_disable_power_save[] = {
     0xB5, 0x62, // UBX Sync characters
@@ -185,4 +188,81 @@ if (ESP_SLEEP_WAKEUP_EXT0 == wakeup_reason) {
     esp_deep_sleep_start();
 
     delay(1);
+}
+
+
+
+
+
+
+#include <SoftwareSerial.h>
+
+// Define the RX and TX pins for the SoftwareSerial communication with the GPS module
+#define GPS_RX_PIN 2
+#define GPS_TX_PIN 3
+
+// Create a SoftwareSerial object to communicate with the GPS module
+SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
+
+// Define the payload for Balanced Power saving mode
+const uint8_t balancedPowerSavingPayload[] = {
+  0x00, // Version
+  0x01, // Reserve1
+  0x10, // Reserve2
+  0x10, // Reserve3
+  0x05, // Power Setup: Balanced Power Saving mode
+  0x05, // Period: Not used in Balanced mode (set to 0)
+  0x00, // OnTime: Not used in Balanced mode (set to 0)
+  0x00, // MinTime: Not used in Balanced mode (set to 0)
+};
+
+void setup() {
+  // Initialize serial communication with the computer
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // Wait for serial port to connect
+  }
+
+  // Initialize serial communication with the GPS module
+  gpsSerial.begin(9600);
+
+  // Configure the power management settings of the GPS module
+  configurePowerManagement();
+}
+
+void loop() {
+  // Main loop code
+}
+
+void configurePowerManagement() {
+  // Send the UBX-CFG-PMS message to the GPS module for Balanced Power saving mode
+  sendUBXMessage(0x06, 0x86, balancedPowerSavingPayload, sizeof(balancedPowerSavingPayload));
+}
+
+void sendUBXMessage(uint8_t msgClass, uint8_t msgId, const uint8_t* payload, uint16_t length) {
+  // Send UBX header
+  gpsSerial.write(0xB5);
+  gpsSerial.write(0x62);
+
+  // Send message class and ID
+  gpsSerial.write(msgClass);
+  gpsSerial.write(msgId);
+
+  // Send payload length
+  gpsSerial.write(length & 0xFF);
+  gpsSerial.write(length >> 8);
+
+  // Send payload
+  for (int i = 0; i < length; i++) {
+    gpsSerial.write(payload[i]);
+  }
+
+  // Calculate and send checksum
+  uint8_t checksumA = 0, checksumB = 0;
+  for (int i = 0; i < length; i++) {
+    checksumA += payload[i];
+    checksumB += checksumA;
+  }
+  gpsSerial.write(checksumA);
+  gpsSerial.write(checksumB);
 }
