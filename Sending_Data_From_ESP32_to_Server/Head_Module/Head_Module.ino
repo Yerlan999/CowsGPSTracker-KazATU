@@ -48,8 +48,8 @@ enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
 int pairCount = 0;
-int number_of_trackers;
-int wait_time;
+int number_of_trackers = 5;
+int wait_time = 3;
 
 bool tracking_enabled = false;
 
@@ -258,17 +258,19 @@ void setup() {
   Monitor.begin(9600);  //открываем порт для связи с ПК
 
   LoRa.begin();
+  // LoRa.setMode(MODE_1_WAKE_UP);
 
   ResponseStructContainer c;
   c = LoRa.getConfiguration();
   Configuration configuration = *(Configuration*) c.data;
-  configuration.ADDL = BROADCAST_ADDRESS;
-  configuration.ADDH = BROADCAST_ADDRESS;
+  configuration.ADDL = 1;
+  configuration.ADDH = 1;
   configuration.CHAN = 23;
   // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
-  configuration.OPTION.fixedTransmission = FT_TRANSPARENT_TRANSMISSION; 
+  configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION; 
+  // configuration.OPTION.wirelessWakeupTime = 4000;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
-
+  printParameters(configuration);
 
   // Initialize the OLED display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
@@ -367,7 +369,7 @@ ResponseStatus writeToLoRa(String input) {
     Monitor.println();
     Monitor.println("Asking Collar: #" + String(address));
 
-    rs = LoRa.sendFixedMessage(0, address, 23, input+String(address));
+    rs = LoRa.sendFixedMessage(address, 0, 23, input+String(address));
 
     unsigned long startTime = millis(); bool response;
     
@@ -379,7 +381,8 @@ ResponseStatus writeToLoRa(String input) {
     
 
   }
-  
+  Monitor.println();
+  Monitor.print("Array of Coordinates: ");
   Monitor.println(cattles_array);
   webSocket.sendTXT(0, cattles_array);
   
@@ -523,4 +526,29 @@ int splitString(const String& input, char delimiter, String*& output) {
   }
 
   return arraySize;
+}
+
+
+
+void printParameters(struct Configuration configuration) {
+    Serial.println("----------------------------------------");
+ 
+    Serial.print(F("HEAD : "));  Serial.print(configuration.HEAD, BIN);Serial.print(" ");Serial.print(configuration.HEAD, DEC);Serial.print(" ");Serial.println(configuration.HEAD, HEX);
+    Serial.println(F(" "));
+    Serial.print(F("AddH : "));  Serial.println(configuration.ADDH, DEC);
+    Serial.print(F("AddL : "));  Serial.println(configuration.ADDL, DEC);
+    Serial.print(F("Chan : "));  Serial.print(configuration.CHAN, DEC); Serial.print(" -> "); Serial.println(configuration.getChannelDescription());
+    Serial.println(F(" "));
+    Serial.print(F("SpeedParityBit     : "));  Serial.print(configuration.SPED.uartParity, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTParityDescription());
+    Serial.print(F("SpeedUARTDatte  : "));  Serial.print(configuration.SPED.uartBaudRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTBaudRate());
+    Serial.print(F("SpeedAirDataRate   : "));  Serial.print(configuration.SPED.airDataRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getAirDataRate());
+ 
+    Serial.print(F("OptionTrans        : "));  Serial.print(configuration.OPTION.fixedTransmission, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFixedTransmissionDescription());
+    Serial.print(F("OptionPullup       : "));  Serial.print(configuration.OPTION.ioDriveMode, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getIODroveModeDescription());
+    Serial.print(F("OptionWakeup       : "));  Serial.print(configuration.OPTION.wirelessWakeupTime, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getWirelessWakeUPTimeDescription());
+    Serial.print(F("OptionFEC          : "));  Serial.print(configuration.OPTION.fec, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFECDescription());
+    Serial.print(F("OptionPower        : "));  Serial.print(configuration.OPTION.transmissionPower, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getTransmissionPowerDescription());
+ 
+    Serial.println("----------------------------------------");
+ 
 }

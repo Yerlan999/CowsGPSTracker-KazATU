@@ -15,7 +15,7 @@ TinyGPSPlus gps;
 #define Monitor Serial
 #define LED 18
 
-String COW_ID = "5";
+String COW_ID = "2";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;
@@ -57,7 +57,7 @@ float dummy_cyclic_coordinates[][2] = {
 int num_coordinates = sizeof(dummy_cyclic_coordinates) / sizeof(dummy_cyclic_coordinates[0]);
 int counter = 0;
 
-
+  
 void setup() {
   pinMode(LED, OUTPUT);
   digitalWrite(LED, LOW);
@@ -65,6 +65,7 @@ void setup() {
   Monitor.begin(9600);
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
   LoRa.begin();
+  // LoRa.setMode(MODE_2_POWER_SAVING);
 
   ResponseStructContainer c;
   c = LoRa.getConfiguration();
@@ -74,7 +75,9 @@ void setup() {
   configuration.CHAN = 23;
   // FT_TRANSPARENT_TRANSMISSION = 1 vs FT_FIXED_TRANSMISSION = 0
   configuration.OPTION.fixedTransmission = FT_FIXED_TRANSMISSION;
+  // configuration.OPTION.wirelessWakeupTime = 250;
   LoRa.setConfiguration(configuration, WRITE_CFG_PWR_DWN_LOSE);
+  printParameters(configuration);
 }
 
 void loop() {
@@ -117,7 +120,7 @@ String readFromLoRa(){
   if (rc.status.code!=1){
       rc.status.getResponseDescription();
   }else{  
-      return rc.data.substring(3);
+      return rc.data;
   }  
 }
 
@@ -147,4 +150,28 @@ void get_GPS_coordinates() {
   dtostrf(latitude, 6, 6, latitudeStr); dtostrf(longitude, 6, 6, longitudeStr);
 
 
+}
+
+
+void printParameters(struct Configuration configuration) {
+    Serial.println("----------------------------------------");
+ 
+    Serial.print(F("HEAD : "));  Serial.print(configuration.HEAD, BIN);Serial.print(" ");Serial.print(configuration.HEAD, DEC);Serial.print(" ");Serial.println(configuration.HEAD, HEX);
+    Serial.println(F(" "));
+    Serial.print(F("AddH : "));  Serial.println(configuration.ADDH, DEC);
+    Serial.print(F("AddL : "));  Serial.println(configuration.ADDL, DEC);
+    Serial.print(F("Chan : "));  Serial.print(configuration.CHAN, DEC); Serial.print(" -> "); Serial.println(configuration.getChannelDescription());
+    Serial.println(F(" "));
+    Serial.print(F("SpeedParityBit     : "));  Serial.print(configuration.SPED.uartParity, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTParityDescription());
+    Serial.print(F("SpeedUARTDatte  : "));  Serial.print(configuration.SPED.uartBaudRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getUARTBaudRate());
+    Serial.print(F("SpeedAirDataRate   : "));  Serial.print(configuration.SPED.airDataRate, BIN);Serial.print(" -> "); Serial.println(configuration.SPED.getAirDataRate());
+ 
+    Serial.print(F("OptionTrans        : "));  Serial.print(configuration.OPTION.fixedTransmission, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFixedTransmissionDescription());
+    Serial.print(F("OptionPullup       : "));  Serial.print(configuration.OPTION.ioDriveMode, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getIODroveModeDescription());
+    Serial.print(F("OptionWakeup       : "));  Serial.print(configuration.OPTION.wirelessWakeupTime, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getWirelessWakeUPTimeDescription());
+    Serial.print(F("OptionFEC          : "));  Serial.print(configuration.OPTION.fec, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getFECDescription());
+    Serial.print(F("OptionPower        : "));  Serial.print(configuration.OPTION.transmissionPower, BIN);Serial.print(" -> "); Serial.println(configuration.OPTION.getTransmissionPowerDescription());
+ 
+    Serial.println("----------------------------------------");
+ 
 }
