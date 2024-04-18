@@ -202,7 +202,7 @@ if (ESP_SLEEP_WAKEUP_EXT0 == wakeup_reason) {
 #define GPS_TX_PIN 3
 
 // Create a SoftwareSerial object to communicate with the GPS module
-SoftwareSerial gpsSerial(GPS_RX_PIN, GPS_TX_PIN);
+SoftwareSerial GPS(GPS_RX_PIN, GPS_TX_PIN);
 
 // Define the payload for Balanced Power saving mode
 const uint8_t balancedPowerSavingPayload[] = {
@@ -224,7 +224,7 @@ void setup() {
   }
 
   // Initialize serial communication with the GPS module
-  gpsSerial.begin(9600);
+  GPS.begin(9600);
 
   // Configure the power management settings of the GPS module
   configurePowerManagement();
@@ -241,20 +241,20 @@ void configurePowerManagement() {
 
 void sendUBXMessage(uint8_t msgClass, uint8_t msgId, const uint8_t* payload, uint16_t length) {
   // Send UBX header
-  gpsSerial.write(0xB5);
-  gpsSerial.write(0x62);
+  GPS.write(0xB5);
+  GPS.write(0x62);
 
   // Send message class and ID
-  gpsSerial.write(msgClass);
-  gpsSerial.write(msgId);
+  GPS.write(msgClass);
+  GPS.write(msgId);
 
   // Send payload length
-  gpsSerial.write(length & 0xFF);
-  gpsSerial.write(length >> 8);
+  GPS.write(length & 0xFF);
+  GPS.write(length >> 8);
 
   // Send payload
   for (int i = 0; i < length; i++) {
-    gpsSerial.write(payload[i]);
+    GPS.write(payload[i]);
   }
 
   // Calculate and send checksum
@@ -263,6 +263,17 @@ void sendUBXMessage(uint8_t msgClass, uint8_t msgId, const uint8_t* payload, uin
     checksumA += payload[i];
     checksumB += checksumA;
   }
-  gpsSerial.write(checksumA);
-  gpsSerial.write(checksumB);
+  GPS.write(checksumA);
+  GPS.write(checksumB);
 }
+
+
+
+
+configuration.OPTION.fec = FEC_1_ON;
+configuration.OPTION.ioDriveMode = IO_D_MODE_PUSH_PULLS_PULL_UPS;
+configuration.OPTION.transmissionPower = POWER_20;
+
+configuration.SPED.airDataRate = AIR_DATA_RATE_010_24;
+configuration.SPED.uartBaudRate = UART_BPS_9600;
+configuration.SPED.uartParity = MODE_00_8N1;

@@ -48,7 +48,7 @@ enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
 int pairCount = 0;
-int number_of_trackers = 5;
+int number_of_trackers = 2;
 int wait_time = 3;
 
 bool tracking_enabled = false;
