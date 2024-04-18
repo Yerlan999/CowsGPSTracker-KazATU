@@ -7,6 +7,14 @@ Serial2 = 16 | 17
 Serial1 =  9 | 10
 Serial0 =  3 | 1
 
+// FireBeetle ESP32
+LoRa_E32 LoRa(&Serial2, 13, 5, 2, UART_BPS_RATE_9600); //  Serial Pins, AUX, M0, M1
+GPS.begin(9600, SERIAL_8N1, 26, 27); // RX, TX;
+
+// ESP32
+LoRa_E32 LoRa(&Serial2, 15, 22, 21, UART_BPS_RATE_9600); //  Serial Pins, AUX, M0, M1
+GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
+
 LoRa:STOP GPS
 LoRa:START GPS
 LoRa:TIME_UPDATE:1
