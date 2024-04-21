@@ -1519,19 +1519,7 @@ function handleButtonClick(event) {
                           L.DomEvent.stop(e);
 
                           // Create a new popup
-                          var popup = L.popup({
-                            closeButton: true,
-                            autoClose: true,
-                            closeOnClick: false,
-                            // Prevent the default behavior of the map to avoid closing the popup
-                            // when clicking on the map after opening the popup.
-                            preventDefault: true,
-                            // Use the clicked coordinates for positioning the popup
-                            autoPan: false,
-                            // Use the coordinates of the click event for popup positioning
-                            coordinates: e.latlng,
-                            keepInView: true,
-                          });
+                          var popup = createPopUp(e);
 
                           // Set the content of the popup using the generated bar graph content
                           popup.setContent(generateBarGraphContent(feature.properties, index));
@@ -1573,6 +1561,24 @@ function handleButtonClick(event) {
     });
 
 
+
+function createPopUp(e){
+  var popup = L.popup({
+    closeButton: true,
+    autoClose: true,
+    closeOnClick: true,
+    // Prevent the default behavior of the map to avoid closing the popup
+    // when clicking on the map after opening the popup.
+    preventDefault: true,
+    // Use the clicked coordinates for positioning the popup
+    autoPan: false,
+    // Use the coordinates of the click event for popup positioning
+    coordinates: e.latlng,
+    keepInView: true,
+  });
+
+  return popup;
+}
 
 function generateBarGraphContent(properties, index) {
   // Example: Generate dummy data for the bar graph
@@ -2814,19 +2820,7 @@ function startSimulation() {
               L.DomEvent.stop(e);
 
               // Create a new popup
-              var popup = L.popup({
-                closeButton: true,
-                autoClose: true,
-                closeOnClick: false,
-                // Prevent the default behavior of the map to avoid closing the popup
-                // when clicking on the map after opening the popup.
-                preventDefault: true,
-                // Use the clicked coordinates for positioning the popup
-                autoPan: false,
-                // Use the coordinates of the click event for popup positioning
-                coordinates: e.latlng,
-                keepInView: true,
-              });
+              var popup = createPopUp(e);
 
               // Set the content of the popup using the generated bar graph content
               popup.setContent(generateBarGraphContent(feature.properties, index));
