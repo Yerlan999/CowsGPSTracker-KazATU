@@ -2724,8 +2724,7 @@ function startSimulation() {
         }
 
 
-        // Calling ML model for assessing days left
-        // document.querySelector('input[name="radioOptions"]:checked').value
+        // Calling ML model for assessing days left and resources
 
         if (intake  && reserve && selected_prediction_mode){
           if (selected_prediction_mode.value == "Plane"){
@@ -2763,7 +2762,6 @@ function startSimulation() {
                     var paddock_area = parseFloat(data.area_list[index]).toFixed(2);
                     model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
                   });
-
               },
               error: function(xhr, status, error) {
                 console.error('Ajax request failed', status, error);
@@ -2792,9 +2790,27 @@ function startSimulation() {
               feature.properties.КормоЗапас = model_days_left_prediction[index];
               feature.properties.Урож = parseFloat(model_resource_prediction[index]);
             }
-
-
         });
+
+        // !!! FOR DEBUGGING. DO NOT DELETE !!!
+        if (selected_prediction_mode.value == "Plane"){
+          var temp_list_r = []; var temp_list_d = [];
+          geoJSONData.features.forEach(function (feature, index) {
+            temp_list_r.push(feature.properties.Урож);
+            temp_list_d.push(feature.properties.КормоЗапас);
+          });
+          console.log(" ");
+          console.log("Прогноз ориг. формулы плоскостей: ");
+          console.log("Урожайность: ", temp_list_r);
+          console.log("Кормозапас: ", temp_list_d);
+        }
+        else {
+          console.log(" ");
+          console.log("Прогноз модели МО: ");
+          console.log("Урожайность: ", model_resource_prediction);
+          console.log("Кормозапас: ", model_days_left_prediction);
+        }
+        // !!! FOR DEBUGGING. DO NOT DELETE !!!
 
         // Iterate through features and assign values from the array to a new property
         geoJSONData.features.forEach(function (feature, index) {

@@ -496,19 +496,60 @@ class SentinelRequest():
         date_object = datetime.datetime.strptime(date, "%Y-%m-%d")
         timestamp_utc = int(date_object.replace(tzinfo=timezone.utc).timestamp())
 
-        if not date_object == current_date:
+        current_date_datetime_object = datetime.datetime.strptime(current_date, '%Y-%m-%d')
+
+        if not date_object == current_date_datetime_object:
+            print("!!! From API for previous days !!!", date_object)
             url_template = "https://api.openweathermap.org/data/3.0/onecall/timemachine?lat={}&lon={}&dt={}&appid={}&units=metric"
             url = url_template.format(str(latitude), str(longitude), str(timestamp_utc), api_key)
+
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                data = response.json()
+                current_weather_df = pd.concat([json_normalize(data["data"])], axis=1).drop(columns=["weather", "dt", "sunrise", "sunset"])
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+
         else:
-            url_template = "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&units=metric"
+            print("!!! From API for the current day !!!", date_object)
+
+            url_template = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&appid={}&units=metric"
+            # url_template = "https://api.openweathermap.org/data/2.5/weather?lat={}&lon={}&appid={}&units=metric"
+
             url = url_template.format(str(latitude), str(longitude), api_key)
 
+            response = requests.get(url)
 
+            if response.status_code == 200:
+                data = response.json()
+                try:
+                    current_weather_df = pd.concat([json_normalize(data["main"]), json_normalize(data["wind"]), pd.DataFrame({'visibility': data["visibility"]}, index=[0])], axis=1)
+                except:
+                    data["current"].pop('weather', None); current_weather_df = pd.DataFrame([data["current"]])
+            else:
+                print(f"Error: {response.status_code} - {response.text}")
+
+
+        # !!! DO NOT DELETE THIS!!!
         # Getting from history file for a while...
+
+        # try:
+        #     print("!!! From File !!!")
+        #     current_weather_df = self.get_main_weather_params_history(date).loc[:, self.eng_column_names]
+        # except:
+        #     print("!!! From File e !!!")
+        #     current_weather_df = self.get_main_weather_params_history(date).loc[:, self.alt_eng_column_names]
+        # !!! DO NOT DELETE THIS!!!
+
         try:
-            current_weather_df = self.get_main_weather_params_history(date).loc[:, self.eng_column_names]
+            current_weather_df = current_weather_df[['temp', 'feels_like', 'pressure', 'humidity', 'dew_point', 'clouds', 'wind_speed', 'wind_deg']]
         except:
-            current_weather_df = self.get_main_weather_params_history(date).loc[:, self.alt_eng_column_names]
+            current_weather_df = current_weather_df[['temp', 'feels_like', 'pressure', 'humidity', 'speed', 'deg']]
+            new_columns = pd.DataFrame(np.zeros((1, 2)), columns=['dew_point', 'clouds']); position = 4;
+            current_weather_df = pd.concat([current_weather_df.iloc[:, :position], new_columns, current_weather_df.iloc[:, position:]], axis=1)
+
+
         current_weather_df.columns = self.rus_column_names
         self.current_weather_df = current_weather_df
 
