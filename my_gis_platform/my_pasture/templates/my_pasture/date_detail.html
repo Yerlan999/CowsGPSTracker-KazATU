@@ -1565,13 +1565,13 @@ function handleButtonClick(event) {
 function createPopUp(e){
   var popup = L.popup({
     closeButton: true,
-    autoClose: true,
+    autoClose: false,
     closeOnClick: true,
     // Prevent the default behavior of the map to avoid closing the popup
     // when clicking on the map after opening the popup.
-    preventDefault: true,
+    preventDefault: false,
     // Use the clicked coordinates for positioning the popup
-    autoPan: false,
+    autoPan: true,
     // Use the coordinates of the click event for popup positioning
     coordinates: e.latlng,
     keepInView: true,
@@ -1739,32 +1739,35 @@ function setGrapthsContent(ctx, resources, index, str_dates){
     new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: [str_dates[1], str_dates[0], str_dates[2]],
-        datasets: [{
-          label: `Измен. урож. в загоне №${index+1} (т/га)`,
-          data: resources,
-          backgroundColor: 'steelblue',
-          borderColor: 'black',
-          borderWidth: 1
-        }, {
-          type: 'line', // Use 'line' type for the trend line
-          label: 'Тренд изменении',
-          data: trendLineData,
-          borderColor: trendLineColor,
-          borderWidth: 2,
-          fill: false
-        }]
+        labels: [updateDateTime(str_dates[1]), updateDateTime(str_dates[0]), updateDateTime(str_dates[2])],
+        datasets: [
+          {
+            type: 'line', // Use 'line' type for the trend line
+            label: 'Тренд изменении',
+            data: trendLineData,
+            borderColor: trendLineColor,
+            borderWidth: 2,
+            fill: false,
+            pointStyle: 'rect',
+          },
+          {
+            label: `Измен. урож. в загоне №${index+1} (т/га)`,
+            data: resources,
+            backgroundColor: 'steelblue',
+            borderColor: 'black',
+            borderWidth: 1
+          },
+        ]
       },
+
       options: {
+        barPercentage: 0.9,
+        borderRadius: 5,
+        borderWidth: 10,
         responsive: true,
         scales: {
           x: {
             beginAtZero: true,
-            ticks: {
-              autoSkip: false,
-              maxRotation: 45,
-              minRotation: 45,
-            }
           },
           y: {
             beginAtZero: true,
@@ -1777,6 +1780,31 @@ function setGrapthsContent(ctx, resources, index, str_dates){
 
 }
 
+
+function updateDateTime(dateString) {
+    var dateString = dateString.substring(5);
+
+    // Define an array with month names in Russian
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+    // Split the date string by '-'
+    const parts = dateString.split('-');
+
+    // Extract the month number from the first part of the array
+    const monthNumber = parseInt(parts[0], 10);
+
+    // Check if the month number is valid (between 1 and 12)
+    if (monthNumber >= 1 && monthNumber <= 12) {
+        // Replace the month number with the corresponding month name
+        parts[0] = monthNames[monthNumber - 1];
+
+        // Join the parts back together with '-'
+        return parts.join('-');
+    } else {
+        // If the month number is not valid, return the original string
+        return dateString;
+    }
+}
 
 
 // const DEVICE_IP = "192.168.0.18:80"
