@@ -741,8 +741,6 @@ class SentinelRequest():
                 encoded_image = base64.b64encode(image_stream.getvalue()).decode('utf-8')
 
 
-                # !!! TESTING !!!
-
                 test_index_masked_array = []
                 for i, mask in enumerate(self.masks):
                     mx = ma.masked_array(test_meet, mask=mask.reshape(self.aoi_height, self.aoi_width))
