@@ -391,3 +391,10 @@ void GPS_SendConfig(const uint8_t *Progmem_ptr) {
   }
   delay(100);
 }
+
+
+ESP32 ||  XH2.45  ||  GPS
+Pin2  ->  RED    -> YELLOW
+Pin4  ->  BLACK  -> GREEN
+GND   ->  YELLOW -> BLACK
+VCC   ->  WHITE  -> RED
