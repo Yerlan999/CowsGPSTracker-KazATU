@@ -285,3 +285,109 @@ configuration.OPTION.transmissionPower = POWER_20;
 configuration.SPED.airDataRate = AIR_DATA_RATE_010_24;
 configuration.SPED.uartBaudRate = UART_BPS_9600;
 configuration.SPED.uartParity = MODE_00_8N1;
+
+
+
+
+$GNGLL,5110.15984,N,07122.50811,E,112726.00,A,A*79
+$GNRMC,112727.00,A,5110.15985,N,07122.50834,E,0.159,,240424,,,A*6E
+$GNVTG,,T,,M,0.159,N,0.295,K,A*3E
+$GNGGA,112727.00,5110.15985,N,07122.50834,E,1,06,3.12,358.0,M,-33.2,M,,*6C
+$GNGSA,A,3,15,05,29,13,20,,,,,,,,4.50,3.12,3.25*13
+$GNGSA,A,3,69,,,,,,,,,,,,4.50,3.12,3.25*16
+$GPGSV,3,1,10,05,52,061,29,07,02,023,,13,31,100,19,15,34,143,22*7C
+$GPGSV,3,2,10,16,19,318,,18,58,283,,20,21,058,27,23,23,223,*7B
+$GPGSV,3,3,10,26,26,281,,29,63,166,24*7A
+$GLGSV,3,1,09,68,34,037,,69,61,112,34,70,17,183,,75,18,272,*69
+$GLGSV,3,2,09,76,19,331,,77,01,010,,83,09,107,,84,67,068,*62
+$GLGSV,3,3,09,85,42,309,*5D
+
+$GNGLL,5110.15985,N,07122.50834,E,112727.00,A,A*7E
+$GNRMC,112728.00,A,5110.15983,N,07122.50842,E,0.169,,240424,,,A*65
+$GNVTG,,T,,M,0.169,N,0.314,K,A*35
+$GNGGA,112728.00,5110.15983,N,07122.50842,E,1,06,3.12,358.0,M,-33.2,M,,*64
+$GNGSA,A,3,15,05,29,13,20,,,,,,,,4.50,3.12,3.25*13
+$GNGSA,A,3,69,,,,,,,,,,,,4.50,3.12,3.25*16
+$GPGSV,3,1,10,05,52,061,28,07,02,023,,13,31,100,24,15,34,143,23*72
+$GPGSV,3,2,10,16,19,318,,18,58,283,,20,21,058,27,23,23,223,*7B
+$GPGSV,3,3,10,26,26,281,,29,63,166,25*7B
+$GLGSV,3,1,09,68,34,037,,69,61,112,34,70,17,183,,75,18,272,*69
+$GLGSV,3,2,09,76,19,331,,77,01,010,,83,09,107,,84,67,068,*62
+$GLGSV,3,3,09,85,42,309,*5D
+
+
+
+B5 62 06 86 08 00 00 00 00 00 00 00 00 00 94 5A // Full power
+B5 62 06 86 08 00 00 01 00 00 00 00 00 00 95 61 // Balanced
+B5 62 06 86 08 00 00 03 00 00 00 00 00 00 97 6F // Agressive 1Hz
+
+
+B5 62 06 57 08 00 01 00 00 00 50 4B 43 42 86 46 // Software Backup
+B5 62 06 57 08 00 01 00 00 00 50 4F 54 53 AC 85 // GNSS stoppen
+B5 62 06 57 08 00 01 00 00 00 20 4E 55 52 7B C3 // GNSS running
+
+B5 62 06 11 02 00 08 00 21 91 // Continuous mode
+B5 62 06 11 02 00 08 01 22 92 // Power save mode
+
+
+0xB5 0x62 0x06 0x86 0x08 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x94 0x5A // Full power
+0xB5 0x62 0x06 0x86 0x08 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x95 0x61 // Balanced
+0xB5 0x62 0x06 0x86 0x08 0x00 0x00 0x03 0x00 0x00 0x00 0x00 0x00 0x00 0x97 0x6F // Agressive 1Hz
+
+0xB5 0x62 0x06 0x57 0x08 0x00 0x01 0x00 0x00 0x00 0x50 0x4B 0x43 0x42 0x86 0x46 // Software Backup
+0xB5 0x62 0x06 0x57 0x08 0x00 0x01 0x00 0x00 0x00 0x50 0x4F 0x54 0x53 0xAC 0x85 // GNSS stoppen
+0xB5 0x62 0x06 0x57 0x08 0x00 0x01 0x00 0x00 0x00 0x20 0x4E 0x55 0x52 0x7B 0xC3 // GNSS running
+
+0xB5 0x62 0x06 0x11 0x02 0x00 0x08 0x00 0x21 0x91 // Continuous mode
+0xB5 0x62 0x06 0x11 0x02 0x00 0x08 0x01 0x22 0x92 // Power save mode
+
+
+
+// GNSS stoppen
+uint8_t gnssStopCmd[] = {   0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x00, 0x00, 0x00, 0x53, 0x54, 0x4F, 0x50, 0xAB, 0x26};
+// GNSS running
+uint8_t gnssRunningCmd[] = {0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x00, 0x00, 0x00, 0x52, 0x55, 0x4E, 0x20, 0x7A, 0xF3};
+
+// Full power
+uint8_t fullPowerCmd[] = {0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x94, 0x6C};
+// Balanced
+uint8_t balancedCmd[] = { 0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x95, 0xCD};
+// Aggressive 1Hz
+uint8_t aggressiveCmd[] ={0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x97, 0xDB};
+
+// Software Backup
+uint8_t softwareBackupCmd[] = {0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00, 0x50, 0x4B, 0x43, 0x42, 0x86, 0x46};
+
+// Continuous mode
+uint8_t continuousModeCmd[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x19, 0x68};
+// Power save mode
+uint8_t powerSaveModeCmd[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x01, 0x1A, 0x69};
+
+
+
+void GPS_SendConfig(const uint8_t *Progmem_ptr) {
+  uint8_t byteread;
+
+  // Calculate the array size
+  size_t arraysize = sizeof(Progmem_ptr) / sizeof(uint8_t);
+
+  Serial.print(F("GPSSend  "));
+
+  for (size_t index = 0; index < arraysize; index++) {
+    byteread = pgm_read_byte_near(Progmem_ptr++);
+    if (byteread < 0x10) {
+      Serial.print(F("0"));
+    }
+    Serial.print(byteread, HEX);
+    Serial.print(F(" "));
+  }
+
+  Serial.println();
+  Progmem_ptr = Progmem_ptr - arraysize;  // Set Progmem_ptr back to start
+
+  for (size_t index = 0; index < arraysize; index++) {
+    byteread = pgm_read_byte_near(Progmem_ptr++);
+    GPS.write(byteread);
+  }
+  delay(100);
+}

@@ -564,16 +564,25 @@
       <div class="card-body">
         <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
 
+
         <div class="row">
-            <div class="col">
-              <button id="ajaxRunner" class="btn btn-primary btn-block mt-3 mb-3" style="display: none">Начать треккинг</button>
-            </div>
+            <div class="col"></div>
             <div class="col">
               <label id="number_of_trackersLable" for="number_of_trackers" style="display: none">Количество трекеров</label>
-              <input type="number" id="number_of_trackers" class="form-control" min="1" style="display: none;">
             </div>
             <div class="col">
               <label id="integerOptionsLable" for="integerOptions" class="form-label" style="display: none">Ожидание ответа от треккеров (сек.)</label>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+              <button id="ajaxRunner" class="btn btn-primary btn-block" style="display: none">Начать треккинг</button>
+            </div>
+            <div class="col">
+              <input type="number" id="number_of_trackers" class="form-control" min="1" style="display: none;">
+            </div>
+            <div class="col">
               <select id="integerOptions" class="form-control" style="display: none">
                   <option value="1">1</option>
                   <option value="2">2</option>

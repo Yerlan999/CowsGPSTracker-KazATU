@@ -13,9 +13,8 @@ HardwareSerial GPS(1);  // use UART1
 TinyGPSPlus gps;
 
 #define Monitor Serial
-#define LED 18
 
-String COW_ID = "2";
+String COW_ID = "1";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;
@@ -25,11 +24,11 @@ char latitudeStr[15];
 char longitudeStr[15];
 
 
-bool ENABLE_DEEP_SLEEP = false;
-bool ENABLE_PSM_LORA = false;
-bool ENABLE_PSM_GPS = false;
+bool ENABLE_DEEP_SLEEP = true;
+bool ENABLE_PSM_LORA = true;
+bool ENABLE_PSM_GPS = true;
 
-bool DUMMY_MODE = true;
+bool DUMMY_MODE = false;
 bool CYCLIC = false;
 
 unsigned long lastTime = 0;
@@ -61,17 +60,50 @@ float dummy_cyclic_coordinates[][2] = {
 };
 
 
-// Define the payload for Balanced Power saving mode
-const uint8_t balancedPowerSavingPayload[] = {
-  0x00, // Version
-  0x01, // Reserve1
-  0x10, // Reserve2
-  0x10, // Reserve3
-  0x05, // Power Setup: Balanced Power Saving mode
-  0x05, // Period: Not used in Balanced mode (set to 0)
-  0x00, // OnTime: Not used in Balanced mode (set to 0)
-  0x00, // MinTime: Not used in Balanced mode (set to 0)
-};
+// GNSS stoppen
+uint8_t gnssStopCmd[] = {   0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x00, 0x00, 0x00, 0x53, 0x54, 0x4F, 0x50, 0xAB, 0x26};
+// GNSS running
+uint8_t gnssRunningCmd[] = {0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x00, 0x00, 0x00, 0x52, 0x55, 0x4E, 0x20, 0x7A, 0xF3};
+
+// Full power
+uint8_t fullPowerCmd[] = {0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x94, 0x6C};
+// Balanced
+uint8_t balancedCmd[] = { 0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x95, 0xCD};
+// Aggressive 1Hz
+uint8_t aggressiveCmd[] ={0xB5, 0x62, 0x06, 0x86, 0x08, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x97, 0xDB};
+
+// Software Backup
+uint8_t softwareBackupCmd[] = {0xB5, 0x62, 0x06, 0x57, 0x08, 0x00, 0x01, 0x00, 0x00, 0x00, 0x50, 0x4B, 0x43, 0x42, 0x86, 0x46};
+
+// Continuous mode
+uint8_t continuousModeCmd[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x00, 0x19, 0x68};
+// Power save mode
+uint8_t powerSaveModeCmd[] = {0xB5, 0x62, 0x06, 0x11, 0x02, 0x00, 0x01, 0x1A, 0x69};
+
+
+void GPS_SendConfig(const uint8_t *Progmem_ptr, size_t arraysize) {
+    uint8_t byteread;
+
+    Serial.print(F("GPSSend  "));
+    
+    for (size_t index = 0; index < arraysize; index++) {
+        byteread = pgm_read_byte_near(Progmem_ptr++);
+        if (byteread < 0x10) {
+            Serial.print(F("0"));
+        }
+        Serial.print(byteread, HEX);
+        Serial.print(F(" "));
+    }
+
+    Serial.println();
+    Progmem_ptr = Progmem_ptr - arraysize;  // Set Progmem_ptr back to start
+
+    for (size_t index = 0; index < arraysize; index++) {
+        byteread = pgm_read_byte_near(Progmem_ptr++);
+        GPS.write(byteread);
+    }
+    delay(100);
+}
 
 
 int num_coordinates = sizeof(dummy_cyclic_coordinates) / sizeof(dummy_cyclic_coordinates[0]);
@@ -79,17 +111,17 @@ int counter = 0;
 
   
 void setup() {
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, LOW);
-
   Monitor.begin(9600);
 
   GPS.begin(9600, SERIAL_8N1, 4, 2); // RX, TX;
-  if (ENABLE_PSM_GPS) { configurePowerManagement(); };
-    
+  if (ENABLE_PSM_GPS) { 
+    GPS_SendConfig(gnssStopCmd, sizeof(gnssStopCmd));
+    GPS_SendConfig(aggressiveCmd, sizeof(aggressiveCmd));
+    GPS_SendConfig(powerSaveModeCmd, sizeof(powerSaveModeCmd)); 
+  };
+
   LoRa.begin();
   if (ENABLE_PSM_LORA) { LoRa.setMode(MODE_2_POWER_SAVING); };
-  
 
   ResponseStructContainer c;
   c = LoRa.getConfiguration();
@@ -170,6 +202,12 @@ void get_GPS_coordinates() {
           // Monitor.println("Invalid Location");
           // Monitor.println(String(latitude) + " | " + String(longitude));
         }
+        if (gps.satellites.isValid()) {
+            // Get the number of satellites connected
+            int numSatellites = gps.satellites.value();
+            // Print the number of satellites to the monitor
+            Monitor.println("Satellites connected: " + String(numSatellites));
+        }        
       }
     }
   }
@@ -222,11 +260,9 @@ void print_wakeup_reason(){
 
 
 void sendCoordinatesToHead(){
-  digitalWrite(LED,HIGH);
   get_GPS_coordinates();
   LoRa.setMode(MODE_0_NORMAL);
   ResponseStatus responce = writeToLoRa(String(COW_ID) + " | " + String(latitudeStr) + " | " + String(longitudeStr));
-  digitalWrite(LED,LOW);
   LoRa.setMode(MODE_2_POWER_SAVING);  
 }
 
@@ -248,40 +284,6 @@ void enableDeepSleepMode(){
   //Go to sleep now
   Monitor.println("Deep Sleep has been Started!");
   esp_deep_sleep_start();  
-}
-
-
-void configurePowerManagement() {
-  // Send the UBX-CFG-PMS message to the GPS module for Balanced Power saving mode
-  sendUBXMessage(0x06, 0x86, balancedPowerSavingPayload, sizeof(balancedPowerSavingPayload));
-}
-
-void sendUBXMessage(uint8_t msgClass, uint8_t msgId, const uint8_t* payload, uint16_t length) {
-  // Send UBX header
-  GPS.write(0xB5);
-  GPS.write(0x62);
-
-  // Send message class and ID
-  GPS.write(msgClass);
-  GPS.write(msgId);
-
-  // Send payload length
-  GPS.write(length & 0xFF);
-  GPS.write(length >> 8);
-
-  // Send payload
-  for (int i = 0; i < length; i++) {
-    GPS.write(payload[i]);
-  }
-
-  // Calculate and send checksum
-  uint8_t checksumA = 0, checksumB = 0;
-  for (int i = 0; i < length; i++) {
-    checksumA += payload[i];
-    checksumB += checksumA;
-  }
-  GPS.write(checksumA);
-  GPS.write(checksumB);
 }
 
 
