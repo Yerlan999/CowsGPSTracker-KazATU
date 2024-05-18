@@ -14,7 +14,7 @@ TinyGPSPlus gps;
 
 #define Monitor Serial
 
-String COW_ID = "1";
+String COW_ID = "5";
 int cowId = COW_ID.toInt()-1;
 
 float latitude;

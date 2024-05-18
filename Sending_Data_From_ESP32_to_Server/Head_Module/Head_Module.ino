@@ -48,7 +48,7 @@ enum MessageType {PAIRING, DATA,};
 MessageType messageType;
 
 int pairCount = 0;
-int number_of_trackers = 2;
+int number_of_trackers = 5;
 int wait_time = 3;
 
 bool tracking_enabled = false;
@@ -251,7 +251,7 @@ void setup() {
 
   ssid = preferences.getString("ssid", "");
   password = preferences.getString("password", "");
-
+if 
   cycle_time = preferences.getInt("time");
 
 

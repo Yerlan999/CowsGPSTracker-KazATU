@@ -398,3 +398,16 @@ Pin2  ->  RED    -> YELLOW (RX)
 Pin4  ->  BLACK  -> GREEN (TX)
 GND   ->  YELLOW -> BLACK
 VCC   ->  WHITE  -> RED
+
+
+PM - Power Management
+PM2 - Extended Power Management
+PMS - Power Management Setup
+RXM - Reveiver Manager
+
+
+START = 67
+NUMBER = 30
+
+for i, j in enumerate(range(NUMBER), start=START):
+    print(i)

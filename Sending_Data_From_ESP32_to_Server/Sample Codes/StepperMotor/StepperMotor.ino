@@ -1,7 +1,7 @@
 #define Monitor Serial
 
-const int DIR = 32;
-const int STEP = 33;
+const int DIR = 23;
+const int STEP = 21;
 
 const int CURRENT = 35;
 
@@ -29,8 +29,8 @@ void loop() {
 
 void moveStepper(int rotations){
   digitalWrite(DIR, 1);
+  Monitor.println("Moving Motor...");
   for(int i = 0; i < steps_per_rev*rotations; i++){
-
     digitalWrite(STEP, HIGH);
     delayMicroseconds(500);
     digitalWrite(STEP, LOW);
