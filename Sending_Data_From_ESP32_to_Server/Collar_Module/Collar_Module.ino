@@ -24,8 +24,8 @@ char latitudeStr[15];
 char longitudeStr[15];
 
 
-bool ENABLE_DEEP_SLEEP = true;
-bool ENABLE_PSM_LORA = true;
+bool ENABLE_DEEP_SLEEP = false;
+bool ENABLE_PSM_LORA = false;
 bool ENABLE_PSM_GPS = false;
 
 bool DUMMY_MODE = false;
