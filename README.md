@@ -24,7 +24,6 @@
       <sub>Step 4: Selecting a date</sub>
     </td>
   </tr>
-
     <td align="center">
       <img src="Screenshot_1.png" width="500"/><br/>
       <sub>Step 5: Pasture RGB image</sub>
