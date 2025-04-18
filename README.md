@@ -2,21 +2,28 @@
 
 ### Description of the System <br/>
 
-<p float="left">
-  <img src="Screenshot_1.png" width="500"/>
-  <img src="Screenshot_2.png" width="500"/>
-  <img src="Screenshot_3.png" width="500"/>
-  <img src="Screenshot_4.png" width="500"/>
-  <img src="Screenshot_5.png" width="500"/>
-  <img src="Screenshot_6.png" width="500"/>
-  <img src="Screenshot_7.png" width="500"/>
-  <img src="Screenshot_8.png" width="500"/>
-  <img src="Screenshot_9.png" width="500"/>
-  <img src="Screenshot_10.png" width="500"/>
-  <img src="Screenshot_11.png" width="500"/>
-  <img src="Screenshot_12.png" width="500"/>
-  <img src="Screenshot_13.png" width="500"/>
-  <img src="Screenshot_14.png" width="500"/>
-</p>
+<table>
+  <tr>
+    <td align="center">
+      <img src="Screenshot_1.png" width="300"/><br/>
+      <sub>Step 1: Initial screen</sub>
+    </td>
+    <td align="center">
+      <img src="Screenshot_2.png" width="300"/><br/>
+      <sub>Step 2: Select device</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="Screenshot_3.png" width="300"/><br/>
+      <sub>Step 3: Configuration</sub>
+    </td>
+    <td align="center">
+      <img src="Screenshot_4.png" width="300"/><br/>
+      <sub>Step 4: Apply settings</sub>
+    </td>
+  </tr>
+  <!-- Add more rows as needed -->
+</table>
 
 ### Hardware overview <br/>
