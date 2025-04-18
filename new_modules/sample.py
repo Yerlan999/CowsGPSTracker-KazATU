@@ -411,3 +411,527 @@ NUMBER = 30
 
 for i, j in enumerate(range(NUMBER), start=START):
     print(i)
+
+
+
+
+x = ["№4", "№5", "№6", "№7"]
+y = [2.2, 1.9, 0.9, 0.6]
+correlation_dict = dict()
+
+# Plot with markers
+plt.plot(x, y, marker='o', color='blue', label='Значение')
+
+# Customize axes and title
+plt.xlabel('Загоны (№)')
+plt.ylabel('Урожайность (т/га)')
+plt.title(f'Урожайность загонов на дату {start_date}')
+
+# Add a legend
+plt.legend()
+
+# Show the plot
+plt.show()
+
+
+
+Arithmetic mean == Среднее арифметическое
+Harmonic mean == Среднее гармоническое
+Geometric mean == Среднее геометрическое
+Median == Медиана
+Standard deviation == Стандартное отклонение
+Kurtosis (Excess kurtosis) == Коэффициент эксцесса
+Skewness == Коэффициент ассиметрии
+Interquartile range (IQR) == Межквартильный размах
+
+
+
+# English Version
+def show_hist_and_scatter(zagon, all_pasture_OR_each_paddock, paddock_id, header):
+    i = paddock_id
+
+    fig, axs = plt.subplots(1, 2, figsize=(16, 6))  # Create side-by-side subplots
+
+    # Histogram plot (left subplot)
+    ax_hist = axs[0]
+    n, bins, patches = ax_hist.hist(
+        zagon.compressed(),  # Use .compressed() to handle masked arrays
+        bins=30,
+        color=colors[i],
+        alpha=0.5,
+        edgecolor='black',
+        label="Histogram"
+    )
+
+    # Calculate statistics
+    mean = zagon.mean()
+    median = ma.median(zagon)
+    std_dev = zagon.std()
+    flattened_matrix = zagon.compressed()
+    skewness_value = skew(flattened_matrix)
+    Q1 = np.percentile(flattened_matrix, 25)
+    Q3 = np.percentile(flattened_matrix, 75)
+    IQR = Q3 - Q1
+    kurtosis_value = kurtosis(flattened_matrix)
+
+    # Add vertical lines
+    ax_hist.axvline(zagon.max(), color='r', linestyle=':', linewidth=2, label=f"Max: {zagon.max()}")
+    ax_hist.axvline(zagon.min(), color='b', linestyle=':', linewidth=2, label=f"Min: {zagon.min()}")
+    ax_hist.axvline(mean, color='b', linestyle='dashed', linewidth=2, label=f"Arithmetic mean: {mean}")
+    ax_hist.axvline(median, color='r', linestyle='dashed', linewidth=2, label=f"Median: {median}")
+
+    # Mask negative or zero values for harmonic and geometric means
+    if not (zagon <= 0).sum():
+        harmonic_mean = hmean(flattened_matrix)
+        geometric_mean = gmean(flattened_matrix)
+        ax_hist.axvline(harmonic_mean, color='g', linestyle='dashed', linewidth=2, label=f"Harmonic mean: {harmonic_mean}")
+        ax_hist.axvline(geometric_mean, color='y', linestyle='dashed', linewidth=2, label=f"Geometric mean: {geometric_mean}")
+
+    # Bell curve
+    x = np.linspace(bins[0], bins[-1], 500)
+    bell_curve = norm.pdf(x, loc=mean, scale=std_dev)
+    bell_curve_scaled = bell_curve * n.max() / bell_curve.max()
+    ax_hist.plot(x, bell_curve_scaled, color='m', linewidth=2, label="Normal distribution")
+
+    # Annotate histogram with additional statistics
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Standard deviation: {std_dev}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Skewness: {skewness_value}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Interquartile range (IQR): {IQR}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Kurtosis (Excess kurtosis): {kurtosis_value}', alpha=0)
+
+    # Finalize histogram
+    ax_hist.legend(title=f'Sum: {round(zagon.sum(), precision)}')
+
+    if all_pasture_OR_each_paddock:
+        ax_hist.set_title(f'{header} || Pasture {general_info}')
+    else:
+        ax_hist.set_title(f'{header} || Paddock-{i+1} {general_info}')
+
+    ax_hist.set_xlabel('Value')
+    ax_hist.set_ylabel('Frequency')
+
+    # Scatter plot (right subplot)
+    ax_scatter = axs[1]
+    x = np.arange(zagon.size)
+    y = zagon.flatten()
+    unmasked_values = zagon.compressed()
+
+    mean_value = np.ma.mean(zagon)
+    median_value = np.ma.median(zagon)
+    if not (zagon <= 0).sum():
+        geometric_mean = gmean(unmasked_values)
+        harmonic_mean = hmean(unmasked_values)
+
+    ax_scatter.scatter(x, y, s=100, label="Values", color=colors[i])
+    ax_scatter.axhline(y=mean_value, color='b', linestyle='--', label=f'Arithmetic mean: {mean_value}')
+    ax_scatter.axhline(y=median_value, color='r', linestyle='--', label=f'Median: {median_value}')
+    if not (zagon <= 0).sum():
+        ax_scatter.axhline(y=geometric_mean, color='y', linestyle='--', label=f'Geometric mean: {geometric_mean}')
+        ax_scatter.axhline(y=harmonic_mean, color='g', linestyle='--', label=f'Harmonic mean: {harmonic_mean}')
+
+    if all_pasture_OR_each_paddock:
+        ax_scatter.set_title(f'{header} || Pasture {general_info}')
+    else:
+        ax_scatter.set_title(f'{header} || Paddock-{i+1} {general_info}')
+
+    ax_scatter.set_xlabel('Index')
+    ax_scatter.set_ylabel('Value')
+    ax_scatter.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+summary_df = None
+def show_pasture_index(test_meet, lower_bound, upper_bound, show_hists=True, save_excel=False, show_index=True, show_table=True):
+    global summary_df
+    precision = 4
+    header = None
+
+    if show_index:
+        fig, ax = plt.subplots(figsize=(12, 12))
+        for zagon in range(len(pasture_df)-1):
+
+            ax.plot(pasture_edges[zagon].exterior.xy[1], pasture_edges[zagon].exterior.xy[0])
+
+        header = input_text
+        # print(f"Max: {round(float(test_meet.max()),precision)} || Min: {round(float(test_meet.min()),precision)} || Arithmetic mean: {round(float(test_meet.mean()),precision)} || Sum: {round(float(test_meet.sum()),precision)}")
+        ep.plot_bands(test_meet, title=f"{header} {general_info}", ax=ax, cmap="seismic", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+        plt.show()
+
+    test_index_masked_array = []
+    for i, mask in enumerate(masks):
+        mx = ma.masked_array(test_meet, mask=mask.reshape(aoi_height, aoi_width))
+        test_index_masked_array.append(mx)
+
+
+    weather_parameters = history_df[history_df["time"]==date_chosen]
+
+    weather_parameters = weather_parameters.assign(
+        sunZenithAngles=SZA,
+        sunAzimuthAngles=SAA,
+        viewZenithMean=VZM,
+        viewAzimuthMean=VAM)
+
+#     weather_parameters = weather_parameters.drop(columns=["time"], inplace=False)
+#     weighted_vector = (weather_parameters * pd.Series(weights)).sum(axis=1)
+#     print(weighted_vector)
+
+#     NWC = (float(weighted_vector.iloc[0]) - 393.2550463180542) / (590.1110732021332 - 393.2550463180542)
+
+    summary_data = []
+    for i, zagon in enumerate(test_index_masked_array):
+#         resource = round(8.59 * ma.median(zagon) + 0.20 * NWC + -7.04, precision)
+
+        geometric_mean = round(float(gmean(zagon.reshape(aoi_width * aoi_height))),precision)
+        harmonic_mean = round(float(hmean(zagon.reshape(aoi_width * aoi_height))),precision)
+
+        std_dev = zagon.std()
+        flattened_matrix = zagon.compressed()
+        skewness_value = skew(flattened_matrix)
+        Q1 = np.percentile(flattened_matrix, 25); Q3 = np.percentile(flattened_matrix, 75)
+        IQR = Q3 - Q1
+        kurtosis_value = kurtosis(flattened_matrix)
+
+        temp_resource = 8.87 * ma.median(zagon) + 0.03 * alter_weather_param_df["temp"].iloc[0] -7.91 # (Temperature)
+        press_resource = 9.12 * ma.median(zagon) -0.01 * alter_weather_param_df["pressure"].iloc[0] + 2.18 # (Pressure)
+        humid_resource = 8.49 * ma.median(zagon) -0.00 * alter_weather_param_df["humidity"].iloc[0] -6.66 # (Moisture)
+        angle_resource = 8.95 * ma.median(zagon) -0.03 * (SZA + VZM) -6.06 # (SZA + VZM = RZA)
+
+        resource = round(np.array([temp_resource, press_resource, humid_resource, angle_resource]).mean(), precision)
+
+        summary_data.append([f"№{i+1}", round(zagon.sum(),precision), round(zagon.mean(),precision), round(ma.median(zagon),precision), geometric_mean, harmonic_mean, round(std_dev,precision), round(skewness_value,precision), round(IQR,precision), round(kurtosis_value,precision), round(zagon.max(),precision), round(zagon.min(),precision), round(ma.count(zagon)*(10**2)*0.0001,precision), resource])
+
+
+    styles = [
+        {'selector': '',
+         'props': [('border', '2px solid #000'), ('border-collapse', 'collapse')]},
+        {'selector': 'th',
+         'props': [('border', '2px solid #000')]},
+        {'selector': 'td',
+         'props': [('border', '1px solid #000'), ('padding', '5px')]}
+    ]
+
+    summary_df = pd.DataFrame(data = summary_data, columns=["Paddock", "Sum", "Arithmetic mean", "Median", 'Geometric mean', 'Harmonic mean', "Standard deviation", "Skewness", "Interquartile range (IQR)", "Kurtosis (Excess kurtosis)", "Max", "Min", "Area (ha)", "Resource (t/ha)"])
+
+    std_dev = test_meet.std()
+    flattened_matrix = test_meet.compressed()
+    skewness_value = skew(flattened_matrix)
+    Q1 = np.percentile(flattened_matrix, 25); Q3 = np.percentile(flattened_matrix, 75)
+    IQR = Q3 - Q1
+    kurtosis_value = kurtosis(flattened_matrix)
+
+    sum_row = pd.DataFrame({'Paddock': ["Pasture"],
+                            'Sum': [round(float(summary_df['Sum'].sum()),precision)],
+                            'Arithmetic mean': [round(float(test_meet.mean()),precision)],
+                            'Median': [round(float(ma.median(test_meet)),precision)],
+
+                            'Geometric mean': [round(float(gmean(test_meet.reshape(aoi_width * aoi_height))),precision)],
+                            'Harmonic mean': [round(float(hmean(test_meet.reshape(aoi_width * aoi_height))),precision)],
+
+                            'Standard deviation': [round(float(std_dev),precision)],
+                            'Skewness': [round(float(skewness_value),precision)],
+                            'Interquartile range (IQR)': [round(float(IQR),precision)],
+                            'Kurtosis (Excess kurtosis)': [round(float(kurtosis_value),precision)],
+
+                            'Max': [round(float(summary_df['Max'].max()),precision)],
+                            'Min': [round(float(summary_df['Min'].min()),precision)],
+                            'Area (ha)': [summary_df['Area (ha)'].sum()],
+                            'Resource (t/ha)': [summary_df['Resource (t/ha)'].sum()]}, index=[len(summary_df.index)])
+
+    summary_df = pd.concat([summary_df, sum_row])
+    summary_df = summary_df.round(precision)
+
+    if save_excel:
+        summary_df.to_excel(f"Summary_{date_chosen}_{data_collection.processing_level}.xlsx", index=None)
+    styled_df = summary_df.style.set_table_styles(styles)
+    styled_df.hide(axis="index")
+
+    if show_table:
+        display(styled_df)
+
+    if show_hists:
+        show_hist_and_scatter(test_meet, True, 27, header)
+        # Loop through each dataset in test_index_masked_array
+#         for i, zagon in enumerate(test_index_masked_array):
+#             show_hist_and_scatter(zagon, False, i, header)
+
+
+# Russian Version
+def show_hist_and_scatter(zagon, all_pasture_OR_each_paddock, paddock_id, header):
+    i = paddock_id
+
+    fig, axs = plt.subplots(1, 2, figsize=(16, 6))  # Create side-by-side subplots
+
+    # Histogram plot (left subplot)
+    ax_hist = axs[0]
+    n, bins, patches = ax_hist.hist(
+        zagon.compressed(),  # Use .compressed() to handle masked arrays
+        bins=30,
+        color=colors[i],
+        alpha=0.5,
+        edgecolor='black',
+        label="Гистограмма"
+    )
+
+    # Calculate statistics
+    mean = zagon.mean()
+    median = ma.median(zagon)
+    std_dev = zagon.std()
+    flattened_matrix = zagon.compressed()
+    skewness_value = skew(flattened_matrix)
+    Q1 = np.percentile(flattened_matrix, 25)
+    Q3 = np.percentile(flattened_matrix, 75)
+    IQR = Q3 - Q1
+    kurtosis_value = kurtosis(flattened_matrix)
+
+    # Add vertical lines
+    ax_hist.axvline(zagon.max(), color='r', linestyle=':', linewidth=2, label=f"Макс.: {zagon.max()}")
+    ax_hist.axvline(zagon.min(), color='b', linestyle=':', linewidth=2, label=f"Мин.: {zagon.min()}")
+    ax_hist.axvline(mean, color='b', linestyle='dashed', linewidth=2, label=f"Средняя: {mean}")
+    ax_hist.axvline(median, color='r', linestyle='dashed', linewidth=2, label=f"Медианная: {median}")
+
+    # Mask negative or zero values for harmonic and geometric means
+    if not (zagon <= 0).sum():
+        harmonic_mean = hmean(flattened_matrix)
+        geometric_mean = gmean(flattened_matrix)
+        ax_hist.axvline(harmonic_mean, color='g', linestyle='dashed', linewidth=2, label=f"Гармоническая: {harmonic_mean}")
+        ax_hist.axvline(geometric_mean, color='y', linestyle='dashed', linewidth=2, label=f"Геометрическая: {geometric_mean}")
+
+    # Bell curve
+    x = np.linspace(bins[0], bins[-1], 500)
+    bell_curve = norm.pdf(x, loc=mean, scale=std_dev)
+    bell_curve_scaled = bell_curve * n.max() / bell_curve.max()
+    ax_hist.plot(x, bell_curve_scaled, color='m', linewidth=2, label="Нормальное распределение")
+
+    # Annotate histogram with additional statistics
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Стандарт. отклонение: {std_dev}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Коэффициент асимметрии: {skewness_value}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Межквартильный размах: {IQR}', alpha=0)
+    ax_hist.axvline(mean, color='white', linestyle='--', label=f'Величина эксцесса: {kurtosis_value}', alpha=0)
+
+    # Finalize histogram
+    ax_hist.legend(title=f'Сумма: {round(zagon.sum(), precision)}')
+
+    if all_pasture_OR_each_paddock:
+        ax_hist.set_title(f'{header} || Пастбище {general_info}')
+    else:
+        ax_hist.set_title(f'{header} || Загон-{i+1} {general_info}')
+
+    ax_hist.set_xlabel('Значение')
+    ax_hist.set_ylabel('Частота')
+
+    # Scatter plot (right subplot)
+    ax_scatter = axs[1]
+    x = np.arange(zagon.size)
+    y = zagon.flatten()
+    unmasked_values = zagon.compressed()
+
+    mean_value = np.ma.mean(zagon)
+    median_value = np.ma.median(zagon)
+    if not (zagon <= 0).sum():
+        geometric_mean = gmean(unmasked_values)
+        harmonic_mean = hmean(unmasked_values)
+
+    ax_scatter.scatter(x, y, s=100, label="Значения", color=colors[i])
+    ax_scatter.axhline(y=mean_value, color='b', linestyle='--', label=f'Средняя: {mean_value}')
+    ax_scatter.axhline(y=median_value, color='r', linestyle='--', label=f'Медианная: {median_value}')
+    if not (zagon <= 0).sum():
+        ax_scatter.axhline(y=geometric_mean, color='y', linestyle='--', label=f'Геометрическая: {geometric_mean}')
+        ax_scatter.axhline(y=harmonic_mean, color='g', linestyle='--', label=f'Гармоническая: {harmonic_mean}')
+
+    if all_pasture_OR_each_paddock:
+        ax_scatter.set_title(f'{header} || Пастбище {general_info}')
+    else:
+        ax_scatter.set_title(f'{header} || Загон-{i+1} {general_info}')
+
+    ax_scatter.set_xlabel('Индекс')
+    ax_scatter.set_ylabel('Значение')
+    ax_scatter.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+summary_df = None
+def show_pasture_index(test_meet, lower_bound, upper_bound, show_hists=True, save_excel=False, show_index=True, show_table=True):
+    global summary_df
+    precision = 4
+    header = None
+
+    if show_index:
+        fig, ax = plt.subplots(figsize=(12, 12))
+        for zagon in range(len(pasture_df)-1):
+
+            ax.plot(pasture_edges[zagon].exterior.xy[1], pasture_edges[zagon].exterior.xy[0])
+
+        header = input_text
+        # print(f"Макс: {round(float(test_meet.max()),precision)} || Мин: {round(float(test_meet.min()),precision)} || Сред: {round(float(test_meet.mean()),precision)} || Сумм: {round(float(test_meet.sum()),precision)}")
+        ep.plot_bands(test_meet, title=f"{header} {general_info}", ax=ax, cmap="seismic", cols=1, vmin=lower_bound, vmax=upper_bound, figsize=(10, 14))
+        plt.show()
+
+    test_index_masked_array = []
+    for i, mask in enumerate(masks):
+        mx = ma.masked_array(test_meet, mask=mask.reshape(aoi_height, aoi_width))
+        test_index_masked_array.append(mx)
+
+
+    weather_parameters = history_df[history_df["time"]==date_chosen]
+
+    weather_parameters = weather_parameters.assign(
+        sunZenithAngles=SZA,
+        sunAzimuthAngles=SAA,
+        viewZenithMean=VZM,
+        viewAzimuthMean=VAM)
+
+#     weather_parameters = weather_parameters.drop(columns=["time"], inplace=False)
+#     weighted_vector = (weather_parameters * pd.Series(weights)).sum(axis=1)
+#     print(weighted_vector)
+
+#     NWC = (float(weighted_vector.iloc[0]) - 393.2550463180542) / (590.1110732021332 - 393.2550463180542)
+
+    summary_data = []
+    for i, zagon in enumerate(test_index_masked_array):
+#         resource = round(8.59 * ma.median(zagon) + 0.20 * NWC + -7.04, precision)
+
+        geometric_mean = round(float(gmean(zagon.reshape(aoi_width * aoi_height))),precision)
+        harmonic_mean = round(float(hmean(zagon.reshape(aoi_width * aoi_height))),precision)
+
+        std_dev = zagon.std()
+        flattened_matrix = zagon.compressed()
+        skewness_value = skew(flattened_matrix)
+        Q1 = np.percentile(flattened_matrix, 25); Q3 = np.percentile(flattened_matrix, 75)
+        IQR = Q3 - Q1
+        kurtosis_value = kurtosis(flattened_matrix)
+
+        temp_resource = 8.87 * ma.median(zagon) + 0.03 * alter_weather_param_df["temp"].iloc[0] -7.91 # (Temperature)
+        press_resource = 9.12 * ma.median(zagon) -0.01 * alter_weather_param_df["pressure"].iloc[0] + 2.18 # (Pressure)
+        humid_resource = 8.49 * ma.median(zagon) -0.00 * alter_weather_param_df["humidity"].iloc[0] -6.66 # (Moisture)
+        angle_resource = 8.95 * ma.median(zagon) -0.03 * (SZA + VZM) -6.06 # (SZA + VZM = RZA)
+
+        resource = round(np.array([temp_resource, press_resource, humid_resource, angle_resource]).mean(), precision)
+
+        summary_data.append([f"№{i+1}", round(zagon.sum(),precision), round(zagon.mean(),precision), round(ma.median(zagon),precision), geometric_mean, harmonic_mean, round(std_dev,precision), round(skewness_value,precision), round(IQR,precision), round(kurtosis_value,precision), round(zagon.max(),precision), round(zagon.min(),precision), round(ma.count(zagon)*(10**2)*0.0001,precision), resource])
+
+
+    styles = [
+        {'selector': '',
+         'props': [('border', '2px solid #000'), ('border-collapse', 'collapse')]},
+        {'selector': 'th',
+         'props': [('border', '2px solid #000')]},
+        {'selector': 'td',
+         'props': [('border', '1px solid #000'), ('padding', '5px')]}
+    ]
+
+    summary_df = pd.DataFrame(data = summary_data, columns=["Загон", "Сумма", "Cреднаяя", "Медианная", 'Геомет.сред.', 'Гармон.сред.', "Станд. откл.", "Коэф. асимм.", "Межкв. размах", "Велич. эксц.", "Макс", "Мин", "Площадь (га)", "Ресурс (т/га)"])
+
+    std_dev = test_meet.std()
+    flattened_matrix = test_meet.compressed()
+    skewness_value = skew(flattened_matrix)
+    Q1 = np.percentile(flattened_matrix, 25); Q3 = np.percentile(flattened_matrix, 75)
+    IQR = Q3 - Q1
+    kurtosis_value = kurtosis(flattened_matrix)
+
+    sum_row = pd.DataFrame({'Загон': ["Пастбище"],
+                            'Сумма': [round(float(summary_df['Сумма'].sum()),precision)],
+                            'Cреднаяя': [round(float(test_meet.mean()),precision)],
+                            'Медианная': [round(float(ma.median(test_meet)),precision)],
+
+                            'Геомет.сред.': [round(float(gmean(test_meet.reshape(aoi_width * aoi_height))),precision)],
+                            'Гармон.сред.': [round(float(hmean(test_meet.reshape(aoi_width * aoi_height))),precision)],
+
+                            'Станд. откл.': [round(float(std_dev),precision)],
+                            'Коэф. асимм.': [round(float(skewness_value),precision)],
+                            'Межкв. размах': [round(float(IQR),precision)],
+                            'Велич. эксц.': [round(float(kurtosis_value),precision)],
+
+                            'Макс': [round(float(summary_df['Макс'].max()),precision)],
+                            'Мин': [round(float(summary_df['Мин'].min()),precision)],
+                            'Площадь (га)': [summary_df['Площадь (га)'].sum()],
+                            'Ресурс (т/га)': [summary_df['Ресурс (т/га)'].sum()]}, index=[len(summary_df.index)])
+
+    summary_df = pd.concat([summary_df, sum_row])
+    summary_df = summary_df.round(precision)
+
+    if save_excel:
+        summary_df.to_excel(f"Summary_{date_chosen}_{data_collection.processing_level}.xlsx", index=None)
+    styled_df = summary_df.style.set_table_styles(styles)
+    styled_df.hide(axis="index")
+
+    if show_table:
+        display(styled_df)
+
+    if show_hists:
+        show_hist_and_scatter(test_meet, True, 27, header)
+        # Loop through each dataset in test_index_masked_array
+#         for i, zagon in enumerate(test_index_masked_array):
+#             show_hist_and_scatter(zagon, False, i, header)
+
+
+
+
+
+
+
+# English Version
+filtered_df = summary_df[summary_df['Paddock'].isin(["№4", "№5", "№6", "№7"])]
+
+# Select a range of columns to plot (e.g., all columns except 'Paddock')
+columns_to_plot = filtered_df.columns[1:-2]  # Skip the first column ('Paddock')
+correlation_list = []
+
+# Plot each column dynamically
+plt.figure(figsize=(10, 6))
+for column in columns_to_plot:
+
+    correlation = np.corrcoef(filtered_df[column], y)[0, 1]
+    correlation_list.append(correlation)
+
+    if column == "Sum":
+        plt.plot(filtered_df['Paddock'], scale_to_unit_range_np(filtered_df[column]), marker='o', label=f"{column} (*k = {correlation:.4f})")
+    else:
+        plt.plot(filtered_df['Paddock'], filtered_df[column], marker='o', label=f"{column} (k = {correlation:.4f})")
+
+correlation_dict[input_text] = correlation_list
+
+# Add labels, title, and legend
+plt.xlabel('Paddocks (№)')
+plt.ylabel('Value')
+plt.title(f'Statistical indicators of channel {input_text} for date {start_date}')
+plt.legend()
+plt.grid(True)
+
+# Show the plot
+plt.show()
+
+
+# Russian Version
+filtered_df = summary_df[summary_df['Загон'].isin(["№4", "№5", "№6", "№7"])]
+
+# Select a range of columns to plot (e.g., all columns except 'Загон')
+columns_to_plot = filtered_df.columns[1:-2]  # Skip the first column ('Загон')
+correlation_list = []
+
+# Plot each column dynamically
+plt.figure(figsize=(10, 6))
+for column in columns_to_plot:
+
+    correlation = np.corrcoef(filtered_df[column], y)[0, 1]
+    correlation_list.append(correlation)
+
+    if column == "Сумма":
+        plt.plot(filtered_df['Загон'], scale_to_unit_range_np(filtered_df[column]), marker='o', label=f"{column} (*k = {correlation:.4f})")
+    else:
+        plt.plot(filtered_df['Загон'], filtered_df[column], marker='o', label=f"{column} (k = {correlation:.4f})")
+
+correlation_dict[input_text] = correlation_list
+
+# Add labels, title, and legend
+plt.xlabel('Загоны (№)')
+plt.ylabel('Значение')
+plt.title(f'Статистические показатели канала {input_text} на дату {start_date}')
+plt.legend()
+plt.grid(True)
+
+# Show the plot
+plt.show()
