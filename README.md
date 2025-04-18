@@ -128,3 +128,18 @@
 </table>
 
 ### Hardware overview <br/>
+
+<table>
+
+  <tr>
+    <td align="center">
+      <img src="Slagbaum Gate Design 1.png" width="500"/><br/>
+      <sub>Gates</sub>
+    </td>
+    <td align="center">
+      <img src="Slagbaum Gate Design 2.png" width="500"/><br/>
+      <sub>Gates</sub>
+    </td>
+  </tr>
+
+</table>
