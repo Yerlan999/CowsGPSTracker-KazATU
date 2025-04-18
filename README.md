@@ -129,6 +129,9 @@
 
 ### Hardware overview <br/>
 
+<img src="Screenshot_18.png" width="500"/>
+<br/>
+
 <table>
 
   <tr>
@@ -139,6 +142,26 @@
     <td align="center">
       <img src="Slagbaum Gate Design 2.png" width="500"/><br/>
       <sub>Gates</sub>
+    </td>
+  </tr>
+
+</table>
+
+
+<table>
+
+  <tr>
+    <td align="center">
+      <img src="Screenshot_15.png" width="300"/><br/>
+      <sub>Gate control module</sub>
+    </td>
+    <td align="center">
+      <img src="Screenshot_16.png" width="300"/><br/>
+      <sub>Main control module</sub>
+    </td>
+    <td align="center">
+      <img src="Screenshot_17.png" width="300"/><br/>
+      <sub>Cattle control module (collar)</sub>
     </td>
   </tr>
 
