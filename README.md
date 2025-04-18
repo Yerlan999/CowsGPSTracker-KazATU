@@ -129,7 +129,7 @@
 
 ### Hardware overview <br/>
 
-<img src="Screenshot_18.png" width="500"/>
+<img src="Screenshot_18.jpg" width="1000"/>
 <br/>
 
 <table>
@@ -152,15 +152,15 @@
 
   <tr>
     <td align="center">
-      <img src="Screenshot_15.png" width="300"/><br/>
+      <img src="Screenshot_15.jpg" width="300"/><br/>
       <sub>Gate control module</sub>
     </td>
     <td align="center">
-      <img src="Screenshot_16.png" width="300"/><br/>
+      <img src="Screenshot_16.jpg" width="300"/><br/>
       <sub>Main control module</sub>
     </td>
     <td align="center">
-      <img src="Screenshot_17.png" width="300"/><br/>
+      <img src="Screenshot_17.jpg" width="300"/><br/>
       <sub>Cattle control module (collar)</sub>
     </td>
   </tr>
