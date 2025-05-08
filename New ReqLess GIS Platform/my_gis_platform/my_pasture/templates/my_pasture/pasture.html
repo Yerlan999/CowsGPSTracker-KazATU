@@ -1,0 +1,129 @@
+{% extends "my_pasture/master.html" %}
+
+{% block title %}
+  ГИС платформа
+{% endblock %}
+
+{% block content %}
+
+
+<style>
+    .container {
+      border: 0.5px solid #555;
+      border-radius: 25px;
+    }
+</style>
+
+<style>
+.loading-spinner {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+
+<div class="loading-spinner">
+</div>
+
+
+<div id="main-content" class="container shadow p-3 mb-5 bg-white rounded"><br>
+
+    <h1 class="text-center">ГИС платформа анализа пастбищных ресурсов</h1><br>
+
+    <h2 class="text-center">Форма основных параметров поиска</h1>
+
+    <div id="myAlert" class="alert alert-danger alert-dismissible fade show" role="alert" hidden="true">
+    </div>
+
+      {% load crispy_forms_filters %}
+
+    <form action="" method="post" enctype="multipart/form-data">
+
+    {% csrf_token %}
+    {{ form|crispy }}
+    <div class="form-group">
+        <input id="requst-button" class="btn btn-primary btn-lg btn-block" type="submit" value="Сделать запрос">
+    </div>
+
+    </form>
+
+</div>
+
+
+  <script>
+
+  function setAlertText(text) {
+    var alertElement = document.getElementById('myAlert');
+    if (alertElement) {
+
+      alertElement.innerHTML = text;
+
+      alertElement.style.display = 'block';
+      alertElement.hidden = false;
+    }
+  }
+
+
+    function showLoadingSpinner() {
+      document.querySelector('.loading-spinner').style.display = 'none';
+    }
+
+      $('#requst-button').click(function() {
+
+        var fieldValue = $('#id_level').val();
+        if (fieldValue === '') {
+          setAlertText("Выберете уровень спутника");
+          return;
+        }
+
+      var fileInput = document.getElementById('id_kml_file');
+      if (!fileInput.files.length > 0) {
+        setAlertText("Выберете kml файл");
+        return;
+      }
+
+        document.querySelector('.loading-spinner').style.display = 'block';
+        $('#main-content').hide();
+      });
+
+    window.addEventListener('load', showLoadingSpinner);
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var checkbox = document.getElementById('id_recent_date');
+        var startDateInput = document.getElementById('id_start_date');
+        var endDateInput = document.getElementById('id_end_date');
+
+        // Load the stored state
+        var checkboxState = localStorage.getItem('checkboxState');
+        if (checkboxState === 'checked') {
+            checkbox.checked = true;
+            startDateInput.disabled = true;
+            endDateInput.disabled = true;
+        }
+
+
+        checkbox.addEventListener('change', function () {
+            localStorage.setItem('checkboxState', checkbox.checked ? 'checked' : 'unchecked');
+
+            startDateInput.disabled = checkbox.checked;
+            endDateInput.disabled = checkbox.checked;
+        });
+    });
+  </script>
+
+{% endblock %}

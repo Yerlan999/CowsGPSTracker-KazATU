@@ -1,0 +1,95 @@
+{% extends "my_pasture/master.html" %}
+
+{% block title %}
+  ГИС платформа
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Custom CSS to set tooltip opacity to 1 */
+    .tooltip {
+      opacity: 1 !important;
+    }
+    .tooltip-inner {
+        max-width: 100%; /* Set the maximum width to 100% */
+        background-color: black; /* Set the background color to white */
+        opacity: 1;
+    }
+
+    @media (min-width: 576px) {
+        /* Adjust the max-width based on the window size */
+        .tooltip-inner {
+            max-width: 500px;
+        }
+    }
+</style>
+
+<div class="container mb-5">
+  <div class="row">
+    <div class="col-sm">
+        <h4 class="text-left text-justify">Порог значения облачности</h4>
+    </div>
+    <div class="col-sm">
+        <input class="form-control" type="number" id="filterValue" min="0" value="100">
+    </div>
+    <div class="col-sm">
+      <button class="btn btn-primary btn-block btn-sm" type="button" onclick="iterateForms()">Фильтровать по облачности</button>
+    </div>
+  </div>
+</div>
+
+<div class="container"><br>
+
+    <h1 class="text-center">ГИС платформа анализа пастбищных ресурсов</h1><br>
+    <h3 class="text-center">Доступные даты на выбранный промежуток</h3>
+
+    <div class="mb-5">
+        {% if dict_of_images %}
+            {% for unique_date, image in dict_of_images.items %}
+                <form id="{{ unique_date.1 }}" method="POST" action="{% url 'date_detail' pk=counter_start|add:forloop.counter0 %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="pk" id="hidden_input_tag" value="{{ counter_start|add:forloop.counter0 }}">
+                    <button
+                        name="date"
+                        value="{{ counter_start|add:forloop.counter0 }}"
+                        class="btn btn-outline-dark btn-lg btn-block ShowItsImage mt-1"
+                        data-toggle="tooltip"
+                        title='<img src="data:image/png;base64,{{ image }}" alt="{{ unique_date.0 }}" class="img-fluid img-thumbnail" style="opacity:1;">'
+                    >
+                        | {{ unique_date.0 }} | (облачность: {{ unique_date.1 }}%)
+                    </button>
+                </form>
+            {% endfor %}
+        {% endif %}
+    </div>
+
+</div>
+
+<script>
+    $(function () {
+        $('[data-toggle="tooltip"]').tooltip({
+            html: true,
+            trigger: 'hover',
+            animation: false,
+            delay: { "show": 100, "hide": 100 },
+            placement: 'auto',
+        });
+    });
+
+    function iterateForms() {
+        var filterValue = document.getElementById("filterValue").value;
+        var forms = document.forms;
+        for (var i = 0; i < forms.length; i++) {
+            var buttons = forms[i].getElementsByClassName('ShowItsImage');
+            for (var j = 0; j < buttons.length; j++) {
+                if (parseFloat(buttons[j].value) <= parseFloat(filterValue)){
+                    buttons[j].removeAttribute("hidden");
+                } else {
+                    buttons[j].setAttribute("hidden", true);
+                }
+            }
+        }
+    }
+</script>
+
+{% endblock %}

@@ -1,0 +1,2885 @@
+{% extends "my_pasture/master.html" %}
+
+{% block title %}
+  ГИС платформа КазАТИУ
+{% endblock %}
+
+
+{% block content %}
+
+<style>
+
+    .bi--arrow-right {
+      display: inline-block;
+      width: 2em;
+      height: 2em;
+      --svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%23000' fill-rule='evenodd' d='M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8'/%3E%3C/svg%3E");
+      background-color: currentColor;
+      -webkit-mask-image: var(--svg);
+      mask-image: var(--svg);
+      -webkit-mask-repeat: no-repeat;
+      mask-repeat: no-repeat;
+      -webkit-mask-size: 100% 100%;
+      mask-size: 100% 100%;
+    }
+
+  /*Legend specific*/
+  .legend {
+    padding: 6px 8px;
+    font: 14px Arial, Helvetica, sans-serif;
+    background: white;
+    background: rgba(255, 255, 255, 0.8);
+    /*box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);*/
+    /*border-radius: 5px;*/
+    line-height: 24px;
+    color: #555;
+  }
+  .legend h4 {
+    text-align: center;
+    font-size: 16px;
+    margin: 2px 12px 8px;
+    color: #777;
+  }
+
+  .legend span {
+    position: relative;
+    bottom: 3px;
+  }
+
+  .legend i {
+    width: 18px;
+    height: 18px;
+    float: left;
+    margin: 0 8px 0 0;
+    opacity: 0.7;
+  }
+
+  .legend i.icon {
+    background-size: 18px;
+    background-color: rgba(255, 255, 255, 1);
+  }
+
+    /* Custom CSS to change the color of carousel control icons */
+    .carousel-control-prev-icon, .carousel-control-next-icon {
+        background-color: #C7C7C7; /* Change to your desired color */
+    }
+    th {
+        text-align: center;
+        vertical-align: top;
+    }
+
+    #paddocks_bio_content {
+      cursor: pointer;
+    }
+
+    /* Optional: Add some styling for better visibility */
+    .section-header {
+      padding: 20px;
+      background-color: #e0e0e0;
+      border: 1px solid #ccc;
+    }
+</style>
+
+
+<!-- Assess Modal -->
+<div class="modal fade" id="exampleModalCenter" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document"> <!-- Add modal-lg class here -->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLongTitle">Оценка модели МО</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div id="model-assess" class="modal-body">
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Prediction Modal -->
+<div class="modal fade bd-example-modal-lg" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalLabel">Расчет реальных значении</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+            <table class="table table-striped" id="mySampleTable" style="border: 1px solid #ddd; border-collapse: collapse;">
+            </table>
+
+
+            <div class="row mb-3">
+              <div class="col">
+                <h5 class="font-italic text-center">Расчет урожайности загонов по формуле плоскостей</h5>
+              </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <p class="font-italic text-right">Индекс = </p>
+                </div>
+                <div class="col">
+                    <select id="methodSelection" class="form-control" aria-label="Default select example">
+                      <option value="1 Сумма">Сумма</option>
+                      <option value="2 Средняя">Средняя</option>
+                      <option value="3 Медианная" selected>Медианная</option>
+                      <option value="4 Макс.">Макс.</option>
+                      <option value="5 Мин.">Мин.</option>
+                    </select>
+                </div>
+            </div>
+
+
+            <div class="row mt-3">
+                <!-- Температура -->
+                <div class="col">
+                  <p class="font-italic text-left">f(темп., индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="temp_slope1" value="8.87">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="temp_slope2" value="0.03">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * темп. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="temp_inter" value="-7.91">
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Давление -->
+                <div class="col">
+                  <p class="font-italic text-left">f(давл., индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_slope1" value="9.12">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_slope2" value="-0.01">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * давл. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="press_inter" value="2.18">
+                </div>
+            </div>
+
+
+            <div class="row">
+                <!-- Влажность -->
+                <div class="col">
+                  <p class="font-italic text-left">f(влаж., индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_slope1" value="8.49">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_slope2" value="0">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * влаж. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="humid_inter" value="-6.66">
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Углы -->
+                <div class="col">
+                  <p class="font-italic text-left">f(угол, индекс) = </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_slope1" value="8.95">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * индекс + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_slope2" value="-0.03">
+                </div>
+                <div class="col">
+                  <p class="font-italic text-right"> * угол. + </p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="angle_inter" value="-6.06">
+                </div>
+            </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="multiplyValues()">Рассчитать</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        <button type="button" class="btn btn-success" id="switchToModalB" style="display:none">Симуляция</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Simulation Modal -->
+<div class="modal fade bd-example-modal-lg" id="myModalSim" tabindex="-1" role="dialog" aria-labelledby="myModalSimLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="myModalSimLabel">Симуляция стравливании на пастбище</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="modalBody">
+
+        <h6 class="section-header">Раздел назначения дат сезона и выпаса КРС</h6>
+        <hr>
+
+          <div class="row">
+            <div class="col">
+                <div class="form-group">
+                  <label for="seasonStart">Дата начала сезона</label>
+                  <input type="date" class="form-control" id="seasonStart">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                  <label for="grazingStart">Дата начала выпаса</label>
+                  <input type="date" class="form-control" id="grazingStart">
+                </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col">
+                <div class="form-group">
+                  <label for="seasonEnd">Дата окончания сезона</label>
+                  <input type="date" class="form-control" id="seasonEnd">
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group">
+                  <label for="grazingEnd">Дата окончания выпаса</label>
+                  <input type="date" class="form-control" id="grazingEnd">
+                </div>
+            </div>
+          </div>
+
+
+          <h6 class="section-header">Раздел симуляции КРС</h6>
+          <hr>
+
+
+            <div class="form-group">
+
+              <div class="row">
+                <div class="col">
+                  <p class="text-center" for="count">Количество особей:</p>
+                </div>
+                <div class="col">
+                  <input type="number" class="form-control" id="cattleCount">
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col">
+                  <p class="mt-2">Пол особей:</p>
+                  <select class="form-control" id="cattleSex">
+                    <option value="random">Случайный</option>
+                    <option value="male">Бычки</option>
+                    <option value="female">Коровы</option>
+                  </select>
+                </div>
+                <div class="col">
+                  <p class="mt-2">Порода особей:</p>
+                  <select class="form-control" id="cattleBreed">
+                    <option value="random">Случайный</option>
+                    <option value="Angus">Angus</option>
+                    <option value="Hereford">Hereford</option>
+                    <option value="Limousin">Limousin</option>
+                    <option value="Charolais">Charolais</option>
+                  </select>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="col">
+                  <p class="text-center mt-3">Диапазон возраста (месяцев)</p>
+                </div>
+                <div class="col">
+                  <p class="text-center mt-3">Диапазон веса (кг)</p>
+                </div>
+              </div>
+
+
+              <div class="row">
+                <div class="col">
+                  <label for="lowerAge">Нижнее значение:</label>
+                  <input type="number" class="form-control" id="lowerAge">
+                </div>
+                <div class="col">
+                  <label for="upperAge">Верхнее значение:</label>
+                  <input type="number" class="form-control" id="upperAge">
+                </div>
+                <div class="col">
+                  <label for="lowerWeight">Нижнее значение:</label>
+                  <input type="number" class="form-control" id="lowerWeight">
+                </div>
+                <div class="col">
+                  <label for="upperWeight">Верхнее значение:</label>
+                  <input type="number" class="form-control" id="upperWeight">
+                </div>
+              </div>
+
+            </div>
+
+
+          <h6 class="section-header">Раздел симуляции растении</h6>
+          <hr>
+
+          <div class="row mb-3">
+            <div class="col">
+              <p class="">Название растения: </p>
+            </div>
+            <div class="col">
+              <input type="text" class="form-control" id="plantName">
+            </div>
+            <div class="col">
+              <button type="button" class="btn btn-success" onClick="appendElements();">Добавить растение</button>
+            </div>
+          </div>
+
+          <div id="user_added_plants"></div>
+
+          <div id="user_added_forms"></div>
+
+          <h6 class="section-header mt-3" id="paddocks_bio_content">Раздел назначения ботанического состава загонов</h6>
+          <hr>
+
+          <div id="paddocks_bio_content_div"></div>
+
+          <h6 class="section-header mt-3" id="resource-carousel-header" hidden>Результаты симуляции</h6>
+          <hr>
+          <div id="resource-carousel-container"></div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="switchToModalA">Назад</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+        <button type="button" class="btn btn-success" onclick="startSimulation()">Начать</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade bd-example-modal-lg" id="myHelperModal">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-body" style="max-height: 300px; overflow-y: auto;">
+        <h3>Справка по составленю формул</h3>
+        <hr>
+        <h5>Доступные каналы:</h5>
+        <hr>
+        <p><a href="#" role="button" class="btn btn-info popover-test">ULTRA_BLUE</a> - канал в диапазоне [433-453] nm </p>
+        <p><a href="#" role="button" class="btn btn-primary popover-test">BLUE</a> - канал в диапазоне [458-523] nm </p>
+        <p><a href="#" role="button" class="btn btn-success popover-test">GREEN</a> - канал в диапазоне [543-578] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #e80e0e; border-color: #e80e0e;">RED</a> - канал в диапазоне [650-680] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE1</a> - канал в диапазоне [698-713] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE2</a> - канал в диапазоне [733-748] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #9e2121; border-color: #9e2121;">RED_EDGE3</a> - канал в диапазоне [773-793] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #570202; border-color: #570202;">NIR</a> - канал в диапазоне [785-900] nm </p>
+        <p><a href="#" role="button" class="btn btn-danger popover-test" style="background-color: #ff6666; border-color: #ff6666;">N_NIR</a> - канал в диапазоне [855-875] nm </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test" style="background-color: #366ecf; border-color: #366ecf;">WV</a> - канал в диапазоне [935-955] nm </p>
+        <p><a href="#" role="button" class="btn btn-dark popover-test">SWIR_C</a> - канал в диапазоне [1360-1390] nm*. *Доступен только при выборе уровня L1C </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test">SWIR_2</a> - канал в диапазоне [1565-1655] nm </p>
+        <p><a href="#" role="button" class="btn btn-warning popover-test">SWIR_3</a> - канал в диапазоне [2100-2280] nm </p>
+        <hr>
+        <h5>Доступные функции:</h5>
+        <hr>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test">mean(канал)</a> - функция позволяет рассчитать среднее значение канала</p>
+        <p><a href="#" role="button" class="btn btn-secondary popover-test">median(канал)</a> - функция позволяет рассчитать медианное значение канала</p>
+        <hr>
+        <h5>Примеры составления формул:</h5>
+        <hr>
+        <p>mean(NIR) - (NIR - RED)</p>
+        <p>NIR - median(NIR - RED)</p>
+        <p>(NIR - RED) / (NIR + RED)</p>
+        <hr>
+        <h5>Более подробно о каналах можно узнать <a href="https://en.wikipedia.org/wiki/Sentinel-2" target="_blank" class="tooltip-test" title="Tooltip">здесь</a> и <a href="https://www.researchgate.net/publication/325209585/figure/tbl3/AS:667767116144642@1536219495031/Spectral-bands-and-resolutions-of-Sentinel-2-MSI-sensor.png" target="_blank" class="tooltip-test" title="Tooltip">здесь</a></h5>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="container shadow-lg"><br>
+
+    <h1 class="text-center">ГИС платформа анализа пастбищных ресурсов</h1><br>
+    <!-- <h3 class="text-center bg-secondary text-white">Информация по выбранной дате</h3> -->
+
+    <!-- <img class="img-fluid img-thumbnail" id="date_image" src="data:image/png;base64,{{ image_data }}" alt="Matplotlib Image"> -->
+
+
+    <div class="card">
+      <h5 class="card-header text-center">Реальное RGB изображение по выбранной дате</h5>
+      <div class="card-body">
+
+        <div id="imageCarousel" class="carousel slide" data-interval="false">
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <img src="data:image/png;base64,{{ image_data }}" class="img-fluid img-thumbnail" alt="Image 1">
+            </div>
+            <div class="carousel-item">
+              <img src="data:image/png;base64,{{ previous_2_days.1 }}" class="img-fluid img-thumbnail" alt="Image 2">
+            </div>
+            <div class="carousel-item">
+              <img src="data:image/png;base64,{{ previous_2_days.0 }}" class="img-fluid img-thumbnail" alt="Image 3">
+            </div>
+          </div>
+          <a class="carousel-control-prev" href="#imageCarousel" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+          </a>
+          <a class="carousel-control-next" href="#imageCarousel" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">Next</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+
+
+
+
+    <div class="card">
+      <h5 class="card-header text-center">Погодные данные</h5>
+      <div class="card-body">
+        <div id="weatherCarousel" class="carousel slide" data-interval="false">
+          <div class="carousel-inner">
+            <!-- First Carousel Item -->
+            <div class="carousel-item active">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.0 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ weather_data|safe }}
+                </div>
+              </div>
+            </div>
+            <!-- Second Carousel Item -->
+            <div class="carousel-item">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.1 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ other_2_previous_weather_df.0|safe }}
+                </div>
+              </div>
+            </div>
+            <!-- Third Carousel Item -->
+            <div class="carousel-item">
+              <p class="font-italic text-center mb-0">{{ all_3_date_str.2 }}</p>
+              <div class="container mt-0">
+                <div class="table-responsive rounded w-100 d-block">
+                  {{ other_2_previous_weather_df.1|safe }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Carousel Controls -->
+          <a class="carousel-control-prev" href="#weatherCarousel" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+          </a>
+          <a class="carousel-control-next" href="#weatherCarousel" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">Next</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    <div id="requested_date_image_header" class="card" hidden>
+      <h5 class="card-header text-center">Запрошенный индекс (канал)</h5>
+      <div class="card-body">
+
+        <div id="your_carousel_id" class="carousel slide" data-interval="false" hidden>
+          <div class="carousel-inner">
+            <div class="carousel-item active">
+              <img id="requested_date_image" class="img-fluid img-thumbnail" alt="Image 1">
+            </div>
+            <div class="carousel-item">
+              <img id="requested_pred_date_image" class="img-fluid img-thumbnail" alt="Image 2">
+            </div>
+            <div class="carousel-item">
+              <img id="requested_before_prev_date_image" class="img-fluid img-thumbnail" alt="Image 3">
+            </div>
+          </div>
+          <a class="carousel-control-prev" href="#your_carousel_id" role="button" data-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="sr-only">Previous</span>
+          </a>
+          <a class="carousel-control-next" href="#your_carousel_id" role="button" data-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="sr-only">Next</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+
+
+    <div id="map_header" class="card" style="display: none">
+      <h5 class="card-header text-center">GPS треккинг КРС | Мониторинг ресурса пастбища</h5>
+      <div class="card-body">
+        <div id="map" class="border border-success" style="height: 400px; width: 100%; display: none"></div>
+
+
+        <div class="row">
+            <div class="col"></div>
+            <div class="col">
+              <label id="number_of_trackersLable" for="number_of_trackers" style="display: none">Количество трекеров</label>
+            </div>
+            <div class="col">
+              <label id="integerOptionsLable" for="integerOptions" class="form-label" style="display: none">Ожидание ответа от треккеров (сек.)</label>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+              <button id="ajaxRunner" class="btn btn-primary btn-block" style="display: none">Начать треккинг</button>
+            </div>
+            <div class="col">
+              <input type="number" id="number_of_trackers" class="form-control" min="1" style="display: none;">
+            </div>
+            <div class="col">
+              <select id="integerOptions" class="form-control" style="display: none">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3" selected>3</option>
+                  <option value="5">5</option>
+              </select>
+            </div>
+        </div>
+
+      </div>
+    </div>
+
+
+    <div id="prediction_mode_header" class="card" style="display: none">
+      <h5 class="card-header text-center">Выбор модели прогноза</h5>
+      <div class="card-body">
+
+        <div id="prediction_mode" class="row mb-3" style="display: none">
+            <div class="col">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="radioOptions" id="option1" value="Plane" checked>
+                    <label class="form-check-label" for="option1">
+                        Формулы плоскостей
+                    </label>
+                </div>
+            </div>
+
+            <div class="col">
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="radioOptions" id="option2" value="ANN">
+                    <label class="form-check-label" for="option2">
+                        Модель ИНС
+                    </label>
+                </div>
+            </div>
+
+            <div class="col">
+            </div>
+        </div>
+
+
+        <div class="row">
+            <div class="col">
+                <select id="fast_methodSelection" class="form-control" aria-label="Default select example" style="display: none">
+                  <option value="1 Сумма">Сумма</option>
+                  <option value="2 Средняя">Средняя</option>
+                  <option value="3 Медианная" selected>Медианная</option>
+                  <option value="4 Макс">Макс.</option>
+                  <option value="5 Мин">Мин.</option>
+                </select>
+            </div>
+            <div class="col">
+                <input type="number" id="fast_intake" class="form-control" value="40" placeholder="К = Сут. потребление" style="display: none">
+            </div>
+            <div class="col">
+                <input type="number" id="fast_reserve" class="form-control" min="0" max="100" value="30" placeholder="P = Резерв (%)" style="display: none">
+            </div>
+            <div class="col">
+                <button class="btn btn-secondary" id="map_button" onclick="updateMapWithFormula()" style="display: none">Рассчитать ресурс</button>
+            </div>
+        </div>
+
+
+      </div>
+    </div>
+
+
+
+<div class="accordion" id="gate_control_header" style="display: none">
+
+  <div class="card">
+    <div class="card-header" id="headingOne">
+      <h5 class="mb-0">
+        <button class="btn btn-link" type="button" data-toggle="collapse" data-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+          Контроль ворот в ручном режиме
+        </button>
+      </h5>
+    </div>
+    <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#gate_control_header">
+      <div class="card-body">
+
+
+      <h5 class="card-header text-center">Раздел контроля ворот пастбища</h5>
+      <div class="card-body">
+
+
+        <div class="row mb-3">
+            <div class="col">
+              <label id="numberSelectLabel" for="numberSelect" style="display: none">Выбор ворот загона № </label>
+              <select class="form-select form-select-lg" id="numberSelect" style="display: none"></select>
+            </div>
+            <div class="col">
+              <button id="gate_state" type="button" class="btn btn-secondary btn-block" style="display: none"></button>
+            </div>
+            <div class="col">
+                <select id="gate_action" class="form-control" aria-label="Default select example" style="display: none">
+                  <option value="open" selected>Открыть</option>
+                  <option value="close">Закрыть</option>
+                </select>
+            </div>
+            <div class="col">
+              <button id="action_button" type="button" onclick="applyChanges()" class="btn btn-primary btn-block" style="display: none">Применить</button>
+            </div>
+        </div>
+
+
+      </div>
+
+
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" id="headingTwo">
+      <h5 class="mb-0">
+        <button class="btn btn-link collapsed" type="button" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+          Контроль процесса перегона
+        </button>
+      </h5>
+    </div>
+    <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#gate_control_header">
+      <div class="card-body">
+
+        <div class="card">
+          <h5 class="card-header">Раздел контроля процесса перегона</h5>
+          <div class="card-body">
+
+            <div class="row">
+                <div class="col">
+                    <h5 class="font-italic text-center">Из загона №</h5>
+                </div>
+                <div class="col">
+                </div>
+                <div class="col">
+                    <h5 class="font-italic text-center">В загон №</h5>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col d-flex justify-content-center align-items-center">
+                    <select class="form-select form-select-lg" id="numberSelect_from"></select>
+                </div>
+                <div class="col d-flex justify-content-center align-items-center">
+                    <button id="gate_state_from" type="button" class="btn btn-secondary btn-block"></button>
+                </div>
+                <div class="col d-flex justify-content-center align-items-center">
+                    <h4 class-="text-center"><span class="bi--arrow-right"></span></h4>
+                </div>
+                <div class="col d-flex justify-content-center align-items-center">
+                    <select class="form-select form-select-lg" id="numberSelect_to"></select>
+                </div>
+                <div class="col d-flex justify-content-center align-items-center">
+                    <button id="gate_state_to" type="button" class="btn btn-secondary btn-block"></button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <button id="evaluate_paddocks" type="button" onclick="EvaluateByML()" class="btn btn-info btn-block" data-toggle="modal" data-target="#exampleModalCenter">Произвести оценку через модель МО</button>
+                </div>
+                <div class="col">
+                    <button id="transer_action" type="button" onclick="StartTransfer()" class="btn btn-primary btn-block">Произвести перегон</button>
+                </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+
+
+
+
+    <div id="histograms_header" class="card" style="display: none">
+      <h5 class="card-header text-center">Гистограммы и таблица загонов</h5>
+      <div class="card-body">
+
+        <div id="carousel-container"></div>
+
+        <div class="table-responsive rounded">
+
+            <table id="data-table" class="table table-striped table-hover" style="display: none;"> <!-- Initially hidden -->
+                <thead class="thead-dark">
+                    <tr>
+                        <th class="text-left">Загон №</th>
+                        <th class="text-left">Сумма</th>
+                        <th class="text-left">Средняя</th>
+                        <th class="text-left">Медианная</th>
+                        <th class="text-left">Макс.</th>
+                        <th class="text-left">Мин.</th>
+                        <th class="text-left">Площадь (га)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+
+        </div>
+
+        <button id="predict" type="button" class="btn btn-primary btn-block" data-toggle="modal" data-target="#myModal" data-column3="Value 3" hidden onclick="disableSimulation()">Прогноз</button>
+
+        <div id="myAlert" class="alert alert-danger alert-dismissible fade show mt-3 mb-3" role="alert" hidden="true"></div>
+
+      </div>
+    </div>
+
+
+
+
+
+    <div class="card">
+      <h5 class="card-header text-center">Форма контроля параметров запроса</h5>
+      <div class="card-body">
+
+        <div class="input-group mb-3 mt-1">
+          <span class="input-group-text" id="basic-addon1">f(к)=</span>
+          <input id="formula" type="text" class="form-control" placeholder="Формула" aria-label="formula" aria-describedby="basic-addon1" data-toggle="tooltip" data-html="true" title="Для справки нажмите на кнопку '?' справа -> " data-placement="top">
+          <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal" data-target="#myHelperModal" style="width: 100px;">?</button>
+        </div>
+
+
+
+        <div class="row mt-3">
+          <div class="col">
+            <input type="checkbox" id="by_pasture" class="mr-2">
+            <label for="by_pasture">Относительно пастбища</label>
+          </div>
+          <div class="col">
+            <input type="checkbox" id="threshold_check" onclick="toggleThreshInput()" class="mr-2">
+            <label for="threshold_check">Пороговое значение</label>
+          </div>
+          <div class="col">
+            <select id="operators" class="form-select" aria-label="Оператор" disabled>
+              <option selected>Оператор</option>
+              <option value="==">==</option>
+              <option value="<">&#60;</option>
+              <option value="<=">&#8804;</option>
+              <option value=">">&#62;</option>
+              <option value=">=">&#8805;</option>
+            </select>
+          </div>
+          <div class="col">
+            <input type="number" id="threshold" class="form-control" disabled>
+          </div>
+        </div>
+
+
+        <div class="row mt-3">
+          <div class="col">
+            <div class="form-check">
+            <input class="form-check-input mr-2" name="flexRadioDefault" type="radio" id="relative_radio" checked onclick="disableBoundInputs()">
+            <label for="relative_radio">Относительная шкала</label>
+            </div>
+          </div>
+          <div class="col">
+            <div class="form-check">
+            <input class="form-check-input mr-2" name="flexRadioDefault" type="radio" id="absolute_radio" onclick="enableBoundInputs()">
+            <label for="absolute_radio">Абсолютная шкала</label>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="row mt-3">
+          <div class="col">
+            <input type="number" id="lower_bound" class="form-control"  placeholder="Нижняя грань" disabled>
+          </div>
+          <div class="col">
+            <input type="number" id="upper_bound" class="form-control"  placeholder="Верхняя грань" disabled>
+          </div>
+        </div>
+
+        <div class="row mt-3">
+          <div class="col">
+            <input type="checkbox" id="correction_coeff_able" onclick="toggleCoeffInput()" class="mt-2 mr-2" checked>
+            <label for="correction_coeff_able">Корректировочный коэффициент</label>
+          </div>
+          <div class="col">
+            <input type="number" id="correction_coeff" class="form-control"  value="0.88483">
+          </div>
+        </div>
+
+        <button class="btn btn-primary btn-lg btn-block mt-5 mb-5" id="ajax-button">Запрос</button>
+
+      </div>
+    </div>
+
+
+</div>
+
+<script>
+
+function percentageCloseToValues(value) {
+    // Calculate the distance from -1, 0, and 1
+    let distanceToNegOne = Math.max(1 - Math.abs(value + 1), 0);
+    let distanceToZero = Math.max(1 - Math.abs(value), 0);
+    let distanceToOne = Math.max(1 - Math.abs(value - 1), 0);
+
+    // Calculate the total distance
+    let totalDistance = distanceToNegOne + distanceToZero + distanceToOne;
+
+    // Calculate the percentages
+    let percentageToNegOne = (distanceToNegOne / totalDistance) * 100;
+    let percentageToZero = (distanceToZero / totalDistance) * 100;
+    let percentageToOne = (distanceToOne / totalDistance) * 100;
+
+    return [percentageToNegOne, percentageToZero, percentageToOne];
+}
+
+function percentageCloseToZeroAndOne(value) {
+    // Calculate the distance from zero and one
+    let distanceToZero = Math.max(1 - Math.abs(value), 0);
+    let distanceToOne = Math.max(value, 0);
+
+    // Calculate the total distance
+    let totalDistance = distanceToZero + distanceToOne;
+
+    // Calculate the percentages
+    let percentageToZero = (distanceToZero / totalDistance) * 100;
+    let percentageToOne = (distanceToOne / totalDistance) * 100;
+
+    return [percentageToZero, percentageToOne];
+}
+
+// Define the function to be called when the button is pressed
+function handleButtonClick(event) {
+    // Your function logic here
+    var state_button_from = document.getElementById("gate_state_from");
+    var state_button_to = document.getElementById("gate_state_to");
+
+    var paddock_from = document.getElementById("numberSelect_from");
+    var paddock_to = document.getElementById("numberSelect_to");
+
+    paddock_to.value = parseInt(cattles_there);
+    paddock_from.value = parseInt(cattles_here);
+
+    state_button_from.innerHTML = gates_state[String(paddock_from.value)]
+    state_button_to.innerHTML = gates_state[String(paddock_to.value)]
+
+    var closeButton = document.querySelector("#exampleModalCenter .modal-footer button[data-dismiss='modal']");
+    if (closeButton) {
+        closeButton.click(); // Simulate click event on the close button
+    } else {
+        console.log("Close button not found in modal.");
+    }
+
+}
+
+
+    function EvaluateByML(){
+
+      var intake = document.getElementById('fast_intake').value;
+      var reserve = document.getElementById('fast_reserve').value;
+
+      var weather_table1 = document.getElementById('weather_table');
+
+      var t_temperature = parseFloat(weather_table1.rows[1].cells[0].textContent);
+      var t_pressure = parseFloat(weather_table1.rows[1].cells[2].textContent);
+      var t_humidity = parseFloat(weather_table1.rows[1].cells[3].textContent);
+
+      if (pasture_load && cattle_count > 0){
+
+        var t_resources = [];
+        var t_days_left = [];
+
+        geoJSONData['features'].forEach(function(element){
+
+            var index = geoJSONData.features.indexOf(element);
+
+            if (index < paddocks_count){
+                t_resources.push(parseFloat(element.properties.Урож));
+                t_days_left.push(parseFloat(element.properties.КормоЗапас));
+            }
+        });
+
+        $.ajax({ type: "GET", url: "/ajax/", data: {
+            'takeAction': true,
+            'pasture_load': JSON.stringify(Object.values(pasture_load)),
+            'intake' : intake,
+            'reserve' : reserve,
+            'temperature': t_temperature,
+            'pressure': t_pressure,
+            'humidity': t_humidity,
+            'days_lefts': JSON.stringify(t_days_left),
+            'resources': JSON.stringify(t_resources),
+
+        },
+          success: function(data) {
+
+            // Get the modal body element
+            let modalBody = document.getElementById("model-assess");
+            // Clear all existing elements inside the modal body
+            modalBody.innerHTML = '';
+
+            cattles_here = String(Object.keys(pasture_load).find(key => pasture_load[key] !== 0));
+            cattles_there = String(t_days_left.reduce((maxIndex, currentValue, currentIndex, arr) => currentValue > arr[maxIndex] ? currentIndex : maxIndex, 0)+1);
+
+            var button = document.createElement("button");
+            var apply_button = document.createElement("button");
+            apply_button.className = "btn btn-block btn-secondary";
+            apply_button.textContent = `Рекомендация: Из Загона №${cattles_here} -> В Загон №${cattles_there}`;
+            apply_button.addEventListener("click", handleButtonClick);
+
+            if (data.action == 0){
+                button.className = "btn btn-block btn-success";
+                button.textContent = `Не требует перегона!`;
+            }
+            else {
+                button.className = "btn btn-block btn-danger";
+                button.textContent = `Требует перегона!`;
+            }
+
+
+            modalBody.appendChild(button);
+
+            // Create a table element
+            let table = document.createElement("table");
+            table.classList.add("table", "table-striped", "table-hover"); // Add table-hover class
+
+            // Create a table body element
+            let tbody = document.createElement("tbody");
+
+            // Add column names to the header row
+            let thead = document.createElement("thead");
+            let headerRow = document.createElement("tr");
+            headerRow.classList.add("thead-dark"); // Add thead-dark class to the header row
+            ["Загон №", "Статус загона"].forEach(function(columnName) {
+                let th = document.createElement("th");
+                th.textContent = columnName;
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Iterate over data.assesses array and create table rows
+
+            data.assesses.forEach(function(category, index) {
+                // Create a table row
+                let row = document.createElement("tr");
+
+                // Calculate the percentages using the percentageCloseToValues function
+                // Create a header cell for the row index
+                let indexHeaderCell = document.createElement("th");
+                indexHeaderCell.textContent = index + 1;
+                row.appendChild(indexHeaderCell);
+
+                // Create three table data cells for each percentage value
+
+                    // Create a table data cell
+                let cell = document.createElement("td");
+
+                // Check if threee category is defined and not null
+
+                // Set the text content of the cell to the category value
+                // Add a class to the cell based on a certain condition
+                if (category == -1) {
+                    cell.innerHTML = "Изтощен";
+                    cell.classList.add("table-danger"); // Add bg-primary class to the cell
+                }
+                if (category == 0) {
+                    cell.innerHTML = "Норм.";
+                    cell.classList.add("table-info"); // Add bg-primary class to the cell
+                }
+                if (category == 1) {
+                    cell.innerHTML = "Макс.";
+                    cell.classList.add("table-success"); // Add bg-primary class to the cell
+                }
+
+                cell.style.fontWeight = "bold";
+                cell.style.textAlign = "center";
+
+                // Append the cell to the row
+                row.appendChild(cell);
+
+
+                // Append the row to the table body
+                tbody.appendChild(row);
+            });
+
+            // Append the table body to the table
+            table.appendChild(tbody);
+
+            // Append the table to the modal body
+            modalBody.appendChild(table);
+
+            if (data.action == 1){
+                modalBody.appendChild(apply_button);
+            }
+
+
+        },
+          error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+        });
+      }
+
+    }
+
+
+    function lookForCattleMovement() {
+
+      var transfer_button = document.getElementById("transer_action");
+      var paddock_from = document.getElementById("numberSelect_from").value;
+      var paddock_to = document.getElementById("numberSelect_to").value;
+
+      var state_button_from = document.getElementById("gate_state_from");
+      var state_button_to = document.getElementById("gate_state_to");
+
+
+      if (pasture_load[paddock_from] == 0 && gates_state[String(paddock_from)] == "Открыт"){
+        SendWebSocketMessage(`CLOSE:${paddock_from}`);
+        gates_state[String(paddock_from)] = "закрывается...";
+        state_button_from.innerHTML = gates_state[String(paddock_from)]
+      }
+      if (pasture_load[paddock_to] == cattle_count && gates_state[String(paddock_to)] == "Открыт"){
+        SendWebSocketMessage(`CLOSE:${paddock_to}`);
+        gates_state[String(paddock_to)] = "закрывается...";
+        state_button_to.innerHTML = gates_state[String(paddock_to)]
+      }
+    }
+
+    var intervalId = null;
+    var started_transfer = false;
+
+    function StartTransfer(){
+
+        var transfer_button = document.getElementById("transer_action");
+        var paddock_from = document.getElementById("numberSelect_from").value;
+        var paddock_to = document.getElementById("numberSelect_to").value;
+
+        var state_button_from = document.getElementById("gate_state_from");
+        var state_button_to = document.getElementById("gate_state_to");
+
+        if (paddock_from == paddock_to) { alert(`Невожможно произвести перегон с загона №${paddock_from} в загон №${paddock_to} `); return; };
+
+        if (!pasture_load || cattle_count < 1){ alert("Начните треккинг и дождитесь определения координат КРС"); return;};
+
+
+        transfer_button.innerHTML = "Производится...";
+
+        if (gates_state[String(paddock_from)] == "Закрыт"){
+            SendWebSocketMessage(`OPEN:${paddock_from}`);
+            gates_state[String(paddock_from)] = "открывается...";
+            state_button_from.innerHTML = gates_state[String(paddock_from)]
+        }
+        if (gates_state[String(paddock_to)] == "Закрыт"){
+            SendWebSocketMessage(`OPEN:${paddock_to}`);
+            gates_state[String(paddock_to)] = "открывается...";
+            state_button_to.innerHTML = gates_state[String(paddock_to)]
+        }
+
+        intervalId = setInterval(lookForCattleMovement, update_interval*1000);
+        started_transfer = true;
+
+
+
+
+    }
+
+    function applyChanges(){
+      var selectElement = document.getElementById("numberSelect");
+      var selectedValue = selectElement.value;
+      var state_button = document.getElementById("gate_state");
+      var action_button = document.getElementById("gate_action");
+
+      current_working_action = action_button.value;
+      current_working_gate = selectedValue;
+
+      if (action_button.value == "close"){
+        gates_state[String(selectedValue)] = "закрывается...";
+        SendWebSocketMessage(`CLOSE:${selectedValue}`);
+      }
+      else {
+        gates_state[String(selectedValue)] = "открывается...";
+        SendWebSocketMessage(`OPEN:${selectedValue}`);
+      }
+      state_button.innerHTML = gates_state[String(selectedValue)];
+    }
+
+    function deleteAllMarkers() {
+        // Loop through the markers array and remove each marker from the map
+        markers.forEach(function(marker) {
+            map.removeLayer(marker);
+        });
+
+        // Clear the markers array
+        markers = [];
+    }
+
+    var paddocks_count = 0;
+    var map = null;
+    var legend = null;
+
+    var last_2_geoJSONData = [];
+    var last_2_decodedData = [];
+
+    var cattles_here = null;
+    var cattles_there = null;
+
+    var str_dates = [];
+    var decodedData = null;
+    var geoJSONData = null;
+    var geoJsonLayer = null;
+    var pasture_load = {};
+    var resourceValues = null;
+    var cattle_count = null;
+    var gates_state = {};
+    var ajax_request = null;
+    var selected_prediction_mode = null;
+    var model_days_left_prediction = [];
+    var model_resource_prediction = [];
+    var current_working_action = null;
+    var current_working_gate = null;
+    var update_interval = null;
+
+    $(document).ready(function() {
+        $("#ajax-button").click(function() {
+
+            var $button = $(this);
+            var originalContent = $button.html();
+            $button.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Запрос...');
+            $button.attr('disabled', true);
+
+            var formula = document.getElementById("formula").value;
+
+            var by_pasture = document.getElementById("by_pasture").checked;
+
+            var relative_radio = document.getElementById("relative_radio").checked;
+            var absolute_radio = document.getElementById("absolute_radio").checked;
+
+            var correction_coeff_able = document.getElementById("correction_coeff_able").checked;
+            var correction_coeff = document.getElementById("correction_coeff").value;
+
+            var upper_bound = document.getElementById("upper_bound").value;
+            var lower_bound = document.getElementById("lower_bound").value;
+
+            var threshold_check = document.getElementById("threshold_check").checked;
+            var threshold = document.getElementById("threshold").value;
+
+            var operators = document.getElementById("operators").value;
+
+
+            $.ajax({
+                type: "GET",
+                url: "/ajax/",
+                data: {
+                    'formula': formula,
+                    'relative_radio': relative_radio,
+                    'absolute_radio': absolute_radio,
+                    'upper_bound': upper_bound,
+                    'lower_bound': lower_bound,
+                    'threshold_check': threshold_check,
+                    'threshold': threshold,
+                    'operators': operators,
+                    'by_pasture': by_pasture,
+                    'correction_coeff_able': correction_coeff_able,
+                    'correction_coeff': correction_coeff,
+                },
+                success: function(data) {
+
+                    str_dates = data.str_dates;
+
+                    if (data.index_image === null && data.df === null && data.hist_images === null){
+                        $button.html(originalContent);
+                        $button.attr('disabled', false);
+                        setAlertText(false, "Ошибка при выполнении формулы");
+                        return;
+                    }
+                    else{
+                        setAlertText(true, "");
+                        var preduct_button = document.getElementById("predict");
+                        preduct_button.removeAttribute('hidden');
+                    };
+
+                    // Append the image element to the image container in the HTML
+                    const carouselElement = document.getElementById('your_carousel_id'); // Replace 'your_carousel_id' with the actual ID of your carousel element
+
+                    const requested_index = document.getElementById('requested_date_image');
+                    const requested_pred_date_image = document.getElementById('requested_pred_date_image');
+                    const requested_before_prev_date_image = document.getElementById('requested_before_prev_date_image');
+
+                    const requested_index_header = document.getElementById('requested_date_image_header');
+
+                    requested_index.src = `data:image/png;base64,${data.index_image}`;
+                    requested_pred_date_image.src = `data:image/png;base64,${data.last2_indices[1]}`;
+                    requested_before_prev_date_image.src = `data:image/png;base64,${data.last2_indices[0]}`;
+
+                    carouselElement.removeAttribute('hidden');
+
+                    requested_index_header.removeAttribute('hidden');
+
+                    var carouselContainer = $('<div id="image-carousel" class="carousel slide" data-ride="carousel"></div>');
+                    var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
+
+                    var carouselInner = $('<div class="carousel-inner"></div>');
+
+                    var prev_parentElement = $('<a class="carousel-control-prev" href="#image-carousel" role="button" data-slide="prev"></a>');
+                    var prev_childElement1 = $('<span class="carousel-control-prev-icon" aria-hidden="true"></span>');
+                    var prev_childElement2 = $('<span class="sr-only">Previous</span>');
+
+                    // Append child elements to the parent element
+                    prev_parentElement.append(prev_childElement1);
+                    prev_parentElement.append(prev_childElement2);
+
+                    var next_parentElement = $('<a class="carousel-control-next" href="#image-carousel" role="button" data-slide="next"></a>');
+                    var next_childElement1 = $('<span class="carousel-control-next-icon" aria-hidden="true"></span>');
+                    var next_childElement2 = $('<span class="sr-only">Next</span>');
+
+                    // Append child elements to the parent element
+                    next_parentElement.append(next_childElement1);
+                    next_parentElement.append(next_childElement2);
+
+
+                    data.hist_images.forEach(function(histogram, index) {
+
+                        var carouselIndicator = $('<li style="background-color: #C7C7C7;" data-target="#image-carousel" data-slide-to="' + index + '"></li>');
+                        var carouselItem = $('<div class="carousel-item"></div>');
+
+                        if (index === 0) {
+                            carouselIndicator.addClass('active');
+                            carouselItem.addClass('active');
+                        }
+
+                        var imgElement = $('<img class="d-block w-100 img-thumbnail" src="data:image/png;base64,' + histogram + '">');
+                        carouselItem.append(imgElement);
+
+                        carouselIndicators.append(carouselIndicator);
+                        carouselInner.append(carouselItem);
+
+                    });
+
+                    carouselContainer.append(carouselIndicators);
+                    carouselContainer.append(carouselInner);
+
+                    carouselContainer.append(prev_parentElement);
+                    carouselContainer.append(next_parentElement);
+
+                    // Add the carousel to the page
+                    $('#carousel-container').empty();
+                    $('#carousel-container').append(carouselContainer);
+                    // $('#image-carousel').carousel();
+                      $('#image-carousel').carousel({
+                        interval: false
+                      });
+
+                    var tbody = $('#data-table tbody');
+                    tbody.empty();
+
+                    // Decode column names from UTF-8 encoding
+                    decodedData = JSON.parse(data.df);
+
+                    data.last_2_summary_df.forEach(function(element) {
+                        last_2_decodedData.push(JSON.parse(element));
+                    });
+
+
+                    // Iterate over the JSON data and populate the table
+                    $.each(decodedData, function(index, row) {
+                        var tr = $('<tr>');
+                        tr.append('<td>' + row.Загон + '</td>');
+                        tr.append('<td>' + row.Сумма + '</td>');
+                        tr.append('<td>' + row.Средняя + '</td>');
+                        tr.append('<td>' + row.Медианная + '</td>');
+                        tr.append('<td>' + row.Макс + '</td>');
+                        tr.append('<td>' + row.Мин + '</td>');
+                        tr.append('<td>' + row.Площадь + '</td>');
+                        tbody.append(tr);
+                    });
+
+                    // Show the table
+                    $('#data-table').show();
+                    $('#histograms_header').show();
+
+                    $button.html(originalContent);
+                    $button.attr('disabled', false);
+
+                    $('#map').show();
+                    $("#map_header").show();
+                    $("#map_button").show();
+                    $("#map_input").show();
+                    $("#prediction_mode").show();
+                    $("#prediction_mode_header").show();
+                    $("#fast_intake").show();
+                    $("#fast_reserve").show();
+                    $("#fast_methodSelection").show();
+
+
+                    var selectElement = document.getElementById("numberSelect");
+                    var selectElement_from = document.getElementById("numberSelect_from");
+                    var selectElement_to = document.getElementById("numberSelect_to");
+                    var state_button = document.getElementById("gate_state");
+                    var p_count = decodedData.length-1
+
+                    for (var i = 1; i <= p_count; i++) {
+                      var optionElement = document.createElement("option");
+                      optionElement.value = i;
+                      optionElement.text = i;
+                      // Clone the option element for each select element
+                      var optionCloneFrom = optionElement.cloneNode(true);
+                      var optionCloneTo = optionElement.cloneNode(true);
+
+                      // Append the cloned options to the respective select elements
+                      selectElement.appendChild(optionElement);
+                      selectElement_from.appendChild(optionCloneFrom);
+                      selectElement_to.appendChild(optionCloneTo);
+
+                    }
+
+                    selectElement.addEventListener("change", function() {
+                      var selectedValue = selectElement.value;
+                      var state_button = document.getElementById("gate_state");
+                      state_button.innerHTML = gates_state[String(selectedValue)];
+                    });
+
+                    selectElement_from.addEventListener("change", function() {
+                      var selectedValue = selectElement_from.value;
+                      var state_button_from = document.getElementById("gate_state_from");
+                      state_button_from.innerHTML = gates_state[String(selectedValue)];
+                    });
+
+                    selectElement_to.addEventListener("change", function() {
+                      var selectedValue = selectElement_to.value;
+                      var state_button_to = document.getElementById("gate_state_to");
+                      state_button_to.innerHTML = gates_state[String(selectedValue)];
+                    });
+
+
+                    var toggleButton = document.getElementById("ajaxRunner");
+                    var isRunning = false;
+
+                    function toggleButtonText() {
+
+
+                      if (isRunning) {
+                        toggleButton.textContent = "Начать треккинг";
+                        // clearInterval(ajax_request);
+                        clearInterval(intervalId);
+                        SendWebSocketMessage("STOP GPS");
+                      } else {
+
+                        var wait_time = document.getElementById('integerOptions').value;
+                        var number_of_trackers = document.getElementById('number_of_trackers').value;
+
+                        if (!(number_of_trackers > 0)){ alert(`Количество треккеров должно быть больше 0. Вы ввели: ${number_of_trackers}`); return; }
+                        toggleButton.textContent = "Остановить треккинг";
+                        SendWebSocketMessage(`START GPS ${wait_time} ${number_of_trackers}`);
+
+                      }
+                      isRunning = !isRunning;
+                    }
+
+                    // Add a click event listener to the button
+                    toggleButton.addEventListener("click", toggleButtonText);
+
+
+                    $("#numberSelect").show();
+                    $("#numberSelectLabel").show();
+                    $("#gate_control_header").show();
+                    $("#gate_action").show();
+                    $("#ajaxRunner").show();
+                    $("#gate_state").show();
+                    $("#action_button").show();
+                    $("#integerOptions").show();
+                    $("#integerOptionsLable").show();
+                    $("#number_of_trackers").show();
+                    $("#number_of_trackersLable").show();
+
+
+                    var existingMap = L.DomUtil.get('map');
+                    if (existingMap) {
+                      existingMap._leaflet_id = null;
+                    }
+
+                    map = L.map('map').setView([data.centroid[1], data.centroid[0]], 15); // Set the initial map view
+
+                    var googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+                            maxZoom: 20,
+                            subdomains:['mt0','mt1','mt2','mt3']
+                    });
+
+                    // Add the default tile layer to the map
+                    googleSat.addTo(map);
+
+
+                    var markers = [];
+
+                    // Function to create markers
+                    function createMarker(latitude, longitude, index, paddock_number) {
+                        var marker = L.marker([latitude, longitude])
+                            .addTo(map)
+                            .bindTooltip('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number, { permanent: false, opacity: 0.7 });
+
+                        marker.options.index = index;  // Set the custom 'index' attribute
+                        markers.push(marker); // Add the marker to the array
+                    }
+
+                    // Remove existing GeoJSON layer if it exists
+                    if (geoJsonLayer) {
+                        map.removeLayer(geoJsonLayer);
+                    }
+
+                    geoJSONData = JSON.parse(data.geodataframe);
+
+                    data.last_2_geodataframe.forEach(function(element) {
+                        last_2_geoJSONData.push(JSON.parse(element));
+                    });
+
+                    paddocks_count = geoJSONData.features.length -1;
+                    geoJsonLayer = L.geoJSON(geoJSONData, {
+                      style: {
+                        color: "blue", // Polygon border color
+                        weight: 1,      // Polygon border weight
+                        fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
+                      },
+                      onEachFeature: function (feature, layer) {
+
+                        var index = geoJSONData.features.indexOf(feature);
+
+                        // Add mouseover event to highlight the shape and display information
+                        layer.on('mouseover', function (e) {
+                          var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь;
+                          layer.bindPopup(popupContent, { autoClose: false }).openPopup();
+                          layer.setStyle({
+                            color: 'red', // Highlighted border color
+                            weight: 2       // Highlighted border weight
+                          });
+                        });
+
+                        // Add mouseout event to reset the shape style
+                        layer.on('mouseout', function (e) {
+                          layer.closePopup();
+                          geoJsonLayer.resetStyle(layer);
+                        });
+
+
+                        // Add click event to display bar graph
+                        layer.on('click', function (e) {
+                          L.DomEvent.stop(e);
+
+                          // Create a new popup
+                          var popup = createPopUp(e);
+
+                          // Set the content of the popup using the generated bar graph content
+                          popup.setContent(generateBarGraphContent(feature.properties, index));
+
+                          // Bind the popup to the clicked layer and open it
+                          layer.bindPopup(popup).openPopup();
+                        });
+
+                      }
+                    });
+
+                    // Add the GeoJSON layer to the map
+                    geoJsonLayer.addTo(map);
+
+
+                    /*Legend specific*/
+                    legend = L.control({ position: "bottomleft" });
+
+                    legend.onAdd = function(map) {
+                      var div = L.DomUtil.create("div", "legend");
+                      div.innerHTML += "<h4>Нагрузка загонов (" + cattle_count + ")</h4>";
+                      for (let i = 1; i < paddocks_count+1; i++) {
+                        div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + 0 + '</span><br>';
+                      }
+
+                      return div;
+                    };
+
+                    legend.addTo(map);
+
+                    },
+                error: function(error) {
+                    console.error('Error:', error);
+                    $button.html(originalContent);
+                    $button.attr('disabled', false);
+                }
+            });
+        });
+    });
+
+
+
+function createPopUp(e){
+  var popup = L.popup({
+    closeButton: true,
+    autoClose: false,
+    closeOnClick: true,
+    // Prevent the default behavior of the map to avoid closing the popup
+    // when clicking on the map after opening the popup.
+    preventDefault: false,
+    // Use the clicked coordinates for positioning the popup
+    autoPan: true,
+    // Use the coordinates of the click event for popup positioning
+    coordinates: e.latlng,
+    keepInView: true,
+  });
+
+  return popup;
+}
+
+function generateBarGraphContent(properties, index) {
+  // Example: Generate dummy data for the bar graph
+
+
+  var weather_table1 = document.getElementById('weather_table');
+  var weather_table2 = document.getElementById('weather_table1');
+  var weather_table3 = document.getElementById('weather_table2');
+
+  var temperature1 = parseFloat(weather_table1.rows[1].cells[0].textContent);
+  var pressure1 = parseFloat(weather_table1.rows[1].cells[2].textContent);
+  var humidity1 = parseFloat(weather_table1.rows[1].cells[3].textContent);
+
+  var temperature2 = parseFloat(weather_table2.rows[1].cells[0].textContent);
+  var pressure2 = parseFloat(weather_table2.rows[1].cells[2].textContent);
+  var humidity2 = parseFloat(weather_table2.rows[1].cells[3].textContent);
+
+  var temperature3 = parseFloat(weather_table3.rows[1].cells[0].textContent);
+  var pressure3 = parseFloat(weather_table3.rows[1].cells[2].textContent);
+  var humidity3 = parseFloat(weather_table3.rows[1].cells[3].textContent);
+
+  var RZA1 = {{ RZA|default:"undefined" }};
+  var RZA2 = {{ last_2_RZAs.1|default:"undefined" }};
+  var RZA3 = {{ last_2_RZAs.0|default:"undefined" }};
+
+//     Today | Yesterday | The Day Before
+  var RZAs = [RZA1, RZA3, RZA2];
+  var temps = [temperature1, temperature2, temperature3];
+  var humss = [humidity1, humidity2, humidity3];
+  var press = [pressure1, pressure2, pressure3];
+
+  var selectedValue = document.getElementById("fast_methodSelection").value.split(" ")[1];
+  var prediction_mode = document.querySelector('input[name="radioOptions"]:checked').value;
+
+  var intake = document.getElementById('fast_intake').value;
+  var reserve = document.getElementById('fast_reserve').value;
+
+  var average1 = decodedData[index][selectedValue];
+  var average2 = last_2_decodedData[0][index][selectedValue];
+  var average3 = last_2_decodedData[1][index][selectedValue];
+
+  //       The Day Before | Yesterday | Today
+  var averages = [average3, average2, average1];
+  var resources;
+
+
+  // Create a container for the chart
+  var chartContainer = document.createElement('div');
+  chartContainer.style.width = '300px';
+  chartContainer.style.height = '200px';
+
+  // Create a canvas element and append it to the container
+  var canvas = document.createElement('canvas');
+  canvas.width = 300;
+  canvas.height = 200;
+  chartContainer.appendChild(canvas);
+
+  // Use Chart.js to create a bar graph on the canvas
+  var ctx = canvas.getContext('2d');
+
+
+
+
+  if (prediction_mode == "Plane"){
+    resources = [];
+    averages.forEach(function(average, index){
+
+      var temp_resource = 8.87 * parseFloat(average) + 0.03 * temps[2-index] -7.91;
+      var press_resource = 9.12 * parseFloat(average) -0.01 * press[2-index] + 2.18;
+      var humid_resource = 8.49 * parseFloat(average) -0.00 * humss[2-index] -6.66;
+      var angle_resource = 8.95 * parseFloat(average) -0.03 * RZAs[2-index] -6.06;
+
+      var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
+      resources.push(mean);
+    });
+    setGrapthsContent(ctx, resources, index, str_dates);
+  }
+
+  else if (prediction_mode == "ANN" && pasture_load && cattle_count > 0){
+
+    $.ajax({ type: "GET", url: "/ajax/", data: {
+        'assessDaysLeftDiff': true,
+        'pasture_load': JSON.stringify(pasture_load),
+        'RZAs': JSON.stringify(RZAs),
+        'temps': JSON.stringify(temps),
+        'humss': JSON.stringify(humss),
+        'press': JSON.stringify(press),
+        'averages': JSON.stringify([average1, average2, average3]),
+        'intake' : intake,
+        'reserve' : reserve,
+        'index': index,
+
+    },
+      success: function(data) {
+
+      resources = [];
+      data.resource_pred.forEach(function(value) {
+        var paddock_area = parseFloat(data.area);
+        var resource = ((parseFloat(value)/1000)/paddock_area);
+        resources.push(resource);
+      });
+      setGrapthsContent(ctx, resources.reverse(), index, str_dates);
+
+    },
+      error: function(xhr, status, error) { console.error('Ajax request failed', status, error); }
+    });
+  }
+
+
+
+
+
+  return chartContainer;
+}
+
+
+
+// Calculate the trend line and return the slope
+function calculateTrendLine(resources) {
+  const n = resources.length;
+
+  // Calculate mean of x and y
+  const meanX = str_dates.reduce((acc, date, index) => acc + (index + 1), 0) / n;
+  const meanY = resources.reduce((acc, value) => acc + value, 0) / n;
+
+  // Calculate slope (m) and intercept (b)
+  let numerator = 0;
+  let denominator = 0;
+
+  for (let i = 0; i < n; i++) {
+    numerator += (i + 1 - meanX) * (resources[i] - meanY);
+    denominator += Math.pow(i + 1 - meanX, 2);
+  }
+
+  const slope = numerator / denominator;
+  const intercept = meanY - slope * meanX;
+
+  // Generate trend line data points
+  const trendLineData = [];
+  for (let i = 0; i < n; i++) {
+    trendLineData.push({ x: i + 1, y: slope * (i + 1) + intercept });
+  }
+
+  return { trendLineData, slope }; // Return both trend line data and slope
+}
+
+
+
+function setGrapthsContent(ctx, resources, index, str_dates){
+
+    // Get the trend line data and slope
+    const { trendLineData, slope } = calculateTrendLine(resources);
+
+    // Determine trend line color based on slope
+    const trendLineColor = (slope >= 0) ? 'green' : 'red';
+
+    // Update your chart configuration
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [updateDateTime(str_dates[1]), updateDateTime(str_dates[0]), updateDateTime(str_dates[2])],
+        datasets: [
+          {
+            type: 'line', // Use 'line' type for the trend line
+            label: 'Тренд изменении',
+            data: trendLineData,
+            borderColor: trendLineColor,
+            borderWidth: 2,
+            fill: false,
+            pointStyle: 'rect',
+          },
+          {
+            label: `Измен. урож. в загоне №${index+1} (т/га)`,
+            data: resources,
+            backgroundColor: 'steelblue',
+            borderColor: 'black',
+            borderWidth: 1
+          },
+        ]
+      },
+
+      options: {
+        barPercentage: 0.9,
+        borderRadius: 5,
+        borderWidth: 10,
+        responsive: true,
+        scales: {
+          x: {
+            beginAtZero: true,
+          },
+          y: {
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+
+
+
+}
+
+
+function updateDateTime(dateString) {
+    var dateString = dateString.substring(5);
+
+    // Define an array with month names in Russian
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+    // Split the date string by '-'
+    const parts = dateString.split('-');
+
+    // Extract the month number from the first part of the array
+    const monthNumber = parseInt(parts[0], 10);
+
+    // Check if the month number is valid (between 1 and 12)
+    if (monthNumber >= 1 && monthNumber <= 12) {
+        // Replace the month number with the corresponding month name
+        parts[0] = monthNames[monthNumber - 1];
+
+        // Join the parts back together with '-'
+        return parts.join('-');
+    } else {
+        // If the month number is not valid, return the original string
+        return dateString;
+    }
+}
+
+
+// const DEVICE_IP = "192.168.0.18:80"
+const DEVICE_IP = "192.168.54.6:80"
+
+const chatSocket = new WebSocket('ws://' + DEVICE_IP);
+
+
+var markers = [];
+
+// Function to create markers
+function createMarker(latitude, longitude, index, paddock_number) {
+    var marker = L.marker([latitude, longitude])
+        .addTo(map)
+        .bindTooltip('Номер КРС: ' + index + '<br>Номер загона: ' + paddock_number, { permanent: false, opacity: 0.7 });
+
+    marker.options.index = index;  // Set the custom 'index' attribute
+    markers.push(marker); // Add the marker to the array
+}
+
+
+chatSocket.onmessage = function(e) {
+  const message = e.data;
+  console.log("WSK: ", message);
+
+  if (message.length > 16){ // && message.split(", ").length > 0
+
+    deleteAllMarkers();
+
+    const cattles = message.split(', ');
+    cattle_count = cattles.length - 1;
+
+    // Initialize an array to store the extracted elements
+    const cattleObjects = [];
+
+    // Iterate over each element in the array
+    for (const cattle of cattles) {
+      // Split each cattle by ' | ' to extract ID, latitude, and longitude
+      if (cattle) {
+        const [id, latitude, longitude] = cattle.split(' | ');
+
+        // Create an object with the extracted elements
+        const cattleDict = {
+          id: id,
+          latitude: latitude,
+          longitude: longitude,
+        };
+
+        // Push the object into the array
+        cattleObjects.push(cattleDict);
+      }
+    }
+
+    var paddock_layer = 1;
+
+    // Iterate through each feature in the GeoJSON data
+    geoJsonLayer.eachLayer(function (layer) {
+
+        pasture_load[paddock_layer] = 0;
+
+        cattleObjects.forEach(function (cattle, index) {
+
+        const cattleLatitude = parseFloat(cattle.latitude);
+        const cattleLongitude = parseFloat(cattle.longitude);
+
+        // Check if the GPS coordinate is inside the polygon
+        var isInside = turf.booleanPointInPolygon(turf.point([cattleLongitude, cattleLatitude]), layer.feature.geometry);
+
+          if (isInside) {
+            cattle.paddock_number = paddock_layer;
+            // The GPS coordinate is inside the current polygon
+            pasture_load[paddock_layer] += 1;
+          }
+        });
+
+        paddock_layer++;
+    });
+
+
+      cattleObjects.forEach(function(cattle) {
+
+        createMarker(parseFloat(cattle.latitude), parseFloat(cattle.longitude), cattle.id, cattle.paddock_number);
+
+      });
+
+    updateMapWithFormula();
+
+  }
+
+  // Signals from Transfer Process
+  if (message.length < 16 && message.split("|").length - 1 === 1){ // N|<CLOSED><OPENED>
+
+    var resultArray = message.split("|");
+
+    var transfer_button = document.getElementById("transer_action");
+
+    var paddock_manual = document.getElementById("numberSelect").value;
+    var paddock_from = document.getElementById("numberSelect_from").value;
+    var paddock_to = document.getElementById("numberSelect_to").value;
+
+    var state_button_manual = document.getElementById("gate_state");
+    var state_button_from = document.getElementById("gate_state_from");
+    var state_button_to = document.getElementById("gate_state_to");
+
+
+    if (resultArray[1] === "CLOSED"){
+        gates_state[String(resultArray[0])] = "Закрыт";
+    }
+    else if (resultArray[1] === "OPENED") {
+        gates_state[String(resultArray[0])] = "Открыт";
+    }
+
+    if (String(resultArray[0]) === String(paddock_manual)){ state_button_manual.innerHTML = gates_state[paddock_manual]; }
+    if (String(resultArray[0]) === String(paddock_from)){ state_button_from.innerHTML = gates_state[paddock_from]; }
+    if (String(resultArray[0]) === String(paddock_to)){ state_button_to.innerHTML = gates_state[paddock_to]; }
+
+
+    if (started_transfer && gates_state[paddock_to] == "Закрыт" && gates_state[paddock_from] == "Закрыт"){
+        transfer_button.innerHTML = "Произвести перегон";
+        clearInterval(intervalId);
+        started_transfer = false;
+    }
+  }
+
+  // Getting the STARTING parameters (states) from HEAD module
+  else if (message.split("|").length - 1 === 7){
+    var resultArray = message.split("|");
+    var selectElement = document.getElementById('integerOptions');
+    var state_button = document.getElementById("gate_state");
+    var state_button_from = document.getElementById("gate_state_from");
+    var state_button_to = document.getElementById("gate_state_to");
+
+
+    for (var i = 1; i < resultArray.length; i++) {
+
+      if (resultArray[i]=="0"){
+        gates_state[String(i)] = "Закрыт";
+      }
+      else if (resultArray[i]=="1"){
+        gates_state[String(i)] = "Открыт";
+      }
+    }
+    state_button.innerHTML = gates_state["1"];
+    state_button_to.innerHTML = gates_state["1"];
+    state_button_from.innerHTML = gates_state["1"];
+
+    // selectElement.value = resultArray[0];
+    update_interval = resultArray[0];
+  }
+
+};
+
+chatSocket.onclose = function(e) {
+    console.error('Chat socket closed unexpectedly');
+};
+
+
+// Send message to server
+function SendWebSocketMessage(message) {
+    chatSocket.send(message);
+}
+
+
+</script>
+
+
+<script>
+
+var table = document.getElementById('data-table');
+var mySampleTable = document.getElementById('mySampleTable');
+var predictModal = document.getElementById('predict');
+
+// Add event listener to the modal to dynamically populate the column values
+predictModal.addEventListener('click', function() {
+
+  var selectElement = document.getElementById("methodSelection");
+  // Set the selected value programmatically
+  selectElement.value = "3 Медианная";
+
+  mySampleTable.innerHTML = "";
+
+  var sampleHeader = document.createElement('thead');
+  sampleHeader.classList.add("thead-dark");
+  var sampleHeaderRow = document.createElement('tr');
+  var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №"; sampleHeaderTitle1.style.textAlign = "left";
+  var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = "Медианная"; sampleHeaderTitle2.style.textAlign = "left";
+  var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)"; sampleHeaderTitle3.style.textAlign = "left";
+
+  sampleHeaderRow.appendChild(sampleHeaderTitle1);
+  sampleHeaderRow.appendChild(sampleHeaderTitle2);
+  sampleHeaderRow.appendChild(sampleHeaderTitle3);
+
+  sampleHeader.appendChild(sampleHeaderRow)
+
+  var sampleBody = document.createElement('tbody');
+
+  var rows = table.getElementsByTagName('tr');
+
+  var realValue = $("#realValue").val();
+  var pixelValue = $("#pixelValue").val();
+
+  for (var i = 0; i < rows.length; i++) {
+
+    var sampleTableRow = document.createElement('tr');
+
+    var zagon = rows[i].getElementsByTagName('td')[0];
+    var sum = rows[i].getElementsByTagName('td')[3];
+    var new_sum = document.createElement('td'); new_sum.textContent = "";
+
+    if (sum){
+        sampleTableRow.appendChild(zagon.cloneNode(true));
+        sampleTableRow.appendChild(sum.cloneNode(true));
+        sampleTableRow.appendChild(new_sum);
+
+        sampleBody.appendChild(sampleTableRow);
+    }
+  }
+  mySampleTable.appendChild(sampleHeader);
+  mySampleTable.appendChild(sampleBody);
+});
+
+
+var paddocks_resources = [];
+
+function multiplyValues() {
+  paddocks_resources.length = 0;
+  var table = document.getElementById('mySampleTable');
+
+  var weather_table = document.getElementById('weather_table');
+  var temperature = parseFloat(weather_table.rows[1].cells[0].textContent);
+  var pressure = parseFloat(weather_table.rows[1].cells[2].textContent);
+  var humidity = parseFloat(weather_table.rows[1].cells[3].textContent);
+  var RZA = {{ RZA|default:"undefined" }};
+
+  var temp_slope1 = parseFloat(document.getElementById("temp_slope1").value);
+  var press_slope1 = parseFloat(document.getElementById("press_slope1").value);
+  var humid_slope1 = parseFloat(document.getElementById("humid_slope1").value);
+  var angle_slope1 = parseFloat(document.getElementById("angle_slope1").value);
+  var temp_slope2 = parseFloat(document.getElementById("temp_slope2").value);
+  var press_slope2 = parseFloat(document.getElementById("press_slope2").value);
+  var humid_slope2 = parseFloat(document.getElementById("humid_slope2").value);
+  var angle_slope2 = parseFloat(document.getElementById("angle_slope2").value);
+  var temp_inter = parseFloat(document.getElementById("temp_inter").value);
+  var press_inter = parseFloat(document.getElementById("press_inter").value);
+  var humid_inter = parseFloat(document.getElementById("humid_inter").value);
+  var angle_inter = parseFloat(document.getElementById("angle_inter").value);
+
+
+  var rows = table.getElementsByTagName('tr');
+  var nanDetected = false;
+
+  for (var i = 0; i < rows.length; i++) {
+      var cells = rows[i].getElementsByTagName('td');
+      if (cells[1]){
+
+          var value = parseFloat(cells[1].textContent);
+          var temp_resource =  (temp_slope1 * value) + (temp_slope2 * temperature)+ temp_inter;
+          var press_resource = (press_slope1 * value) + (press_slope2 * pressure) + press_inter;
+          var humid_resource = (humid_slope1 * value) + (humid_slope2 * humidity) + humid_inter;
+          var angle_resource = (angle_slope1 * value) + (angle_slope2 * parseFloat(RZA)) + angle_inter;
+
+          var resource = [temp_resource, press_resource, humid_resource, angle_resource];
+          var mean_resource = resource.reduce((acc, num) => acc + num, 0) / resource.length;
+
+          if (isNaN(mean_resource) || !isFinite(mean_resource)){nanDetected=true;};
+          cells[2].textContent = mean_resource.toFixed(2);
+          paddocks_resources.push(mean_resource.toFixed(2));
+      }
+    };
+  if (!nanDetected){$("#switchToModalB").show();};
+}
+
+
+  $(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+  });
+
+  function toggleCoeffInput() {
+    var correction_coeff = document.getElementById("correction_coeff");
+    correction_coeff.disabled = !correction_coeff.disabled;
+  }
+
+  function enableBoundInputs() {
+    var upper_bound = document.getElementById("upper_bound");
+    var lower_bound = document.getElementById("lower_bound");
+    upper_bound.disabled = false;
+    lower_bound.disabled = false;
+  }
+
+  function disableBoundInputs() {
+    var upper_bound = document.getElementById("upper_bound");
+    var lower_bound = document.getElementById("lower_bound");
+    upper_bound.disabled = true;
+    lower_bound.disabled = true;
+  }
+
+  function toggleThreshInput() {
+    var threshold = document.getElementById("threshold");
+    threshold.disabled = !threshold.disabled;
+    var operators = document.getElementById("operators");
+    operators.disabled = !operators.disabled;
+  }
+
+
+  // Function to set custom text in the alert
+  function setAlertText(success, text) {
+    var alertElement = document.getElementById('myAlert');
+    if (success){
+        if (alertElement) {
+          // Set the custom text
+          alertElement.innerHTML = text;
+          // Show the alert
+          alertElement.style.display = 'none';
+          alertElement.hidden = true;
+        }
+    }
+    else {
+        if (alertElement) {
+          // Set the custom text
+          alertElement.innerHTML = text;
+          // Show the alert
+          alertElement.style.display = 'block';
+          alertElement.hidden = false;
+        }
+    }
+  }
+
+  // Function to switch to Modal A
+  $("#switchToModalA").click(function() {
+    $("#myModalSim").modal("hide"); // Close Modal B
+    $("#myModal").modal("show"); // Open Modal A
+  });
+
+  // Function to switch to Modal B
+  $("#switchToModalB").click(function() {
+    $("#myModal").modal("hide"); // Close Modal A
+    $("#myModalSim").modal("show"); // Open Modal B
+  });
+
+
+    // Function to create options dynamically
+    function createOptions(count) {
+        let optionsHTML = '<option value=""></option>';
+        for (let i = 1; i <= count; i++) {
+            optionsHTML += `<option value="${i}">Загона №${i}</option>`;
+        }
+        return optionsHTML;
+    }
+
+
+    function createChecks(count, paddock) {
+        let checksHTML = `
+            <div class="form-group">
+              <div class="row">
+                <div class="col">
+                    <label for="paddock_resource${paddock}">Ресурс загона (т/га)</label>
+                </div>
+                <div class="col">
+                    <input type="number" class="form-control" id="paddock_resource${paddock}" placeholder="" value="${paddocks_resources[paddock-1]}">
+                </div>
+              </div>
+            </div>
+        `;
+
+        for (let i = 0; i < count; i++) {
+
+            checksHTML += `
+                <div class="form-check mb-1">
+                  <div class="row">
+                    <div class="col">
+                        <div class="form-check form-check-inline">
+                          <input class="form-check-input" type="checkbox" value="${added_plants_names[i]}" id="plantsOptions-${paddock}-${i}" onclick="myFunction(${i},${paddock})">
+                          <label class="form-check-label">
+                            ${added_plants_names[i]}
+                          </label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-check form-check-inline">
+                        <input type="number" class="form-control mr-1" id="percentage-${paddock}-${i}" placeholder="" disabled>%
+                        </div>
+                    </div>
+                  </div>
+                </div>
+            `;
+        }
+        return checksHTML;
+    }
+
+    function myFunction(index, paddock){
+      var enableCheckbox = document.getElementById('plantsOptions'+'-'+paddock+'-'+index);
+      var numberInput = document.getElementById('percentage'+'-'+paddock+'-'+index);
+      numberInput.disabled = !enableCheckbox.checked;
+    }
+
+  $("#paddocks_bio_content").click(function(){
+
+    if (document.getElementById("paddocks_bio_content_div").innerHTML){
+        document.getElementById("paddocks_bio_content_div").innerHTML = "";
+    }
+    else
+    {
+        var form = document.createElement("form");
+
+        form.id = "PaddockNumber";
+        form.style.display = "block";
+        form.className = "border p-4";
+        form.innerHTML = `
+
+            <div class="form-group">
+              <label for="paddock_number">Ботанический состав для: </label>
+                <select id="paddock_number" class="form-select" aria-label="Default select example">
+                  ${createOptions(paddocks_count)}
+                </select>
+            </div>
+
+        `
+        document.getElementById("paddocks_bio_content_div").appendChild(form);
+
+        var selectElement = document.getElementById("paddock_number");
+        selectElement.addEventListener("change", function() {
+            // Get the selected value
+            var selectedValue = selectElement.value;
+
+            var paddocks_number = [];
+            for (let i = 1; i < paddocks_count+1; i++) {
+              paddocks_number.push(i);
+            }
+
+            var other_forms = paddocks_number.filter(element => element !== selectedValue);
+            other_forms.forEach(form => $("#Paddock" + form).hide())
+
+            $("#Paddock" + selectedValue).show();
+        });
+
+
+        for (let paddock = 1; paddock < paddocks_count+1; paddock++){
+            var form = document.createElement("form");
+
+            form.id = "Paddock" + paddock;
+            form.style.display = "none";
+            form.className = "border p-4";
+            form.innerHTML = `
+
+                ${createChecks(added_plants.length, paddock)}
+
+            `
+            document.getElementById("paddocks_bio_content_div").appendChild(form);
+
+        }
+
+    }
+  });
+
+
+
+
+
+  function disableSimulation(){
+    $("#switchToModalB").hide();
+  }
+
+
+  var formCount = 0;
+  var added_plants = [];
+  var added_plants_names = [];
+
+  // Function to append the elements to the modal body
+  function appendElements() {
+
+    if ($("#plantName").val().replace(/\s/g, '')){
+        added_plants.push(formCount);
+        added_plants_names.push($("#plantName").val());
+
+        // Create a button element to toggle the form
+        var toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.id = "toggleButton" + formCount;
+        toggleButton.className = "btn btn-success mr-1";
+        toggleButton.textContent = $("#plantName").val();
+        toggleButton.setAttribute("onClick", "toggleForm(" + formCount + ");");
+
+        var deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.id = "deleteButton" + formCount;
+        deleteButton.className = "btn btn-danger btn-block ml-1";
+        deleteButton.textContent = "Удалить растение";
+        deleteButton.setAttribute("onClick", "deleteForm(" + formCount + ");");
+
+        var form = document.createElement("form");
+
+        form.id = "form" + formCount;
+        form.style.display = "none";
+        form.className = "border p-4";
+        form.innerHTML = `
+
+            <div class="form-group">
+              <label for="plant${formCount}">Название</label>
+              <input type="text" class="form-control" id="plant${formCount}" value="${$("#plantName").val()}" readonly>
+            </div>
+
+
+              <div class="row">
+
+                <div class="col">
+                    <div class="form-group">
+                      <label for="temperatureToleranceIdeal${formCount}">Благоприятная темература (&deg;C)</label>
+                      <input type="number" class="form-control" id="temperatureToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="temperatureToleranceUpper${formCount}">Стандартное отклонение</label>
+                      <input type="number" class="form-control" id="temperatureStandDev${formCount}" value="15">
+                    </div>
+                </div>
+              </div>
+
+
+              <div class="row">
+
+                <div class="col">
+                    <div class="form-group">
+                      <label for="moistureToleranceIdeal${formCount}">Благоприятные осадки (мм)</label>
+                      <input type="number" class="form-control" id="moistureToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="moistureToleranceUpper${formCount}">Стандартное отклонение</label>
+                      <input type="number" class="form-control" id="moistureStandDev${formCount}" value="30">
+                    </div>
+                </div>
+              </div>
+
+
+
+              <div class="row">
+
+                <div class="col">
+                    <div class="form-group">
+                      <label for="radiationToleranceIdeal${formCount}">Благоприятная радиация (МДж/м&sup2)</label>
+                      <input type="number" class="form-control" id="radiationToleranceIdeal${formCount}" placeholder="">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="radiationToleranceUpper${formCount}">Стандартное отклонение</label>
+                      <input type="number" class="form-control" id="radiationStandDev${formCount}" value="50">
+                    </div>
+                </div>
+              </div>
+
+
+
+            <!-- Peak dates and values -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="firstPeak${formCount}">Дата пика роста №1</label>
+                      <input type="date" class="form-control" id="firstPeak${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="max1Y${formCount}">Максимальное значение пика №1</label>
+                      <input type="number" class="form-control" id="max1Y${formCount}" step="0.01">
+                    </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="secondPeak${formCount}">Дата пика роста №2</label>
+                      <input type="date" class="form-control" id="secondPeak${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="max2Y${formCount}">Максимальное значение пика №2</label>
+                      <input type="number" class="form-control" id="max2Y${formCount}" step="0.01">
+                    </div>
+                </div>
+              </div>
+
+
+            <!-- Growth and Death Rate -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="growthRate${formCount}">Темп роста (мм/день)</label>
+                      <input type="number" class="form-control" id="growthRate${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="deathRate${formCount}">Темп отмирания (мм/день)</label>
+                      <input type="number" class="form-control" id="deathRate${formCount}">
+                    </div>
+                </div>
+              </div>
+
+
+            <!-- Sigma and Plant Density -->
+              <div class="row">
+                <div class="col">
+                    <div class="form-group">
+                      <label for="sigma${formCount}">Сигма (~60)</label>
+                      <input type="number" class="form-control" id="sigma${formCount}">
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="form-group">
+                      <label for="plantDensity${formCount}">Плотность растения (г/м&sup2)</label>
+                      <input type="number" class="form-control" id="plantDensity${formCount}">
+                    </div>
+                </div>
+              </div>
+        `;
+        // Append the toggleButton and form to the modal body
+        document.getElementById("user_added_plants").appendChild(toggleButton);
+        form.appendChild(deleteButton);
+        document.getElementById("user_added_forms").appendChild(form);
+        document.getElementById('plantName').value = '';
+
+      formCount++;
+      }
+    }
+
+
+  // Function to toggle a specific form
+  function toggleForm(formId) {
+    $("#form" + formId).toggle();
+    const other_forms = added_plants.filter(element => element !== formId);
+    other_forms.forEach(form => $("#form" + form).hide())
+  }
+
+  function deleteForm(formId) {
+    $("#form" + formId).remove();
+    $("#toggleButton" + formId).remove();
+    $("#deleteButton" + formId).remove();
+    $("#breakDiv" + formId).remove();
+
+    var indexToRemove = added_plants.indexOf(formId);
+    if (indexToRemove !== -1) {
+      added_plants.splice(indexToRemove, 1);
+      added_plants_names.splice(indexToRemove, 1);
+    };
+
+  }
+
+
+
+function startSimulation() {
+    var inputData = {};
+    var modalBody = document.querySelector('#modalBody');
+
+    var inputElements = modalBody.querySelectorAll('input');
+    var selectElements = modalBody.querySelectorAll('select');
+
+    selectElements.forEach(function (select) {
+      var selectedOption = select.options[select.selectedIndex];
+      if (select.id != "paddock_number"){
+          inputData[select.id] = selectedOption.value;
+      }
+
+    });
+
+    inputElements.forEach(function (input) {
+      if (input.type === 'checkbox') {
+        inputData[input.id] = [input.value, input.checked];
+      } else {
+        inputData[input.id] = input.value;
+      }
+    });
+
+    inputData["plants_count"] = added_plants_names.length;
+    inputData["paddocks_count"] = paddocks_count;
+
+    var serializedData = JSON.stringify(inputData);
+
+    $.ajax({
+      type: "GET",
+      url: "/ajax/",
+      data: {
+          'simulation_data': serializedData
+      },
+      success: function(data) {
+        var carouselContainer = $('<div id="resource-image-carousel" class="carousel slide" data-ride="carousel"></div>');
+        var carouselIndicators = $('<ol class="carousel-indicators"></ol>');
+
+        var carouselInner = $('<div class="carousel-inner"></div>');
+
+        var prev_parentElement = $('<a class="carousel-control-prev" href="#image-carousel" role="button" data-slide="prev"></a>');
+        var prev_childElement1 = $('<span class="carousel-control-prev-icon" aria-hidden="true"></span>');
+        var prev_childElement2 = $('<span class="sr-only">Previous</span>');
+
+        // Append child elements to the parent element
+        prev_parentElement.append(prev_childElement1);
+        prev_parentElement.append(prev_childElement2);
+
+        var next_parentElement = $('<a class="carousel-control-next" href="#resource-image-carousel" role="button" data-slide="next"></a>');
+        var next_childElement1 = $('<span class="carousel-control-next-icon" aria-hidden="true"></span>');
+        var next_childElement2 = $('<span class="sr-only">Next</span>');
+
+        // Append child elements to the parent element
+        next_parentElement.append(next_childElement1);
+        next_parentElement.append(next_childElement2);
+
+
+        data.paddocks_grazing_graphs.forEach(function(graph, index) {
+
+            var carouselIndicator = $('<li style="background-color: #C7C7C7;" data-target="#resource-image-carousel" data-slide-to="' + index + '"></li>');
+            var carouselItem = $('<div class="carousel-item"></div>');
+
+            if (index === 0) {
+                carouselIndicator.addClass('active');
+                carouselItem.addClass('active');
+            }
+
+            var imgElement = $('<img class="d-block w-100 img-thumbnail" src="data:image/png;base64,' + graph + '">');
+            carouselItem.append(imgElement);
+
+            carouselIndicators.append(carouselIndicator);
+            carouselInner.append(carouselItem);
+
+        });
+
+        carouselContainer.append(carouselIndicators);
+        carouselContainer.append(carouselInner);
+
+        carouselContainer.append(prev_parentElement);
+        carouselContainer.append(next_parentElement);
+
+        // Add the carousel to the page
+        $('#resource-carousel-container').empty();
+        $('#resource-carousel-container').append(carouselContainer);
+        // $('#image-carousel').carousel();
+          $('#resource-image-carousel').carousel({
+            interval: false
+          });
+        var header = document.getElementById('resource-carousel-header');
+        header.removeAttribute('hidden');
+
+        var scrollContent = document.getElementById('modalBody');
+        scrollContent.scrollTop += 1000;
+
+      },
+      error: function(xhr, status, error) {
+      console.error('Ajax request failed', status, error);
+        }
+    });
+
+}
+
+
+    var selectElement = document.getElementById("methodSelection");
+
+    // Attach a change event listener
+    selectElement.addEventListener("change", function() {
+        // This function will be called when the option is changed
+        var selectedOption = selectElement.value.split(' ');;
+
+        var table = document.getElementById('data-table');
+        var mySampleTable = document.getElementById('mySampleTable');
+
+        // Add event listener to the modal to dynamically populate the column values
+
+          mySampleTable.innerHTML = "";
+
+          var sampleHeader = document.createElement('thead');
+          sampleHeader.classList.add("thead-dark");
+          var sampleHeaderRow = document.createElement('tr');
+          var sampleHeaderTitle1 = document.createElement('th'); sampleHeaderTitle1.textContent = "Загон №"; sampleHeaderTitle1.style.textAlign = "left";
+          var sampleHeaderTitle2 = document.createElement('th'); sampleHeaderTitle2.textContent = selectedOption[1]; sampleHeaderTitle2.style.textAlign = "left";
+          var sampleHeaderTitle3 = document.createElement('th'); sampleHeaderTitle3.textContent = "Урожайность (т/га)"; sampleHeaderTitle3.style.textAlign = "left";
+
+          sampleHeaderRow.appendChild(sampleHeaderTitle1);
+          sampleHeaderRow.appendChild(sampleHeaderTitle2);
+          sampleHeaderRow.appendChild(sampleHeaderTitle3);
+
+          sampleHeader.appendChild(sampleHeaderRow)
+
+          var sampleBody = document.createElement('tbody');
+
+          var rows = table.getElementsByTagName('tr');
+
+          var realValue = $("#realValue").val();
+          var pixelValue = $("#pixelValue").val();
+
+          for (var i = 0; i < rows.length; i++) {
+
+            var sampleTableRow = document.createElement('tr');
+
+            var zagon = rows[i].getElementsByTagName('td')[0];
+            var sum = rows[i].getElementsByTagName('td')[parseInt(selectedOption[0])];
+            var new_sum = document.createElement('td'); new_sum.textContent = "";
+
+            if (sum){
+                sampleTableRow.appendChild(zagon.cloneNode(true));
+                sampleTableRow.appendChild(sum.cloneNode(true));
+                sampleTableRow.appendChild(new_sum);
+
+                sampleBody.appendChild(sampleTableRow);
+            }
+          }
+          mySampleTable.appendChild(sampleHeader);
+          mySampleTable.appendChild(sampleBody);
+
+    });
+
+
+    // Function to get column values by index
+    function getColumnValues(table, columnIndex) {
+        var columnValues = [];
+
+        // Iterate through each row in the table
+        for (var i = 1; i < table.rows.length; i++) { // Start from 1 to skip the header row
+            var cell = table.rows[i].cells[columnIndex];
+
+            // Check if the cell exists
+            if (cell) {
+                columnValues.push(cell.innerText.trim());
+            }
+        }
+
+        return columnValues;
+    }
+
+    function subtractPercentage(number, percentage) {
+      return number - (number * (percentage / 100));
+    }
+
+    function updateMapWithFormula() {
+        // Get user input from the input field
+
+        var table = document.getElementById('data-table');
+        var weather_table = document.getElementById('weather_table');
+        var selectedValue = document.getElementById("fast_methodSelection").value;
+        selected_prediction_mode = document.querySelector('input[name="radioOptions"]:checked');
+
+        var intake = document.getElementById('fast_intake').value;
+        var reserve = document.getElementById('fast_reserve').value;
+
+        // Extract integer value using regular expression
+        var intValueMatch = selectedValue.match(/^(\d+)/);
+
+        // Check if there is a match and extract the integer value
+        var intValue = intValueMatch ? parseInt(intValueMatch[1], 10) : null;
+
+        resourceValues = getColumnValues(table, intValue);
+
+        // Update valuesArray in-place
+        var temperature = parseFloat(weather_table.rows[1].cells[0].textContent);
+        var pressure = parseFloat(weather_table.rows[1].cells[2].textContent);
+        var humidity = parseFloat(weather_table.rows[1].cells[3].textContent);
+        var RZA = {{ RZA|default:"undefined" }};
+
+
+        if (pasture_load){
+
+          if (legend) {
+              legend.remove(map);
+          }
+
+          legend = L.control({ position: "bottomleft" });
+          legend.onAdd = function(map) {
+            var div = L.DomUtil.create("div", "legend");
+            div.innerHTML += "<h4>Нагрузка загонов (" + cattle_count + ")</h4>";
+            for (let i = 1; i < paddocks_count+1; i++) {
+              div.innerHTML += '<i class="icon" style="background-image: url(https://static.thenounproject.com/png/1061360-200.png);background-repeat: no-repeat;"></i><span>Загон №' + i + '</span><span> | </span><span>Кол. КРС: ' + pasture_load[i] + '</span><br>';
+            }
+
+            return div;
+          };
+
+          legend.addTo(map);
+        }
+
+
+
+        // Remove existing GeoJSON layer if it exists
+        if (geoJsonLayer) {
+            map.removeLayer(geoJsonLayer);
+        }
+
+        if (selected_prediction_mode.value == "Plane"){
+          // Iterate through features and assign values from the array to a new property
+          geoJSONData.features.forEach(function (feature, index) {
+              // Add the new property to the properties of each feature
+
+              var temp_resource = 8.87 * parseFloat(resourceValues[index]) + 0.03 * temperature -7.91;
+              var press_resource = 9.12 * parseFloat(resourceValues[index]) -0.01 * pressure + 2.18;
+              var humid_resource = 8.49 * parseFloat(resourceValues[index]) -0.00 * humidity -6.66;
+              var angle_resource = 8.95 * parseFloat(resourceValues[index]) -0.03 * RZA -6.06;
+
+              var mean = [temp_resource, press_resource, humid_resource, angle_resource].reduce((acc, val) => acc + val, 0) / 4;
+
+              feature.properties.Урож = parseFloat(mean).toFixed(2);
+          });
+        }
+
+
+        // Calling ML model for assessing days left and resources
+
+        if (intake  && reserve && selected_prediction_mode){
+          if (selected_prediction_mode.value == "Plane"){
+
+          }
+          else{
+
+            var weather_table1 = document.getElementById('weather_table');
+            var temperature1 = parseFloat(weather_table1.rows[1].cells[0].textContent);
+            var pressure1 = parseFloat(weather_table1.rows[1].cells[2].textContent);
+            var humidity1 = parseFloat(weather_table1.rows[1].cells[3].textContent);
+            var RZA1 = {{ RZA|default:"undefined" }};
+
+            $.ajax({
+                type: "GET",
+                url: "/ajax/",
+                data: {
+                    'assessDaysLeft': true,
+                    'resourceValues': JSON.stringify(resourceValues),
+                    'pasture_load': JSON.stringify(pasture_load),
+                    'intake': intake,
+                    'model': String(selected_prediction_mode.value),
+                    'reserve': reserve,
+                    'RZA': RZA1,
+                    'temperature': temperature1,
+                    'humidity': humidity1,
+                    'pressure': pressure1,
+                },
+                success: function(data) {
+
+                  data.days_left_pred.forEach(function(value, index) {
+                    model_days_left_prediction[index] = value.toFixed(2);
+                  });
+                  data.resource_pred.forEach(function(value, index) {
+                    var paddock_area = parseFloat(data.area_list[index]).toFixed(2);
+                    model_resource_prediction[index] = ((value/1000)/paddock_area).toFixed(2);
+                  });
+              },
+              error: function(xhr, status, error) {
+                console.error('Ajax request failed', status, error);
+              }
+            });
+
+          }
+
+        }
+
+        // Iterate through features and assign values from the array to a new property
+        geoJSONData.features.forEach(function (feature, index) {
+            // Add the new property to the properties of each feature
+
+            if (selected_prediction_mode.value == "Plane"){
+
+              if (parseInt(feature.properties.КолКРС)){
+
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(feature.properties.Урож, parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(feature.properties.КолКРС)*(parseFloat(intake)/1000))).toFixed(2);
+              }
+              else{
+                  feature.properties.КормоЗапас = ((parseFloat(subtractPercentage(feature.properties.Урож, parseInt(reserve)))*parseFloat(feature.properties.Площадь))/(parseInt(cattle_count)*(parseFloat(intake)/1000))).toFixed(2);
+              }
+            }
+            else{
+              feature.properties.КормоЗапас = model_days_left_prediction[index];
+              feature.properties.Урож = parseFloat(model_resource_prediction[index]);
+            }
+        });
+
+        // !!! FOR DEBUGGING. DO NOT DELETE !!!
+        if (selected_prediction_mode.value == "Plane"){
+          var temp_list_r = []; var temp_list_d = [];
+          geoJSONData.features.forEach(function (feature, index) {
+            temp_list_r.push(feature.properties.Урож);
+            temp_list_d.push(feature.properties.КормоЗапас);
+          });
+          console.log(" ");
+          console.log("Прогноз ориг. формулы плоскостей: ");
+          console.log("Урожайность: ", temp_list_r);
+          console.log("Кормозапас: ", temp_list_d);
+        }
+        else {
+          console.log(" ");
+          console.log("Прогноз модели МО: ");
+          console.log("Урожайность: ", model_resource_prediction);
+          console.log("Кормозапас: ", model_days_left_prediction);
+        }
+        // !!! FOR DEBUGGING. DO NOT DELETE !!!
+
+        // Iterate through features and assign values from the array to a new property
+        geoJSONData.features.forEach(function (feature, index) {
+            // Add the new property to the properties of each feature
+            if (pasture_load){
+              feature.properties.КолКРС = parseInt(pasture_load[index+1]);
+            }
+            else{
+              feature.properties.КолКРС = parseInt(0);
+            }
+        });
+
+        // Now, geoJSONData contains the added property with values from the array
+
+        paddocks_count = geoJSONData.features.length-1;
+        geoJsonLayer = L.geoJSON(geoJSONData, {
+          style: {
+            color: "blue", // Polygon border color
+            weight: 1,      // Polygon border weight
+            fillOpacity: 0.2 // Polygon fill opacity (0 to 1)
+          },
+          onEachFeature: function (feature, layer) {
+
+            var index = geoJSONData.features.indexOf(feature);
+
+            // Add mouseover event to highlight the shape and display information
+            layer.on('mouseover', function (e) {
+              var popupContent = "<b>Загон:</b> " + feature.properties.Загон + "<br><b>Площадь (га):</b> " + feature.properties.Площадь + "<br><b>Кол. КРС:</b> " + feature.properties.КолКРС + "<br><b>Кол. КРС на 1 га:</b> " + (parseInt(feature.properties.КолКРС)/parseFloat(feature.properties.Площадь)).toFixed(2);
+
+              popupContent += "<br><b>Урож. (т/га):</b> " + feature.properties.Урож;
+
+              if (intake  && reserve){
+                popupContent += "<br><b>Кормозапас. (дней):</b> " + feature.properties.КормоЗапас;
+              }
+              layer.bindPopup(popupContent, { autoClose: false }).openPopup();
+              layer.setStyle({
+                color: 'red', // Highlighted border color
+                weight: 2       // Highlighted border weight
+              });
+            });
+
+            // Add mouseout event to reset the shape style
+            layer.on('mouseout', function (e) {
+              layer.closePopup();
+              geoJsonLayer.resetStyle(layer);
+            });
+
+
+            // Add click event to display bar graph
+            layer.on('click', function (e) {
+              L.DomEvent.stop(e);
+
+              // Create a new popup
+              var popup = createPopUp(e);
+
+              // Set the content of the popup using the generated bar graph content
+              popup.setContent(generateBarGraphContent(feature.properties, index));
+
+              // Bind the popup to the clicked layer and open it
+              layer.bindPopup(popup).openPopup();
+            });
+
+
+          }
+        });
+
+        // Add the GeoJSON layer to the map
+        geoJsonLayer.addTo(map);
+
+
+    }
+
+
+
+</script>
+
+
+{% endblock %}
